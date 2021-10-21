@@ -1,26 +1,25 @@
-use std::{
-    cmp::{Ord, Ordering, PartialOrd},
-    fmt,
-    marker::PhantomData,
-    ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Sub, SubAssign},
-    io::{Read, Write, Result as IoResult},
-};
 use rand::{
     distributions::{Distribution, Standard},
     Rng,
 };
-
-use crate::{
-    bytes::{FromBytes, ToBytes},
-    bits::{FromBits, ToBits},
-    fields::{Field, FpParameters, LegendreSymbol, PrimeField, SquareRootField},
-    UniformRand, Error, SemanticallyValid,
-    CanonicalSerialize, Flags,
-    SerializationError, CanonicalSerializeWithFlags, CanonicalDeserialize,
-    CanonicalDeserializeWithFlags, EmptyFlags
+use std::{
+    cmp::{Ord, Ordering, PartialOrd},
+    fmt,
+    io::{Read, Result as IoResult, Write},
+    marker::PhantomData,
+    ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Sub, SubAssign},
 };
+
 use crate::biginteger::arithmetic::find_wnaf;
-use serde::{Serialize, Deserialize};
+use crate::{
+    bits::{FromBits, ToBits},
+    bytes::{FromBytes, ToBytes},
+    fields::{Field, FpParameters, LegendreSymbol, PrimeField, SquareRootField},
+    CanonicalDeserialize, CanonicalDeserializeWithFlags, CanonicalSerialize,
+    CanonicalSerializeWithFlags, EmptyFlags, Error, Flags, SemanticallyValid, SerializationError,
+    UniformRand,
+};
+use serde::{Deserialize, Serialize};
 
 /// Model for quadratic extension field of prime field F=Fp
 ///     F2 = F[X]/(X^2-alpha),
@@ -68,13 +67,13 @@ pub trait QuadExtParameters: 'static + Send + Sync + Sized {
 
 #[derive(Derivative)]
 #[derivative(
-Default(bound = "P: QuadExtParameters"),
-Hash(bound = "P: QuadExtParameters"),
-Clone(bound = "P: QuadExtParameters"),
-Copy(bound = "P: QuadExtParameters"),
-Debug(bound = "P: QuadExtParameters"),
-PartialEq(bound = "P: QuadExtParameters"),
-Eq(bound = "P: QuadExtParameters"),
+    Default(bound = "P: QuadExtParameters"),
+    Hash(bound = "P: QuadExtParameters"),
+    Clone(bound = "P: QuadExtParameters"),
+    Copy(bound = "P: QuadExtParameters"),
+    Debug(bound = "P: QuadExtParameters"),
+    PartialEq(bound = "P: QuadExtParameters"),
+    Eq(bound = "P: QuadExtParameters")
 )]
 #[derive(Serialize, Deserialize)]
 pub struct QuadExtField<P: QuadExtParameters> {
@@ -104,7 +103,6 @@ impl<P: QuadExtParameters> QuadExtField<P> {
     pub fn unitary_inverse(&self) -> Self {
         Self::new(self.c0, -self.c1)
     }
-
 
     // (signed) binary square and multiply for r-th roots of unity
     // used for the final exponentiation in the Ate pairing
@@ -168,7 +166,7 @@ impl<P: QuadExtParameters> Field for QuadExtField<P> {
     }
 
     fn is_odd(&self) -> bool {
-        self.c1.is_odd() || ( self.c1.is_zero() && self.c0.is_odd())
+        self.c1.is_odd() || (self.c1.is_zero() && self.c0.is_odd())
     }
 
     #[inline]
@@ -251,7 +249,7 @@ impl<P: QuadExtParameters> Field for QuadExtField<P> {
         let split_at = bytes.len() / 2;
         if let Some(c0) = P::BaseField::from_random_bytes(&bytes[..split_at]) {
             if let Some((c1, flags)) =
-            P::BaseField::from_random_bytes_with_flags(&bytes[split_at..])
+                P::BaseField::from_random_bytes_with_flags(&bytes[split_at..])
             {
                 return Some((QuadExtField::new(c0, c1), flags));
             }
@@ -266,8 +264,8 @@ impl<P: QuadExtParameters> Field for QuadExtField<P> {
 }
 
 impl<'a, P: QuadExtParameters> SquareRootField for QuadExtField<P>
-    where
-        P::BaseField: SquareRootField,
+where
+    P::BaseField: SquareRootField,
 {
     fn legendre(&self) -> LegendreSymbol {
         self.norm().legendre()
@@ -284,12 +282,8 @@ impl<'a, P: QuadExtParameters> SquareRootField for QuadExtField<P>
             Zero => Some(*self),
             QuadraticNonResidue => None,
             QuadraticResidue => {
-                let two_inv = P::BaseField::one()
-                    .double()
-                    .inverse();
-                let alpha = self
-                    .norm()
-                    .sqrt();
+                let two_inv = P::BaseField::one().double().inverse();
+                let alpha = self.norm().sqrt();
                 if two_inv.is_none() || alpha.is_none() {
                     return None;
                 }
@@ -305,7 +299,10 @@ impl<'a, P: QuadExtParameters> SquareRootField for QuadExtField<P>
                 if c0_inv.is_none() {
                     return None;
                 }
-                Some(Self::new(c0.unwrap(), self.c1 * &two_inv.unwrap() * &c0_inv.unwrap()))
+                Some(Self::new(
+                    c0.unwrap(),
+                    self.c1 * &two_inv.unwrap() * &c0_inv.unwrap(),
+                ))
             }
         }
     }
@@ -338,8 +335,8 @@ impl<P: QuadExtParameters> PartialOrd for QuadExtField<P> {
 }
 
 impl<P: QuadExtParameters> From<u128> for QuadExtField<P>
-    where
-        P::BaseField: From<u128>,
+where
+    P::BaseField: From<u128>,
 {
     fn from(other: u128) -> Self {
         Self::new(other.into(), P::BaseField::zero())
@@ -347,8 +344,8 @@ impl<P: QuadExtParameters> From<u128> for QuadExtField<P>
 }
 
 impl<P: QuadExtParameters> From<u64> for QuadExtField<P>
-    where
-        P::BaseField: From<u64>,
+where
+    P::BaseField: From<u64>,
 {
     fn from(other: u64) -> Self {
         Self::new(other.into(), P::BaseField::zero())
@@ -356,8 +353,8 @@ impl<P: QuadExtParameters> From<u64> for QuadExtField<P>
 }
 
 impl<P: QuadExtParameters> From<u32> for QuadExtField<P>
-    where
-        P::BaseField: From<u32>,
+where
+    P::BaseField: From<u32>,
 {
     fn from(other: u32) -> Self {
         Self::new(other.into(), P::BaseField::zero())
@@ -365,8 +362,8 @@ impl<P: QuadExtParameters> From<u32> for QuadExtField<P>
 }
 
 impl<P: QuadExtParameters> From<u16> for QuadExtField<P>
-    where
-        P::BaseField: From<u16>,
+where
+    P::BaseField: From<u16>,
 {
     fn from(other: u16) -> Self {
         Self::new(other.into(), P::BaseField::zero())
@@ -374,8 +371,8 @@ impl<P: QuadExtParameters> From<u16> for QuadExtField<P>
 }
 
 impl<P: QuadExtParameters> From<u8> for QuadExtField<P>
-    where
-        P::BaseField: From<u8>,
+where
+    P::BaseField: From<u8>,
 {
     fn from(other: u8) -> Self {
         Self::new(other.into(), P::BaseField::zero())
@@ -404,13 +401,13 @@ impl<P: QuadExtParameters> ToBits for QuadExtField<P> {
         let mut bits = self.c0.write_bits();
         bits.extend_from_slice(self.c1.write_bits().as_slice());
         bits
-
     }
 }
 
 impl<P: QuadExtParameters> FromBits for QuadExtField<P> {
     fn read_bits(bits: Vec<bool>) -> Result<Self, Error> {
-        let size = (P::DEGREE_OVER_BASE_PRIME_FIELD/2) * <P::BasePrimeField as PrimeField>::Params::MODULUS_BITS as usize;
+        let size = (P::DEGREE_OVER_BASE_PRIME_FIELD / 2)
+            * <P::BasePrimeField as PrimeField>::Params::MODULUS_BITS as usize;
         let c0 = P::BaseField::read_bits(bits[..size].to_vec())?;
         let c1 = P::BaseField::read_bits(bits[size..].to_vec())?;
         Ok(QuadExtField::new(c0, c1))

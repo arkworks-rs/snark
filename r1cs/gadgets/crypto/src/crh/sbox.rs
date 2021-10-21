@@ -1,22 +1,21 @@
 use algebra::PrimeField;
-use r1cs_core::{
-    ConstraintSystem, SynthesisError
-};
 use primitives::SBox;
+use r1cs_core::{ConstraintSystem, SynthesisError};
 use r1cs_std::{
-    fields::{
-        fp::FpGadget, FieldGadget,
-    },
-    bits::boolean::Boolean,
     alloc::AllocGadget,
+    bits::boolean::Boolean,
     eq::EqGadget,
-    Assignment
+    fields::{fp::FpGadget, FieldGadget},
+    Assignment,
 };
 use std::marker::PhantomData;
 
 pub trait SBoxGadget<ConstraintF: PrimeField, SB: SBox<Field = ConstraintF>> {
     /// Enforce S(x)
-    fn apply<CS: ConstraintSystem<ConstraintF>>(cs: CS, x: &mut FpGadget<ConstraintF>) -> Result<(), SynthesisError>;
+    fn apply<CS: ConstraintSystem<ConstraintF>>(
+        cs: CS,
+        x: &mut FpGadget<ConstraintF>,
+    ) -> Result<(), SynthesisError>;
 }
 
 pub struct InverseSBoxGadget<ConstraintF: PrimeField, SB: SBox<Field = ConstraintF>> {
@@ -24,10 +23,14 @@ pub struct InverseSBoxGadget<ConstraintF: PrimeField, SB: SBox<Field = Constrain
     _sbox: PhantomData<SB>,
 }
 
-impl<ConstraintF: PrimeField, SB: SBox<Field = ConstraintF>> SBoxGadget<ConstraintF, SB> for InverseSBoxGadget<ConstraintF, SB> {
-
+impl<ConstraintF: PrimeField, SB: SBox<Field = ConstraintF>> SBoxGadget<ConstraintF, SB>
+    for InverseSBoxGadget<ConstraintF, SB>
+{
     // Enforce S(x) = X^-1 if X != 0 otherwise X
-    fn apply<CS: ConstraintSystem<ConstraintF>>(mut cs: CS, x: &mut FpGadget<ConstraintF>) -> Result<(), SynthesisError>{
+    fn apply<CS: ConstraintSystem<ConstraintF>>(
+        mut cs: CS,
+        x: &mut FpGadget<ConstraintF>,
+    ) -> Result<(), SynthesisError> {
         let b = Boolean::alloc(cs.ns(|| "alloc b"), || {
             let x_val = x.get_value().get()?;
             if x_val == ConstraintF::zero() {
@@ -65,14 +68,15 @@ pub struct QuinticSBoxGadget<ConstraintF: PrimeField, SB: SBox<Field = Constrain
     _sbox: PhantomData<SB>,
 }
 
-impl<ConstraintF: PrimeField, SB: SBox<Field = ConstraintF>> SBoxGadget<ConstraintF, SB> for QuinticSBoxGadget<ConstraintF, SB> {
-
+impl<ConstraintF: PrimeField, SB: SBox<Field = ConstraintF>> SBoxGadget<ConstraintF, SB>
+    for QuinticSBoxGadget<ConstraintF, SB>
+{
     // Enforce S(X) = X^5
-    fn apply<CS: ConstraintSystem<ConstraintF>>(mut cs: CS, x: &mut FpGadget<ConstraintF>) -> Result<(), SynthesisError>
-    {
-        let x4 = x
-            .square(cs.ns(|| "x^2"))?
-            .square(cs.ns(|| "x^4"))?;
+    fn apply<CS: ConstraintSystem<ConstraintF>>(
+        mut cs: CS,
+        x: &mut FpGadget<ConstraintF>,
+    ) -> Result<(), SynthesisError> {
+        let x4 = x.square(cs.ns(|| "x^2"))?.square(cs.ns(|| "x^4"))?;
         x.mul_in_place(cs.ns(|| "x^5"), &x4)?;
         Ok(())
     }

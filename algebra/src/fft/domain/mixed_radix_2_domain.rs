@@ -1,8 +1,8 @@
-use crate::{FpParameters, PrimeField};
 use crate::{multicore::Worker, EvaluationDomain};
+use crate::{FpParameters, PrimeField};
 use rayon::prelude::*;
-use std::fmt;
 use std::any::Any;
+use std::fmt;
 
 /// Defines a domain over which finite field (I)FFTs can be performed. Works
 /// only for fields that have a large multiplicative subgroup of size that is
@@ -14,17 +14,17 @@ use std::any::Any;
 #[derive(Copy, Clone, Hash, Eq, PartialEq, Default)]
 pub struct MixedRadix2Domain<F: PrimeField> {
     /// The size of the domain.
-    pub size:                  u64,
+    pub size: u64,
     /// `log_2(self.size)`.
-    pub log_size_of_group:     u32,
+    pub log_size_of_group: u32,
     /// Inverse of the size in the field.
-    pub size_inv:              F,
+    pub size_inv: F,
     /// A generator of the subgroup.
-    pub group_gen:             F,
+    pub group_gen: F,
     /// Inverse of the generator of the subgroup.
-    pub group_gen_inv:         F,
+    pub group_gen_inv: F,
     /// Multiplicative generator of the finite field.
-    pub generator_inv:         F,
+    pub generator_inv: F,
 }
 
 impl<F: PrimeField> fmt::Debug for MixedRadix2Domain<F> {
@@ -34,7 +34,6 @@ impl<F: PrimeField> fmt::Debug for MixedRadix2Domain<F> {
 }
 
 impl<F: PrimeField> MixedRadix2Domain<F> {
-
     pub fn new(num_coeffs: usize) -> Option<Self> {
         let q = F::Params::SMALL_SUBGROUP_BASE.unwrap();
 
@@ -45,7 +44,7 @@ impl<F: PrimeField> MixedRadix2Domain<F> {
                     let q_adicity = Self::k_adicity(q, size as u64);
                     let two_adicity = Self::k_adicity(2, size as u64);
                     (size as u64, size.trailing_zeros(), q_adicity, two_adicity)
-                },
+                }
                 _ => return None,
             };
 
@@ -57,7 +56,7 @@ impl<F: PrimeField> MixedRadix2Domain<F> {
         for _ in q_adicity..F::Params::SMALL_SUBGROUP_POWER.unwrap() {
             group_gen = group_gen.pow(&q_as_bigint);
         }
-        for _ in two_adicity..F::Params::TWO_ADICITY as u64{
+        for _ in two_adicity..F::Params::TWO_ADICITY as u64 {
             group_gen.square_in_place();
         }
         let size_as_bigint = F::BigInt::from(size);
@@ -66,7 +65,7 @@ impl<F: PrimeField> MixedRadix2Domain<F> {
 
         let group_gen_inv = group_gen.inverse()?;
         let generator_inv = F::multiplicative_generator().inverse()?;
-        Some(Self{
+        Some(Self {
             size,
             log_size_of_group,
             size_inv,
@@ -77,8 +76,7 @@ impl<F: PrimeField> MixedRadix2Domain<F> {
     }
 
     //Returns: min { n : N | n = 2^k * q^s, n >= num_coeffs, s <= small_subgroup_power, k <= TWO_ADICITY }
-    pub fn compute_size_of_domain(num_coeffs: usize) -> Option<usize>
-    {
+    pub fn compute_size_of_domain(num_coeffs: usize) -> Option<usize> {
         let mut best = std::u64::MAX;
         for b in 0..F::Params::SMALL_SUBGROUP_POWER.unwrap() + 1 {
             let mut r = F::Params::SMALL_SUBGROUP_BASE.unwrap().pow(b as u32);
@@ -87,7 +85,7 @@ impl<F: PrimeField> MixedRadix2Domain<F> {
                 r *= 2;
                 two_adicity += 1;
             }
-            if two_adicity <= F::Params::TWO_ADICITY{
+            if two_adicity <= F::Params::TWO_ADICITY {
                 best = best.min(r);
             }
         }
@@ -99,14 +97,17 @@ impl<F: PrimeField> MixedRadix2Domain<F> {
         let two_adicity = Self::k_adicity(2, best);
         let two_part = 1 << two_adicity;
 
-        if best != (two_part * q_part) || two_adicity > F::Params::TWO_ADICITY as u64 || q_adicity > F::Params::SMALL_SUBGROUP_POWER.unwrap() {
-            return None
+        if best != (two_part * q_part)
+            || two_adicity > F::Params::TWO_ADICITY as u64
+            || q_adicity > F::Params::SMALL_SUBGROUP_POWER.unwrap()
+        {
+            return None;
         }
 
         return Some(best as usize);
     }
 
-    fn k_adicity(k: u64, n: u64) -> u64{
+    fn k_adicity(k: u64, n: u64) -> u64 {
         let mut r = 0;
         let mut ctr = n.clone();
         while ctr > 1 {
@@ -124,17 +125,15 @@ impl<F: PrimeField> MixedRadix2Domain<F> {
     /// This FFT first splits into 2 sub-arrays two_adicity many times,
     /// And then splits into q sub-arrays q_adicity many times.
     pub(crate) fn mixed_serial_fft(a: &mut [F], omega: F, log_n: u32) {
-
         let n = a.len() as u64;
         let q = F::Params::SMALL_SUBGROUP_BASE.unwrap() as usize;
-        let n_over_q = F::BigInt::from(n/q as u64);
+        let n_over_q = F::BigInt::from(n / q as u64);
 
         let q_adicity = Self::k_adicity(q as u64, n);
         let two_adicity = Self::k_adicity(2, n);
         let mut m = 1; // invariant: m = 2^{s-1}
 
         if q_adicity > 0 {
-
             // If we're using the other radix, we have to do two things differently than in the radix 2 case.
             // 1. Applying the index permutation is a bit more complicated. It isn't an involution
             // (like it is in the radix 2 case) so we need to remember which elements we've moved as we go along
@@ -144,86 +143,77 @@ impl<F: PrimeField> MixedRadix2Domain<F> {
             // specialized q=2 case.
 
             // The algorithm reindexes the FFT domain C by reversing the digits of the mixed-radix representation
-            // x = (b_0 + b_1*2 + ... + b_{two_adicity-1}* 2^{two_adicity-1} 
+            // x = (b_0 + b_1*2 + ... + b_{two_adicity-1}* 2^{two_adicity-1}
             //        +  2^{two_adicity} (x_0  + x_1*q+..+ x_{q_adicity -1}*q^{q_adicity - 1}),
             // see the mixed_radix_fft_permute() below.
-            
+
             // Applying the permutation
             let mut seen = vec![false; n as usize];
-            for k in 0..n
-                {
-                    let mut i = k as usize;
-                    let mut a_i = a[i];
-                    while !seen[i]
-                        {
-                            let dest = Self::mixed_radix_fft_permute(two_adicity, q_adicity, q as u64, n, i);
-                            let a_dest = a[dest];
-                            a[dest] = a_i;
+            for k in 0..n {
+                let mut i = k as usize;
+                let mut a_i = a[i];
+                while !seen[i] {
+                    let dest =
+                        Self::mixed_radix_fft_permute(two_adicity, q_adicity, q as u64, n, i);
+                    let a_dest = a[dest];
+                    a[dest] = a_i;
 
-                            seen[i] = true;
+                    seen[i] = true;
 
-                            a_i = a_dest;
-                            i = dest;
-                        }
+                    a_i = a_dest;
+                    i = dest;
                 }
+            }
 
-            // We recursively compute the FFTs over the cosets of C_{q*m} from the 
-            // FFTs over the cosets of C_m, starting with m=1. 
-            // With this convention, 
-            //          new_a[k' || i || j ] =  Sum_{l=0..q}  w^{ (i*m + j) * l} * a[k' || l || j] 
-            // where w is a generator of C_{q*m} (and hence w^{m*i*l} is a q-th 
-            // unit root 
+            // We recursively compute the FFTs over the cosets of C_{q*m} from the
+            // FFTs over the cosets of C_m, starting with m=1.
+            // With this convention,
+            //          new_a[k' || i || j ] =  Sum_{l=0..q}  w^{ (i*m + j) * l} * a[k' || l || j]
+            // where w is a generator of C_{q*m} (and hence w^{m*i*l} is a q-th
+            // unit root
             //          qth_roots[i*l mod q] = g^{n/q* i*l}).
             let omega_q = omega.pow(n_over_q);
             let mut qth_roots = vec![F::one(); q];
-            for i in 1..q
-                {
-                    qth_roots[i] = qth_roots[i-1] * &omega_q;
-                }
+            for i in 1..q {
+                qth_roots[i] = qth_roots[i - 1] * &omega_q;
+            }
 
-            let mut terms = vec![F::one(); q-1];
+            let mut terms = vec![F::one(); q - 1];
 
-            for _ in 0..q_adicity
-                {
-                    let n_over_q_times_m = F::BigInt::from(n/((q*m) as u64));
-                    // w_m is the generator of the cyclic subgroup C_{q*m}
-                    let w_m = omega.pow(n_over_q_times_m);
-                    let mut k = 0;
-                    // k enumerates the partition of C_n into cosets of C_{q*m}
-                    while k < (n as usize)
-                        {
-                            let mut w_j = F::one(); // w_j keeps track of omega_m ^ j
-                            // compute the FFT for the coset C_{q*m} at k.
-                            for j in 0..m
-                                {
-                                    //  terms[i-1] = w^{i*j} * a[k || i || j], i= 1..q
-                                    let base_term = a[k+j];
-                                    let mut w_j_i = w_j.clone(); // w_j_i keeps track of the powers w^{j*i}
-                                    for i in 1..q
-                                        {
-                                            terms[i - 1] = w_j_i * &a[k+j+(i*m)];
-                                            w_j_i *= &w_j;
-                                        }
-
-                                    for i in 0..q
-                                        {
-                                            //  a[k || i || j] <-  Sum_{l=0..q}  w^{ (i*m + j) * l} * a[k' || l || j] =
-                                            //                  =  Sum_{l=0..q} qth_roots[(i*l)%q] * w^{ (l * j} * a[k' || l || j]
-                                            a[k+j+(i*m)] = base_term;
-                                            for l in 1..q
-                                                {
-                                                    a[k+j+(i*m)] += &(qth_roots[(i*l)%q] * &terms[l-1]);
-                                                }
-                                        }
-                                    w_j *= &w_m;
-                                }
-                            // choose next coset of C_{q*m}    
-                            k += q*m ;
+            for _ in 0..q_adicity {
+                let n_over_q_times_m = F::BigInt::from(n / ((q * m) as u64));
+                // w_m is the generator of the cyclic subgroup C_{q*m}
+                let w_m = omega.pow(n_over_q_times_m);
+                let mut k = 0;
+                // k enumerates the partition of C_n into cosets of C_{q*m}
+                while k < (n as usize) {
+                    let mut w_j = F::one(); // w_j keeps track of omega_m ^ j
+                                            // compute the FFT for the coset C_{q*m} at k.
+                    for j in 0..m {
+                        //  terms[i-1] = w^{i*j} * a[k || i || j], i= 1..q
+                        let base_term = a[k + j];
+                        let mut w_j_i = w_j.clone(); // w_j_i keeps track of the powers w^{j*i}
+                        for i in 1..q {
+                            terms[i - 1] = w_j_i * &a[k + j + (i * m)];
+                            w_j_i *= &w_j;
                         }
-                    m *= q;
+
+                        for i in 0..q {
+                            //  a[k || i || j] <-  Sum_{l=0..q}  w^{ (i*m + j) * l} * a[k' || l || j] =
+                            //                  =  Sum_{l=0..q} qth_roots[(i*l)%q] * w^{ (l * j} * a[k' || l || j]
+                            a[k + j + (i * m)] = base_term;
+                            for l in 1..q {
+                                a[k + j + (i * m)] += &(qth_roots[(i * l) % q] * &terms[l - 1]);
+                            }
+                        }
+                        w_j *= &w_m;
+                    }
+                    // choose next coset of C_{q*m}
+                    k += q * m;
                 }
-        }
-        else{
+                m *= q;
+            }
+        } else {
             #[inline]
             fn bitreverse(mut n: u32, l: u32) -> u32 {
                 let mut r = 0;
@@ -244,7 +234,7 @@ impl<F: PrimeField> MixedRadix2Domain<F> {
         }
 
         //2-adic part
-        for _ in 0..two_adicity{
+        for _ in 0..two_adicity {
             let w_m = omega.pow(&[(n / (2 * m as u64))]); // w_m is 2^s-th root of unity now
             let mut k = 0;
             while k < n as usize {
@@ -276,22 +266,27 @@ impl<F: PrimeField> MixedRadix2Domain<F> {
     /// We want to return
     /// j = b_0 (N/2) + b_1 (N/ 2^2) + ... + b_{two_adicity-1} (N/ 2^two_adicity)
     ///     + x_0 (N / 2^two_adicity / q) + .. + x_{q_adicity-1} (N / 2^two_adicity / q^q_adicity)
-    fn mixed_radix_fft_permute(two_adicity: u64, q_adicity: u64, q: u64, n: u64, idx: usize) -> usize
-    {
+    fn mixed_radix_fft_permute(
+        two_adicity: u64,
+        q_adicity: u64,
+        q: u64,
+        n: u64,
+        idx: usize,
+    ) -> usize {
         let mut res = 0;
         let mut shift = n;
         let mut i = idx as u64;
 
-        for _ in 0..two_adicity{
-            shift = shift/2;
+        for _ in 0..two_adicity {
+            shift = shift / 2;
             res += (i % 2) * shift;
-            i = i/2;
+            i = i / 2;
         }
 
-        for _ in 0..q_adicity{
-            shift = shift/q;
+        for _ in 0..q_adicity {
+            shift = shift / q;
             res += (i % q) * shift;
-            i = i/q;
+            i = i / q;
         }
 
         return res as usize;
@@ -304,19 +299,17 @@ impl<F: PrimeField> MixedRadix2Domain<F> {
         log_n: u32,
         log_cpus: u32,
     ) {
-
         let num_cpus = 1 << log_cpus;
         let m = a.len();
         let two_adicity = Self::k_adicity(2, m as u64);
         let two_part = 1 << two_adicity;
 
-        if two_part < num_cpus as u64
-        {
+        if two_part < num_cpus as u64 {
             Self::mixed_serial_fft(a, omega, log_n);
             return;
         }
 
-        let log_new_n = m/num_cpus;
+        let log_new_n = m / num_cpus;
 
         let mut tmp = vec![vec![F::zero(); log_new_n]; num_cpus];
         let new_omega = omega.pow(&[num_cpus as u64]);
@@ -328,7 +321,7 @@ impl<F: PrimeField> MixedRadix2Domain<F> {
                 scope.spawn(move |_| {
                     // Shuffle into a sub-FFT
                     let omega_j = omega.pow(&[j as u64]);
-                    let omega_step = omega.pow(&[(j*log_new_n) as u64]);
+                    let omega_step = omega.pow(&[(j * log_new_n) as u64]);
 
                     let mut elt = F::one();
                     for i in 0..log_new_n {
@@ -346,7 +339,6 @@ impl<F: PrimeField> MixedRadix2Domain<F> {
                 });
             }
         });
-
 
         worker.scope(a.len(), |scope, chunk| {
             let tmp = &tmp;
@@ -378,7 +370,6 @@ impl<F: PrimeField> MixedRadix2Domain<F> {
         });
     }
 
-
     fn best_fft(a: &mut [F], _worker: &Worker, omega: F, log_n: u32) {
         let log_cpus = _worker.log_num_cpus();
 
@@ -386,12 +377,11 @@ impl<F: PrimeField> MixedRadix2Domain<F> {
             return Self::mixed_serial_fft(a, omega, log_n);
         } else {
             return Self::mixed_parallel_fft(a, _worker, omega, log_n, log_cpus);
-        }    
+        }
     }
 }
 
 impl<F: PrimeField> EvaluationDomain<F> for MixedRadix2Domain<F> {
-
     fn size(&self) -> usize {
         self.size.clone() as usize
     }
@@ -436,11 +426,14 @@ impl<F: PrimeField> EvaluationDomain<F> for MixedRadix2Domain<F> {
         Self::distribute_powers(evals, self.generator_inv);
     }
 
-    fn eq(&self, other: & dyn EvaluationDomain<F>) -> bool {
-        other.as_any().downcast_ref::<Self>().map_or(false, |x| x == self)
+    fn eq(&self, other: &dyn EvaluationDomain<F>) -> bool {
+        other
+            .as_any()
+            .downcast_ref::<Self>()
+            .map_or(false, |x| x == self)
     }
 
-    fn as_any(&self) -> & dyn Any {
+    fn as_any(&self) -> &dyn Any {
         self
     }
 

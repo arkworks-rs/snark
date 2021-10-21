@@ -1,19 +1,15 @@
 #[macro_use]
 extern crate criterion;
 
-use algebra::{
-    fields::bn_382::Fr,
-    curves::bn_382::Bn382,
-    UniformRand, PrimeField, Field,
-};
-use r1cs_core::{SynthesisError, ConstraintSynthesizer, ConstraintSystem, LinearCombination};
-use proof_systems::groth16::{generate_random_parameters, create_random_proof};
+use algebra::{curves::bn_382::Bn382, fields::bn_382::Fr, Field, PrimeField, UniformRand};
+use proof_systems::groth16::{create_random_proof, generate_random_parameters};
+use r1cs_core::{ConstraintSynthesizer, ConstraintSystem, LinearCombination, SynthesisError};
 
 use rand::SeedableRng;
 use rand_xorshift::XorShiftRng;
 
-use criterion::{BenchmarkId, BatchSize};
 use criterion::Criterion;
+use criterion::{BatchSize, BenchmarkId};
 
 use std::marker::PhantomData;
 
@@ -44,8 +40,8 @@ impl<F: PrimeField> ConstraintSynthesizer<F> for Benchmark<F> {
             let new_entry = {
                 let (input_1_val, input_1_var) = variables[i];
                 let (input_2_val, input_2_var) = variables[i + 1];
-                let result_val = input_1_val
-                    .and_then(|input_1| input_2_val.map(|input_2| input_1 * &input_2));
+                let result_val =
+                    input_1_val.and_then(|input_1| input_2_val.map(|input_2| input_1 * &input_2));
                 let result_var = cs.alloc(
                     || format!("Result {}", i),
                     || result_val.ok_or(SynthesisError::AssignmentMissing),
@@ -66,7 +62,7 @@ impl<F: PrimeField> ConstraintSynthesizer<F> for Benchmark<F> {
 
 pub struct BenchmarkHighDensities<F: Field> {
     num_constraints: usize,
-    _engine:         PhantomData<F>,
+    _engine: PhantomData<F>,
 }
 
 impl<F: Field> ConstraintSynthesizer<F> for BenchmarkHighDensities<F> {
@@ -144,66 +140,92 @@ impl<F: Field> ConstraintSynthesizer<F> for BenchmarkHighDensities<F> {
     }
 }
 
-fn bench_prover_circuit_high_densities(c: &mut Criterion){
+fn bench_prover_circuit_high_densities(c: &mut Criterion) {
     let mut rng = XorShiftRng::seed_from_u64(1234567890u64);
     let mut group = c.benchmark_group("bench gro16 prover varying the number of constraints");
 
     let num_constraints = (15..=23).map(|i| 2usize.pow(i) - 3).collect::<Vec<_>>();
 
-    for &num_constraints in num_constraints.iter()
-        {
-            println!("************************{}************************", num_constraints);
-            let params = {
-                let c = BenchmarkHighDensities::<Fr>{ num_constraints, _engine: PhantomData };
-                generate_random_parameters::<Bn382, _, _>(c, &mut rng).unwrap()
+    for &num_constraints in num_constraints.iter() {
+        println!(
+            "************************{}************************",
+            num_constraints
+        );
+        let params = {
+            let c = BenchmarkHighDensities::<Fr> {
+                num_constraints,
+                _engine: PhantomData,
             };
+            generate_random_parameters::<Bn382, _, _>(c, &mut rng).unwrap()
+        };
 
-            group.bench_with_input(BenchmarkId::from_parameter(num_constraints), &num_constraints, |bn, _constraints| {
-                bn.iter(
-                    || {
-                        let c = BenchmarkHighDensities::<Fr>{ num_constraints, _engine: PhantomData };
-                        create_random_proof(c, &params, &mut rng).unwrap();
-                    },
-                );
-            });
-        }
+        group.bench_with_input(
+            BenchmarkId::from_parameter(num_constraints),
+            &num_constraints,
+            |bn, _constraints| {
+                bn.iter(|| {
+                    let c = BenchmarkHighDensities::<Fr> {
+                        num_constraints,
+                        _engine: PhantomData,
+                    };
+                    create_random_proof(c, &params, &mut rng).unwrap();
+                });
+            },
+        );
+    }
     group.finish();
 }
 
-fn bench_prover_circuit(c: &mut Criterion){
+fn bench_prover_circuit(c: &mut Criterion) {
     let mut rng = XorShiftRng::seed_from_u64(1234567890u64);
-    let mut group = c.benchmark_group("bench gro16 prover varying the number of constraints high densities");
+    let mut group =
+        c.benchmark_group("bench gro16 prover varying the number of constraints high densities");
 
     let num_inputs = 2;
-    let num_constraints = (15..=23).map(|i| 2usize.pow(i) - (num_inputs + 1)).collect::<Vec<_>>();
+    let num_constraints = (15..=23)
+        .map(|i| 2usize.pow(i) - (num_inputs + 1))
+        .collect::<Vec<_>>();
 
-    for &num_constraints in num_constraints.iter()
-        {
-            println!("************************{}************************", num_constraints);
-            let params = {
-                let c = Benchmark::<Fr>{ num_constraints, inputs: vec![None; num_inputs] };
-                generate_random_parameters::<Bn382, _, _>(c, &mut rng).unwrap()
+    for &num_constraints in num_constraints.iter() {
+        println!(
+            "************************{}************************",
+            num_constraints
+        );
+        let params = {
+            let c = Benchmark::<Fr> {
+                num_constraints,
+                inputs: vec![None; num_inputs],
             };
+            generate_random_parameters::<Bn382, _, _>(c, &mut rng).unwrap()
+        };
 
-            group.bench_with_input(BenchmarkId::from_parameter(num_constraints), &num_constraints, |bn, _constraints| {
+        group.bench_with_input(
+            BenchmarkId::from_parameter(num_constraints),
+            &num_constraints,
+            |bn, _constraints| {
                 bn.iter_batched(
                     || {
                         let mut rng = XorShiftRng::seed_from_u64(num_constraints as u64);
                         let mut v = Vec::with_capacity(num_inputs);
-                        for _ in 0..num_inputs { v.push(Some(Fr::rand(&mut rng)))}
+                        for _ in 0..num_inputs {
+                            v.push(Some(Fr::rand(&mut rng)))
+                        }
                         v
                     },
                     |v| {
-                        let c = Benchmark::<Fr>{ num_constraints, inputs: v };
+                        let c = Benchmark::<Fr> {
+                            num_constraints,
+                            inputs: v,
+                        };
                         create_random_proof(c, &params, &mut rng).unwrap();
                     },
-                    BatchSize::PerIteration
+                    BatchSize::PerIteration,
                 );
-            });
-        }
+            },
+        );
+    }
     group.finish();
 }
-
 
 criterion_group!(
 name = gro16_bench;

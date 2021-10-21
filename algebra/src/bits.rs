@@ -15,7 +15,7 @@ pub trait ToCompressedBits {
     fn compress(&self) -> Vec<bool>;
 }
 
-pub trait FromCompressedBits: Sized  {
+pub trait FromCompressedBits: Sized {
     fn decompress(compressed: Vec<bool>) -> Result<Self, Error>;
 }
 
@@ -34,9 +34,13 @@ impl std::fmt::Display for BitSerializationError {
         let msg = match self {
             BitSerializationError::InvalidFieldElement(s) => s.to_owned(),
             BitSerializationError::UndefinedSqrt => "square root doesn't exist in field".to_owned(),
-            BitSerializationError::NotPrimeOrder => "point is not in the prime order subgroup".to_owned(),
+            BitSerializationError::NotPrimeOrder => {
+                "point is not in the prime order subgroup".to_owned()
+            }
             BitSerializationError::NotOnCurve => "point is not on curve".to_owned(),
-            BitSerializationError::NotInCorrectSubgroup => "point is not in the correct subgroup".to_owned(),
+            BitSerializationError::NotInCorrectSubgroup => {
+                "point is not in the correct subgroup".to_owned()
+            }
             BitSerializationError::InvalidFlags => "illegal flags combination".to_owned(),
         };
         write!(f, "{}", msg)

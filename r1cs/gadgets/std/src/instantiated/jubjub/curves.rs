@@ -1,8 +1,5 @@
 use crate::groups::curves::twisted_edwards::AffineGadget;
-use algebra::{
-    fields::jubjub::fq::Fq,
-    curves::jubjub::JubJubParameters,
-};
+use algebra::{curves::jubjub::JubJubParameters, fields::jubjub::fq::Fq};
 
 use crate::jubjub::FqGadget;
 

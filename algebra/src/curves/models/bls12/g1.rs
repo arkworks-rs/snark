@@ -1,11 +1,15 @@
-use crate::{bytes::ToBytes, curves::{
-    bls12::Bls12Parameters,
-    short_weierstrass_jacobian::{GroupAffine, GroupProjective},
-    AffineCurve,
-}, FromBytes};
-use std::io::{Result as IoResult, Write, Read};
+use crate::{
+    bytes::ToBytes,
+    curves::{
+        bls12::Bls12Parameters,
+        short_weierstrass_jacobian::{GroupAffine, GroupProjective},
+        AffineCurve,
+    },
+    FromBytes,
+};
+use serde::{Deserialize, Serialize};
 use std::io;
-use serde::{Serialize, Deserialize};
+use std::io::{Read, Result as IoResult, Write};
 
 pub type G1Affine<P> = GroupAffine<<P as Bls12Parameters>::G1Parameters>;
 pub type G1Projective<P> = GroupProjective<<P as Bls12Parameters>::G1Parameters>;

@@ -1,14 +1,13 @@
 use crate::{
     curves::{
         models::{ModelParameters, SWModelParameters},
-        PairingEngine
+        PairingEngine,
     },
     fields::{
         fp12_2over3over2::{Fp12, Fp12Parameters, Fp12ParamsWrapper},
         fp2::Fp2Parameters,
         fp6_3over2::Fp6Parameters,
-        Field, Fp2, PrimeField, SquareRootField,
-        QuadExtParameters
+        Field, Fp2, PrimeField, QuadExtParameters, SquareRootField,
     },
     Error,
 };
@@ -85,8 +84,7 @@ impl<P: BnParameters> Bn<P> {
     }
 }
 
-impl<P: BnParameters> PairingEngine for Bn<P>
-{
+impl<P: BnParameters> PairingEngine for Bn<P> {
     type Fr = <P::G1Parameters as ModelParameters>::ScalarField;
     type G1Projective = G1Projective<P>;
     type G1Affine = G1Affine<P>;
@@ -211,7 +209,7 @@ impl<P: BnParameters> PairingEngine for Bn<P>
                 let y16 = y15 * &y14;
 
                 Ok(y16)
-            },
+            }
             None => Err(format!("f is zero"))?,
         }
     }

@@ -1,9 +1,10 @@
 use crate::{
-    fields::bn_382::{Fq, Fq2, Fq2Parameters},
     biginteger::BigInteger384 as BigInteger,
-    Field, field_new,
+    field_new,
+    fields::bn_382::{Fq, Fq2, Fq2Parameters},
     fp2::Fp2Parameters,
     fp6_3over2::{Fp6, Fp6Parameters},
+    Field,
 };
 
 pub type Fq6 = Fp6<Fq6Parameters>;
@@ -251,4 +252,3 @@ impl Fp6Parameters for Fq6Parameters {
         Fq2::new(c0, c1)
     }
 }
-

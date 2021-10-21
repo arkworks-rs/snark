@@ -1,9 +1,7 @@
-use algebra::{
-    Field, bytes::ToBytes
-};
+use algebra::{bytes::ToBytes, Field};
 use rand::Rng;
+use serde::{Deserialize, Serialize};
 use std::hash::Hash;
-use serde::{Serialize, Deserialize};
 
 pub mod bowe_hopwood;
 pub mod injective_map;
@@ -15,7 +13,7 @@ pub use self::sbox::*;
 pub mod poseidon;
 pub use self::poseidon::*;
 
-use crate::{Error, CryptoError};
+use crate::{CryptoError, Error};
 use rayon::prelude::*;
 
 pub trait FixedLengthCRH {
@@ -49,9 +47,9 @@ pub trait FieldBasedHash {
 
     /// Initialize a Field Hash accepting inputs of variable length.
     /// It is able to serve two different modes, selected by the boolean `mod_rate`:
-    /// - `mod_rate` = False is for the ususal variable length hash, whereas 
+    /// - `mod_rate` = False is for the ususal variable length hash, whereas
     /// - `mod_rate` = True allows the input only to be a multiple of the rate (and hence
-    /// should throw an error when trying to finalize with a non-multiple of rate input). 
+    /// should throw an error when trying to finalize with a non-multiple of rate input).
     /// This mode allows an optimized handling of padding, saving constraints in SNARK applications;
     fn init_variable_length(mod_rate: bool, personalization: Option<&[Self::Data]>) -> Self;
 
@@ -68,12 +66,8 @@ pub trait FieldBasedHash {
 
 /// Helper allowing to hash the implementor of this trait into a Field
 pub trait FieldHasher<F: Field, H: FieldBasedHash<Data = F>> {
-
     /// Hash `self`, given some optional `personalization` into a Field
-    fn hash(
-        &self,
-        personalization: Option<&[H::Data]>
-    ) -> Result<H::Data, Error>;
+    fn hash(&self, personalization: Option<&[H::Data]>) -> Result<H::Data, Error>;
 }
 
 pub trait BatchFieldBasedHash {
@@ -91,20 +85,29 @@ pub trait BatchFieldBasedHash {
     /// of aggregated hash but it's actually the hash result of each of the inputs, grouped in
     /// hash_rate chunks.
     fn batch_evaluate(input_array: &[Self::Data]) -> Result<Vec<Self::Data>, Error> {
-
         let rate = <<Self::BaseHash as FieldBasedHash>::Parameters as FieldBasedHashParameters>::R;
         if input_array.len() % rate != 0 {
-            return Err(Box::new(CryptoError::Other("The length of the input data array is not a multiple of the rate".to_owned())));
+            return Err(Box::new(CryptoError::Other(
+                "The length of the input data array is not a multiple of the rate".to_owned(),
+            )));
         }
         if input_array.len() == 0 {
-            return Err(Box::new(CryptoError::Other("Input data array does not contain any data".to_owned())));
+            return Err(Box::new(CryptoError::Other(
+                "Input data array does not contain any data".to_owned(),
+            )));
         }
 
-        Ok(input_array.par_chunks(rate).map(|chunk| {
-            let mut digest = <Self::BaseHash as FieldBasedHash>::init_constant_length(rate, None);
-            chunk.iter().for_each(|input| { digest.update(input.clone()); } );
-            digest.finalize().unwrap()
-        }).collect::<Vec<_>>())
+        Ok(input_array
+            .par_chunks(rate)
+            .map(|chunk| {
+                let mut digest =
+                    <Self::BaseHash as FieldBasedHash>::init_constant_length(rate, None);
+                chunk.iter().for_each(|input| {
+                    digest.update(input.clone());
+                });
+                digest.finalize().unwrap()
+            })
+            .collect::<Vec<_>>())
     }
 
     /// Given an `input_array` of size n * hash_rate, batches the computation of the n hashes
@@ -114,13 +117,20 @@ pub trait BatchFieldBasedHash {
     /// NOTE: The hashes are independent from each other, therefore the output is not some sort
     /// of aggregated hash but it's actually the hash result of each of the inputs, grouped in
     /// hash_rate chunks.
-    fn batch_evaluate_in_place(input_array: &mut[Self::Data], output_array: &mut[Self::Data]) -> Result<(), Error> {
+    fn batch_evaluate_in_place(
+        input_array: &mut [Self::Data],
+        output_array: &mut [Self::Data],
+    ) -> Result<(), Error> {
         let rate = <<Self::BaseHash as FieldBasedHash>::Parameters as FieldBasedHashParameters>::R;
         if input_array.len() % rate != 0 {
-            return Err(Box::new(CryptoError::Other("The length of the input data array is not a multiple of the rate".to_owned())));
+            return Err(Box::new(CryptoError::Other(
+                "The length of the input data array is not a multiple of the rate".to_owned(),
+            )));
         }
         if input_array.len() == 0 {
-            return Err(Box::new(CryptoError::Other("Input data array does not contain any data".to_owned())));
+            return Err(Box::new(CryptoError::Other(
+                "Input data array does not contain any data".to_owned(),
+            )));
         }
         if output_array.len() != input_array.len() / rate {
             return Err(Box::new(CryptoError::Other(format!(
@@ -130,10 +140,15 @@ pub trait BatchFieldBasedHash {
                 rate
             ))));
         }
-        input_array.par_chunks(rate).zip(output_array.par_iter_mut())
+        input_array
+            .par_chunks(rate)
+            .zip(output_array.par_iter_mut())
             .for_each(|(inputs, output)| {
-                let mut digest = <Self::BaseHash as FieldBasedHash>::init_constant_length(rate, None);
-                inputs.iter().for_each(|input| { digest.update(input.clone()); } );
+                let mut digest =
+                    <Self::BaseHash as FieldBasedHash>::init_constant_length(rate, None);
+                inputs.iter().for_each(|input| {
+                    digest.update(input.clone());
+                });
                 *output = digest.finalize().unwrap();
             });
         Ok(())
@@ -143,18 +158,14 @@ pub trait BatchFieldBasedHash {
 #[cfg(test)]
 mod test {
 
-    use algebra::{
-        fields::mnt4753::Fr as MNT4753Fr, Field, UniformRand
-    };
+    use algebra::{fields::mnt4753::Fr as MNT4753Fr, Field, UniformRand};
 
     use super::BatchFieldBasedHash;
-    use crate::crh::poseidon::{
-        MNT4PoseidonHash, MNT4BatchPoseidonHash
-    };
+    use crate::crh::poseidon::{MNT4BatchPoseidonHash, MNT4PoseidonHash};
 
-    use rand_xorshift::XorShiftRng;
-    use rand::SeedableRng;
     use crate::{FieldBasedHash, FieldBasedHashParameters};
+    use rand::SeedableRng;
+    use rand_xorshift::XorShiftRng;
 
     struct DummyMNT4BatchPoseidonHash;
 
@@ -172,21 +183,33 @@ mod test {
         let final_elem = inputs[inputs_len - 1].clone();
 
         digest.reset(None);
-        inputs.into_iter().take(inputs_len - 1).for_each(|fe| { digest.update(fe); });
+        inputs.into_iter().take(inputs_len - 1).for_each(|fe| {
+            digest.update(fe);
+        });
 
         // Test call to finalize() with too few inputs with respect to the declared size
         // results in an error.
-        assert!(digest.finalize().is_err(), "Success call to finalize despite smaller number of inputs");
+        assert!(
+            digest.finalize().is_err(),
+            "Success call to finalize despite smaller number of inputs"
+        );
 
         //Test finalize() being idempotent
         digest.update(final_elem);
         let output = digest.finalize().unwrap();
-        assert_eq!(output, digest.finalize().unwrap(), "Two subsequent calls to finalize gave different results");
+        assert_eq!(
+            output,
+            digest.finalize().unwrap(),
+            "Two subsequent calls to finalize gave different results"
+        );
 
         // Test call to finalize() with too much inputs with respect to the declared size
         // results in an error.
         digest.update(final_elem);
-        assert!(digest.finalize().is_err(), "Success call to finalize despite bigger number of inputs");
+        assert!(
+            digest.finalize().is_err(),
+            "Success call to finalize despite bigger number of inputs"
+        );
     }
 
     pub(crate) fn variable_length_field_based_hash_test<H: FieldBasedHash>(
@@ -205,22 +228,33 @@ mod test {
         if mod_rate {
             constant_length_field_based_hash_test(digest, inputs);
         } else {
-
             // Check padding is added correctly and that the hash is collision free when input
             // is not modulus rate
             let output = digest.finalize().unwrap();
             let padded_inputs = pad_inputs(inputs.clone());
             digest.reset(None);
-            padded_inputs.iter().for_each(|fe| { digest.update(fe.clone()); });
-            assert_ne!(output, digest.finalize().unwrap(), "Incorrect padding: collision detected");
+            padded_inputs.iter().for_each(|fe| {
+                digest.update(fe.clone());
+            });
+            assert_ne!(
+                output,
+                digest.finalize().unwrap(),
+                "Incorrect padding: collision detected"
+            );
 
             // Check padding is added correctly and that the hash is collision free also when input
             // happens to be modulus rate
             let output = digest.finalize().unwrap();
             let padded_inputs = pad_inputs(padded_inputs);
             digest.reset(None);
-            padded_inputs.into_iter().for_each(|fe| { digest.update(fe); });
-            assert_ne!(output, digest.finalize().unwrap(), "Incorrect padding: collision detected");
+            padded_inputs.into_iter().for_each(|fe| {
+                digest.update(fe);
+            });
+            assert_ne!(
+                output,
+                digest.finalize().unwrap(),
+                "Incorrect padding: collision detected"
+            );
         }
     }
 
@@ -237,14 +271,23 @@ mod test {
         }
 
         let batch_hash_output = MNT4BatchPoseidonHash::batch_evaluate(inputs.as_slice()).unwrap();
-        let dummy_batch_hash_output = DummyMNT4BatchPoseidonHash::batch_evaluate(inputs.as_slice()).unwrap();
+        let dummy_batch_hash_output =
+            DummyMNT4BatchPoseidonHash::batch_evaluate(inputs.as_slice()).unwrap();
         assert_eq!(batch_hash_output, dummy_batch_hash_output);
 
-        let mut batch_hash_output_new = vec![MNT4753Fr::zero(); num_inputs/rate];
-        let mut dummy_batch_hash_output_new = vec![MNT4753Fr::zero(); num_inputs/rate];
+        let mut batch_hash_output_new = vec![MNT4753Fr::zero(); num_inputs / rate];
+        let mut dummy_batch_hash_output_new = vec![MNT4753Fr::zero(); num_inputs / rate];
 
-        MNT4BatchPoseidonHash::batch_evaluate_in_place(inputs.as_mut_slice(), batch_hash_output_new.as_mut_slice()).unwrap();
-        DummyMNT4BatchPoseidonHash::batch_evaluate_in_place(inputs.as_mut_slice(), dummy_batch_hash_output_new.as_mut_slice()).unwrap();
+        MNT4BatchPoseidonHash::batch_evaluate_in_place(
+            inputs.as_mut_slice(),
+            batch_hash_output_new.as_mut_slice(),
+        )
+        .unwrap();
+        DummyMNT4BatchPoseidonHash::batch_evaluate_in_place(
+            inputs.as_mut_slice(),
+            dummy_batch_hash_output_new.as_mut_slice(),
+        )
+        .unwrap();
 
         assert_eq!(batch_hash_output_new, dummy_batch_hash_output_new);
         assert_eq!(batch_hash_output, batch_hash_output_new);

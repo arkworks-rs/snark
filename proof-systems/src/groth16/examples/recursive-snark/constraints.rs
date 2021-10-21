@@ -1,16 +1,13 @@
-// This example uses Groth16 over Coda's MNT cycle to wrap a base circuit (the "inner circuit") of 
-// specified number of inputs and constraints twice. 
-use algebra::{fields::FpParameters, Field, PrimeField, PairingEngine, ToConstraintField, ToBits};
+// This example uses Groth16 over Coda's MNT cycle to wrap a base circuit (the "inner circuit") of
+// specified number of inputs and constraints twice.
+use algebra::{fields::FpParameters, Field, PairingEngine, PrimeField, ToBits, ToConstraintField};
 
-use r1cs_crypto::nizk::{
-    NIZKVerifierGadget,
-    groth16::{
-        Groth16VerifierGadget, ProofGadget, VerifyingKeyGadget,
-        Groth16,
-    },
-};
 use proof_systems::groth16::{Parameters, Proof};
 use r1cs_core::{ConstraintSynthesizer, ConstraintSystem, SynthesisError};
+use r1cs_crypto::nizk::{
+    groth16::{Groth16, Groth16VerifierGadget, ProofGadget, VerifyingKeyGadget},
+    NIZKVerifierGadget,
+};
 use r1cs_std::{
     alloc::AllocGadget, bits::ToBitsGadget, boolean::Boolean, fields::fp::FpGadget,
     pairing::PairingGadget as PG,
@@ -39,7 +36,7 @@ type InnerProofSystem<C> = Groth16<
     InnerCircuit<<<C as CurvePair>::PairingEngineTick as PairingEngine>::Fr>,
     <<C as CurvePair>::PairingEngineTick as PairingEngine>::Fr,
 >;
-// Proof, key and verifier of a base proof are over the base field of the Tick, which is the scalar field 
+// Proof, key and verifier of a base proof are over the base field of the Tick, which is the scalar field
 // of the Tock.
 type InnerVerifierGadget<C> = Groth16VerifierGadget<
     <C as CurvePair>::PairingEngineTick,
@@ -63,7 +60,7 @@ type MiddleProofSystem<C> = Groth16<
     MiddleCircuit<C>,
     <<C as CurvePair>::PairingEngineTock as PairingEngine>::Fr,
 >;
-// Proof, key and verifier of the wrap are over the base field of the Tock, which is the scalar field 
+// Proof, key and verifier of the wrap are over the base field of the Tock, which is the scalar field
 // of the Tick.
 type MiddleVerifierGadget<C> = Groth16VerifierGadget<
     <C as CurvePair>::PairingEngineTock,
@@ -100,15 +97,15 @@ impl<F: Field> InnerCircuit<F> {
 
 // The inner circuit is designed so that it produces typical timings for the Groth16 prover
 // but keeps the synthesizer costs low (no field inversions used):
-// Its R1CS has m= |num_inputs|+|num_constraints| variables, and n = num_constraints simple 
-// multiplication constraints (R1CS density = 1 for all matrices). All QAP polynomials 
-// u_i(X), v_i(X) and w_i(X) are non-trivial, hence the prover key overwhelmingly consists 
-// of non-trivial elements only. 
+// Its R1CS has m= |num_inputs|+|num_constraints| variables, and n = num_constraints simple
+// multiplication constraints (R1CS density = 1 for all matrices). All QAP polynomials
+// u_i(X), v_i(X) and w_i(X) are non-trivial, hence the prover key overwhelmingly consists
+// of non-trivial elements only.
 // The circuit accepts any vector of field elements as inputs, and extends this vector recursively
 // by setting each new variable as the product of its two previous ones. (This is done until the number
-// of constraints reaches the targeted one.) If the inputs are all non-zero, then all other 
-// witnesses are non-zero too, hence the computation of the proof elements A,B,C involve full 
-// length MSMs. 
+// of constraints reaches the targeted one.) If the inputs are all non-zero, then all other
+// witnesses are non-zero too, hence the computation of the proof elements A,B,C involve full
+// length MSMs.
 impl<F: Field> ConstraintSynthesizer<F> for InnerCircuit<F> {
     fn generate_constraints<CS: ConstraintSystem<F>>(
         self,
@@ -144,7 +141,7 @@ impl<F: Field> ConstraintSynthesizer<F> for InnerCircuit<F> {
 }
 
 pub struct MiddleCircuit<C: CurvePair> {
-    // the inputs for the base circuit are in the scalar field of the Tick, which are 
+    // the inputs for the base circuit are in the scalar field of the Tick, which are
     // non-native field elements for a Tock proof system
     inputs: Vec<<C::PairingEngineTick as PairingEngine>::Fr>,
     params: Parameters<C::PairingEngineTick>,
@@ -172,9 +169,7 @@ impl<C: CurvePair> MiddleCircuit<C> {
     ) -> Vec<<C::PairingEngineTock as PairingEngine>::Fr> {
         let input_bits = inputs
             .iter()
-            .flat_map(|input| {
-                input.write_bits()
-            })
+            .flat_map(|input| input.write_bits())
             .collect::<Vec<_>>();
 
         input_bits[..].to_field_elements().unwrap()
@@ -200,15 +195,14 @@ impl<C: CurvePair> ConstraintSynthesizer<<C::PairingEngineTock as PairingEngine>
             // Chain all input values in one large bit array.
             let input_bits = inputs
                 .into_iter()
-                .flat_map(|input| {
-                    input.write_bits()
-                })
+                .flat_map(|input| input.write_bits())
                 .collect::<Vec<_>>();
 
             // Allocate this bit array as input packed into field elements.
             let input_bits = Boolean::alloc_input_vec(cs.ns(|| "Input"), &input_bits[..])?;
 
-            let element_size = <<C::PairingEngineTick as PairingEngine>::Fr as PrimeField>::Params::MODULUS_BITS;
+            let element_size =
+                <<C::PairingEngineTick as PairingEngine>::Fr as PrimeField>::Params::MODULUS_BITS;
             input_gadgets = input_bits
                 .chunks(element_size as usize)
                 .map(|chunk| {

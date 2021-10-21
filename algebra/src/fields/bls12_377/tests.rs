@@ -1,3 +1,4 @@
+use crate::UniformRand;
 use crate::{
     biginteger::{BigInteger, BigInteger384},
     fields::{
@@ -6,9 +7,8 @@ use crate::{
         tests::{field_test, frobenius_test, primefield_test, sqrt_field_test},
         Field, Fp2Parameters, FpParameters, PrimeField, SquareRootField,
     },
-    ToBits, SemanticallyValid,
+    SemanticallyValid, ToBits,
 };
-use crate::UniformRand;
 use rand::SeedableRng;
 use rand_xorshift::XorShiftRng;
 use std::{
@@ -342,15 +342,11 @@ fn test_fq_num_bits() {
 
 #[test]
 fn test_convert_fq_fr() {
-    use crate::fields::{
-        convert, leading_zeros,
-        bls12_381::Fr,
-    };
+    use crate::fields::{bls12_381::Fr, convert, leading_zeros};
 
     let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
 
     for _ in 0..1000 {
-
         // Safely convert a random Fq into a Fr
         let q: Fq = UniformRand::rand(&mut rng);
         let q_bits = &q.write_bits()[125..]; //Skip 125 bits, in order to perform a safe conversion
@@ -367,7 +363,9 @@ fn test_convert_fq_fr() {
     loop {
         let q: Fq = UniformRand::rand(&mut rng);
         let q_bits = q.write_bits();
-        if leading_zeros(q_bits.as_slice()) >= 125 { continue } //In this case the assertion below will fail
+        if leading_zeros(q_bits.as_slice()) >= 125 {
+            continue;
+        } //In this case the assertion below will fail
         assert!(convert::<Fr>(q_bits).is_err()); //Fq is much more bigger than Fr
         break;
     }

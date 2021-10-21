@@ -4,14 +4,12 @@ use super::PairingGadget as PG;
 
 use crate::{
     fields::{
-        fp::FpGadget, fp12::Fp12Gadget, fp2::Fp2Gadget, FieldGadget,
-        quadratic_extension::QuadExtParametersGadget
+        fp::FpGadget, fp12::Fp12Gadget, fp2::Fp2Gadget,
+        quadratic_extension::QuadExtParametersGadget, FieldGadget,
     },
     groups::bn::{G1Gadget, G1PreparedGadget, G2Gadget, G2PreparedGadget},
 };
-use algebra::{
-    fields::fp12_2over3over2::Fp12ParamsWrapper, curves::bn::*,
-};
+use algebra::{curves::bn::*, fields::fp12_2over3over2::Fp12ParamsWrapper};
 use std::marker::PhantomData;
 
 pub struct PairingGadget<P: BnParameters>(PhantomData<P>);
@@ -64,8 +62,7 @@ impl<P: BnParameters> PairingGadget<P> {
     }
 }
 
-impl<P: BnParameters> PG<Bn<P>, P::Fp> for PairingGadget<P>
-{
+impl<P: BnParameters> PG<Bn<P>, P::Fp> for PairingGadget<P> {
     type G1Gadget = G1Gadget<P>;
     type G2Gadget = G2Gadget<P>;
     type G1PreparedGadget = G1PreparedGadget<P>;
@@ -102,13 +99,13 @@ impl<P: BnParameters> PG<Bn<P>, P::Fp> for PairingGadget<P>
                         let cs = cs.ns(|| format!("Addition input {}", k));
                         Self::ell(cs, &mut f, &coeffs.next().unwrap(), &p.0)?;
                     }
-                },
+                }
                 -1 => {
                     for (k, &mut (p, ref mut coeffs)) in pairs.iter_mut().enumerate() {
                         let cs = cs.ns(|| format!("Addition input {}", k));
                         Self::ell(cs, &mut f, &coeffs.next().unwrap(), &p.0)?;
                     }
-                },
+                }
                 _ => continue,
             }
         }
@@ -118,11 +115,21 @@ impl<P: BnParameters> PG<Bn<P>, P::Fp> for PairingGadget<P>
         }
 
         for (i, &mut (p, ref mut coeffs)) in pairs.iter_mut().enumerate() {
-            Self::ell(cs.ns(|| format!("Last addition step 1_{}", i)), &mut f, coeffs.next().unwrap(), &p.0)?;
+            Self::ell(
+                cs.ns(|| format!("Last addition step 1_{}", i)),
+                &mut f,
+                coeffs.next().unwrap(),
+                &p.0,
+            )?;
         }
 
         for (i, &mut (p, ref mut coeffs)) in pairs.iter_mut().enumerate() {
-            Self::ell(cs.ns(|| format!("Last addition step 2_{}", i)), &mut f, coeffs.next().unwrap(), &p.0)?;
+            Self::ell(
+                cs.ns(|| format!("Last addition step 2_{}", i)),
+                &mut f,
+                coeffs.next().unwrap(),
+                &p.0,
+            )?;
         }
 
         Ok(f)
@@ -167,11 +174,20 @@ impl<P: BnParameters> PG<Bn<P>, P::Fp> for PairingGadget<P>
             // result = elt^( 2z * ( 6z^2 + 3z + 1 ) * (q^4 - q^2 + 1)/r ).
 
             let y0 = Self::exp_by_neg_x(cs.ns(|| "exp_by_neg_x_1"), &r)?;
-            let y1 = Fp12ParamsWrapper::<P::Fp12Params>::cyclotomic_square_gadget(cs.ns(|| "square_1"), &y0)?;
-            let y2 = Fp12ParamsWrapper::<P::Fp12Params>::cyclotomic_square_gadget(cs.ns(|| "square_2"), &y1)?;
+            let y1 = Fp12ParamsWrapper::<P::Fp12Params>::cyclotomic_square_gadget(
+                cs.ns(|| "square_1"),
+                &y0,
+            )?;
+            let y2 = Fp12ParamsWrapper::<P::Fp12Params>::cyclotomic_square_gadget(
+                cs.ns(|| "square_2"),
+                &y1,
+            )?;
             let mut y3 = y2.mul(cs.ns(|| "y3 = y2 * y1"), &y1)?;
             let y4 = Self::exp_by_neg_x(cs.ns(|| "exp_by_neg_x_2"), &y3)?;
-            let y5 = Fp12ParamsWrapper::<P::Fp12Params>::cyclotomic_square_gadget(cs.ns(|| "square_3"), &y4)?;
+            let y5 = Fp12ParamsWrapper::<P::Fp12Params>::cyclotomic_square_gadget(
+                cs.ns(|| "square_3"),
+                &y4,
+            )?;
             let mut y6 = Self::exp_by_neg_x(cs.ns(|| "exp_by_neg_x_3"), &y5)?;
             y3.conjugate_in_place(cs.ns(|| "conjugate 1"))?;
             y6.conjugate_in_place(cs.ns(|| "conjugate_2"))?;

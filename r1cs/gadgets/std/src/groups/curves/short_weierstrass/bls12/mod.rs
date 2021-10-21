@@ -1,6 +1,7 @@
 use algebra::{
     curves::bls12::{Bls12Parameters, G1Prepared, TwistType},
-    fields::Field, BitIterator, ProjectiveCurve,
+    fields::Field,
+    BitIterator, ProjectiveCurve,
 };
 use r1cs_core::{ConstraintSystem, SynthesisError};
 
@@ -29,9 +30,7 @@ pub struct G1PreparedGadget<P: Bls12Parameters>(pub G1Gadget<P>);
 
 impl<P: Bls12Parameters> G1PreparedGadget<P> {
     pub fn get_value(&self) -> Option<G1Prepared<P>> {
-        Some(G1Prepared::from(
-            self.0.get_value().unwrap().into_affine(),
-        ))
+        Some(G1Prepared::from(self.0.get_value().unwrap().into_affine()))
     }
 
     pub fn from_affine<CS: ConstraintSystem<P::Fp>>(

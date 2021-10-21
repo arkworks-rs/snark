@@ -1,7 +1,5 @@
 use crate::{
-    bytes::{
-        ToBytes, FromBytes
-    },
+    bytes::{FromBytes, ToBytes},
     curves::{
         bn::BnParameters,
         short_weierstrass_jacobian::{GroupAffine, GroupProjective},
@@ -9,8 +7,8 @@ use crate::{
     },
 };
 
-use std::io::{Result as IoResult, Read, Write, Error, ErrorKind};
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
+use std::io::{Error, ErrorKind, Read, Result as IoResult, Write};
 
 pub type G1Affine<P> = GroupAffine<<P as BnParameters>::G1Parameters>;
 pub type G1Projective<P> = GroupProjective<<P as BnParameters>::G1Parameters>;
@@ -54,8 +52,8 @@ impl<P: BnParameters> ToBytes for G1Prepared<P> {
 
 impl<P: BnParameters> FromBytes for G1Prepared<P> {
     fn read<R: Read>(mut reader: R) -> IoResult<Self> {
-        let g1a = G1Affine::<P>::read(&mut reader)
-            .map_err(|e| Error::new(ErrorKind::InvalidData, e))?;
+        let g1a =
+            G1Affine::<P>::read(&mut reader).map_err(|e| Error::new(ErrorKind::InvalidData, e))?;
         Ok(G1Prepared(g1a))
     }
 }

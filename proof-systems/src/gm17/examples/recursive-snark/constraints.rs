@@ -1,20 +1,17 @@
-// This example uses Groth17 over Coda's MNT cycle to wrap a base circuit (the "inner circuit") of 
-// specified number of inputs and constraints twice. See the description of the Groth16 example for 
+// This example uses Groth17 over Coda's MNT cycle to wrap a base circuit (the "inner circuit") of
+// specified number of inputs and constraints twice. See the description of the Groth16 example for
 // details.
-use algebra::{fields::FpParameters, Field, PrimeField, PairingEngine, ToConstraintField, ToBits};
+use algebra::{fields::FpParameters, Field, PairingEngine, PrimeField, ToBits, ToConstraintField};
 
-use r1cs_crypto::nizk::{
-    NIZKVerifierGadget,
-    gm17::{
-        Gm17VerifierGadget, ProofGadget, VerifyingKeyGadget,
-        Gm17,
-    },
-};
 use proof_systems::gm17::{Parameters, Proof};
 use r1cs_core::{ConstraintSynthesizer, ConstraintSystem, SynthesisError};
+use r1cs_crypto::nizk::{
+    gm17::{Gm17, Gm17VerifierGadget, ProofGadget, VerifyingKeyGadget},
+    NIZKVerifierGadget,
+};
 use r1cs_std::{
     alloc::AllocGadget, bits::ToBitsGadget, boolean::Boolean, fields::fp::FpGadget,
-    pairing::PairingGadget as PG
+    pairing::PairingGadget as PG,
 };
 use std::marker::PhantomData;
 
@@ -152,9 +149,7 @@ impl<C: CurvePair> MiddleCircuit<C> {
     ) -> Vec<<C::PairingEngineTock as PairingEngine>::Fr> {
         let input_bits = inputs
             .iter()
-            .flat_map(|input| {
-                input.write_bits()
-            })
+            .flat_map(|input| input.write_bits())
             .collect::<Vec<_>>();
 
         input_bits[..].to_field_elements().unwrap()
@@ -178,15 +173,14 @@ impl<C: CurvePair> ConstraintSynthesizer<<C::PairingEngineTock as PairingEngine>
             // Chain all input values in one large bit array.
             let input_bits = inputs
                 .into_iter()
-                .flat_map(|input| {
-                    input.write_bits()
-                })
+                .flat_map(|input| input.write_bits())
                 .collect::<Vec<_>>();
 
             // Allocate this bit array as input packed into field elements.
             let input_bits = Boolean::alloc_input_vec(cs.ns(|| "Input"), &input_bits[..])?;
 
-            let element_size = <<C::PairingEngineTick as PairingEngine>::Fr as PrimeField>::Params::MODULUS_BITS;
+            let element_size =
+                <<C::PairingEngineTick as PairingEngine>::Fr as PrimeField>::Params::MODULUS_BITS;
             input_gadgets = input_bits
                 .chunks(element_size as usize)
                 .map(|chunk| {

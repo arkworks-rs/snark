@@ -1,5 +1,5 @@
 use algebra::{
-    fields::{QuadExtParameters, Fp2Parameters, Fp2ParamsWrapper},
+    fields::{Fp2Parameters, Fp2ParamsWrapper, QuadExtParameters},
     PrimeField, SquareRootField,
 };
 use r1cs_core::{ConstraintSystem, SynthesisError};
@@ -13,18 +13,16 @@ impl<P: Fp2Parameters<Fp = ConstraintF>, ConstraintF: PrimeField + SquareRootFie
 
     fn mul_base_field_gadget_by_nonresidue<CS: ConstraintSystem<ConstraintF>>(
         cs: CS,
-        fe: &Self::BaseFieldGadget
-    ) -> Result<Self::BaseFieldGadget, SynthesisError>
-    {
+        fe: &Self::BaseFieldGadget,
+    ) -> Result<Self::BaseFieldGadget, SynthesisError> {
         fe.mul_by_constant(cs, &Self::NONRESIDUE)
     }
 
     fn mul_base_field_gadget_by_frobenius_coeff<CS: ConstraintSystem<ConstraintF>>(
         cs: CS,
         c1: &mut Self::BaseFieldGadget,
-        power: usize
-    ) -> Result<(), SynthesisError>
-    {
+        power: usize,
+    ) -> Result<(), SynthesisError> {
         c1.mul_by_constant_in_place(cs, &Self::FROBENIUS_COEFF_C1[power % 2])?;
         Ok(())
     }
@@ -40,10 +38,9 @@ impl<P: Fp2Parameters<Fp = ConstraintF>, ConstraintF: PrimeField + SquareRootFie
         &mut self,
         mut cs: CS,
         fe: &FpGadget<P::Fp>,
-    ) -> Result<&mut Self, SynthesisError>
-    {
-        self.c0.mul_in_place(cs.ns(||"compute new_c0"), &fe)?;
-        self.c1.mul_in_place(cs.ns(||"compute new_c1"), &fe)?;
+    ) -> Result<&mut Self, SynthesisError> {
+        self.c0.mul_in_place(cs.ns(|| "compute new_c0"), &fe)?;
+        self.c1.mul_in_place(cs.ns(|| "compute new_c1"), &fe)?;
         Ok(self)
     }
 

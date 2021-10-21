@@ -1,6 +1,6 @@
-use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
-use std::io::{Read, Result as IoResult, Write, Error as IoError, ErrorKind};
 use crate::SemanticallyValid;
+use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
+use std::io::{Error as IoError, ErrorKind, Read, Result as IoResult, Write};
 
 pub trait ToBytes {
     /// Serializes `self` into `writer`.
@@ -8,24 +8,24 @@ pub trait ToBytes {
 }
 
 pub trait FromBytes: Sized {
-
     /// Reads `Self` from `reader`.
     fn read<R: Read>(reader: R) -> IoResult<Self>;
 }
 
 pub trait FromBytesChecked: Sized + FromBytes + SemanticallyValid {
-
     /// If `Self` implements `SemanticallyValid` trait, may be more efficient to
     /// perform semantic checks while deserializing, in order to return immediately
     /// in case of errors. The function passes if and only if `reader` represents
     /// a valid serialization of `Self`, and a semantically valid instance of `Self`.
-    fn read_checked<R: Read>(reader: R) -> IoResult<Self>
-    {
+    fn read_checked<R: Read>(reader: R) -> IoResult<Self> {
         let read = Self::read(reader)?;
         if read.is_valid() {
             Ok(read)
         } else {
-            Err(IoError::new(ErrorKind::InvalidData, "Semantic checks failed"))
+            Err(IoError::new(
+                ErrorKind::InvalidData,
+                "Semantic checks failed",
+            ))
         }
     }
 }

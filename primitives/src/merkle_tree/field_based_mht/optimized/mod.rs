@@ -1,5 +1,9 @@
+use crate::{
+    check_precomputed_parameters, BatchFieldBasedHash, BatchFieldBasedMerkleTreeParameters, Error,
+    FieldBasedHash, FieldBasedHashParameters, FieldBasedMHTPath, FieldBasedMerkleTree,
+    FieldBasedMerkleTreePath, MerkleTreeError,
+};
 use algebra::Field;
-use crate::{Error, BatchFieldBasedMerkleTreeParameters, BatchFieldBasedHash, FieldBasedMerkleTree, FieldBasedMerkleTreePath, FieldBasedMHTPath, FieldBasedHash, FieldBasedHashParameters, check_precomputed_parameters, MerkleTreeError};
 use std::marker::PhantomData;
 
 /// An implementation of FieldBasedMerkleTree, optimized in time and memory,
@@ -13,7 +17,7 @@ use std::marker::PhantomData;
 ///    same height, it's not for all the others.
 /// TODO: Test with arity > 2
 #[derive(Clone)]
-pub struct FieldBasedOptimizedMHT<T: BatchFieldBasedMerkleTreeParameters>{
+pub struct FieldBasedOptimizedMHT<T: BatchFieldBasedMerkleTreeParameters> {
     root: T::Data,
     // Stores all MT nodes
     array_nodes: Vec<T::Data>,
@@ -33,7 +37,6 @@ pub struct FieldBasedOptimizedMHT<T: BatchFieldBasedMerkleTreeParameters>{
 }
 
 impl<T: BatchFieldBasedMerkleTreeParameters> FieldBasedOptimizedMHT<T> {
-
     /// Creates a new tree given its `height` and `processing_step`, that defines the
     /// number of leaves to store before triggering the computation of the hashes
     /// of the upper levels. Changing this parameter will affect the performances of
@@ -42,10 +45,13 @@ impl<T: BatchFieldBasedMerkleTreeParameters> FieldBasedOptimizedMHT<T> {
     /// parameter according to your use case.
     pub fn init(height: usize, processing_step: usize) -> Result<Self, Error> {
         if !check_precomputed_parameters::<T>(height) {
-            Err(Box::new(MerkleTreeError::Other(format!(
-                "Unsupported height. Max supported height is: {}",
-                T::ZERO_NODE_CST.unwrap().nodes.len()
-            ).to_owned())))?
+            Err(Box::new(MerkleTreeError::Other(
+                format!(
+                    "Unsupported height. Max supported height is: {}",
+                    T::ZERO_NODE_CST.unwrap().nodes.len()
+                )
+                .to_owned(),
+            )))?
         }
 
         let rate = <<T::H as FieldBasedHash>::Parameters as FieldBasedHashParameters>::R;
@@ -55,10 +61,13 @@ impl<T: BatchFieldBasedMerkleTreeParameters> FieldBasedOptimizedMHT<T> {
 
         let last_level_size = T::MERKLE_ARITY.pow(height as u32);
         if processing_step == 0 || processing_step > last_level_size {
-            Err(Box::new(MerkleTreeError::Other(format!(
-                "Invalid processing step. Must be between 1 and {}",
-                last_level_size
-            ).to_owned())))?
+            Err(Box::new(MerkleTreeError::Other(
+                format!(
+                    "Invalid processing step. Must be between 1 and {}",
+                    last_level_size
+                )
+                .to_owned(),
+            )))?
         }
 
         let mut initial_pos = Vec::new();
@@ -129,19 +138,18 @@ impl<T: BatchFieldBasedMerkleTreeParameters> FieldBasedOptimizedMHT<T> {
     /// all the nodes up until the root).
     fn compute_subtree(&mut self) -> Result<(), Error> {
         if self.height != 0 {
-            for i in 0..=self.height  {
-
+            for i in 0..=self.height {
                 // Enter only if the number of nodes to process at this level is bigger than the rate
                 if (self.new_elem_pos[i] - self.processed_pos[i]) >= self.rate {
-
                     // The number of chunks of rate nodes to be processed
-                    let num_groups_nodes = (self.new_elem_pos[i] - self.processed_pos[i]) / self.rate;
+                    let num_groups_nodes =
+                        (self.new_elem_pos[i] - self.processed_pos[i]) / self.rate;
 
                     // Take as input vec all the nodes in the current level and all their parents
                     // (i.e. all the nodes at the next level)
-                    let (input_vec, output_vec) =
-                        self.array_nodes[self.initial_pos[i]..self.final_pos[i + 1]]
-                            .split_at_mut(self.final_pos[i] - self.initial_pos[i]);
+                    let (input_vec, output_vec) = self.array_nodes
+                        [self.initial_pos[i]..self.final_pos[i + 1]]
+                        .split_at_mut(self.final_pos[i] - self.initial_pos[i]);
 
                     // The position of the last node in this level that will be affected by the changes.
                     // It's recomputed in this way as num_groups_nodes may have a remainder if
@@ -155,8 +163,10 @@ impl<T: BatchFieldBasedMerkleTreeParameters> FieldBasedOptimizedMHT<T> {
                     // to isolate the nodes in this level and at parent level that are affected
                     // by changes, leaving the other ones out of the computation.
                     Self::batch_hash(
-                        &mut input_vec[(self.processed_pos[i] - self.initial_pos[i])..(last_pos_to_process - self.initial_pos[i])],
-                        &mut output_vec[(self.new_elem_pos[i + 1] - self.initial_pos[i + 1])..(new_pos_parent - self.initial_pos[i + 1])],
+                        &mut input_vec[(self.processed_pos[i] - self.initial_pos[i])
+                            ..(last_pos_to_process - self.initial_pos[i])],
+                        &mut output_vec[(self.new_elem_pos[i + 1] - self.initial_pos[i + 1])
+                            ..(new_pos_parent - self.initial_pos[i + 1])],
                         i + 1,
                     )?;
 
@@ -175,8 +185,11 @@ impl<T: BatchFieldBasedMerkleTreeParameters> FieldBasedOptimizedMHT<T> {
         &self.array_nodes[self.initial_pos[0]..self.new_elem_pos[0]]
     }
 
-    fn batch_hash(input: &mut [T::Data], output: &mut [T::Data], parent_level: usize) -> Result<(), Error> {
-
+    fn batch_hash(
+        input: &mut [T::Data],
+        output: &mut [T::Data],
+        parent_level: usize,
+    ) -> Result<(), Error> {
         let mut i = 0;
         let empty = T::ZERO_NODE_CST.unwrap().nodes[parent_level - 1];
 
@@ -204,11 +217,14 @@ impl<T: BatchFieldBasedMerkleTreeParameters> FieldBasedOptimizedMHT<T> {
             let mut to_hash_out = vec![<T::Data as Field>::zero(); to_hash.len() / T::MERKLE_ARITY];
             <T::BH as BatchFieldBasedHash>::batch_evaluate_in_place(
                 to_hash.as_mut_slice(),
-                to_hash_out.as_mut_slice()
+                to_hash_out.as_mut_slice(),
             )?;
 
             // Put the hashes in the correct positions in the output vec
-            to_hash_out.iter().enumerate().for_each(|(i, &h)| output[output_pos[i]] = h);
+            to_hash_out
+                .iter()
+                .enumerate()
+                .for_each(|(i, &h)| output[output_pos[i]] = h);
         }
 
         Ok(())
@@ -220,7 +236,6 @@ impl<T: BatchFieldBasedMerkleTreeParameters> FieldBasedMerkleTree for FieldBased
     type MerklePath = FieldBasedMHTPath<T>;
 
     fn append(&mut self, leaf: T::Data) -> Result<&mut Self, Error> {
-
         // We can't take more leaves
         if self.processed_pos[0] == self.final_pos[0] {
             Err(MerkleTreeError::TooManyLeaves(self.height))?
@@ -283,7 +298,9 @@ impl<T: BatchFieldBasedMerkleTreeParameters> FieldBasedMerkleTree for FieldBased
         }
 
         // Reset all nodes values
-        self.array_nodes.iter_mut().for_each(|leaf| *leaf = <T::Data as Field>::zero());
+        self.array_nodes
+            .iter_mut()
+            .for_each(|leaf| *leaf = <T::Data as Field>::zero());
 
         // Reset finalized value
         self.finalized = false;
@@ -294,14 +311,17 @@ impl<T: BatchFieldBasedMerkleTreeParameters> FieldBasedMerkleTree for FieldBased
     fn root(&self) -> Option<T::Data> {
         match self.finalized {
             true => Some(self.root.clone()),
-            false => None
+            false => None,
         }
     }
 
     fn get_merkle_path(&self, leaf_index: usize) -> Option<Self::MerklePath> {
         let num_leaves = T::MERKLE_ARITY.pow(self.height as u32);
         if leaf_index >= num_leaves {
-            eprintln!("Invalid leaf index {} for num leaves {}", leaf_index, num_leaves);
+            eprintln!(
+                "Invalid leaf index {} for num leaves {}",
+                leaf_index, num_leaves
+            );
             return None;
         }
         match self.finalized {
@@ -314,7 +334,7 @@ impl<T: BatchFieldBasedMerkleTreeParameters> FieldBasedMerkleTree for FieldBased
                     let mut siblings = Vec::with_capacity(T::MERKLE_ARITY - 1);
 
                     // Based on the index of the node, we must compute the index of the left-most children
-                    let start_position = node_index - ( node_index % T::MERKLE_ARITY );
+                    let start_position = node_index - (node_index % T::MERKLE_ARITY);
 
                     // Then, the right most children index is simply given by adding the arity
                     let end_position = start_position + T::MERKLE_ARITY;
@@ -330,46 +350,44 @@ impl<T: BatchFieldBasedMerkleTreeParameters> FieldBasedMerkleTree for FieldBased
                     merkle_path.push((siblings, node_index % T::MERKLE_ARITY));
 
                     // Get parent index for next iteration
-                    node_index = num_leaves + (node_index/T::MERKLE_ARITY);
+                    node_index = num_leaves + (node_index / T::MERKLE_ARITY);
                 }
 
                 // Sanity check: the last node_index must be the one of the root
                 debug_assert_eq!(self.array_nodes[node_index], self.root);
-                Some(
-                    FieldBasedMHTPath::<T>::new(merkle_path)
-                )
-            },
+                Some(FieldBasedMHTPath::<T>::new(merkle_path))
+            }
             false => None,
         }
     }
 
-    fn height(&self) -> usize { self.height }
+    fn height(&self) -> usize {
+        self.height
+    }
 }
 
 #[cfg(test)]
 mod test {
     use algebra::{
         biginteger::BigInteger768,
-        fields::{
-            Field,
-            mnt4753::Fr as MNT4753Fr, mnt6753::Fr as MNT6753Fr
-        },
-        UniformRand,
-        ToBytes, to_bytes, FromBytes, SemanticallyValid
+        fields::{mnt4753::Fr as MNT4753Fr, mnt6753::Fr as MNT6753Fr, Field},
+        to_bytes, FromBytes, SemanticallyValid, ToBytes, UniformRand,
     };
-    use rand::{SeedableRng, RngCore, thread_rng};
+    use rand::{thread_rng, RngCore, SeedableRng};
     use rand_xorshift::XorShiftRng;
 
     use crate::{
-        crh::parameters::{MNT4PoseidonHash, MNT4BatchPoseidonHash, MNT6PoseidonHash, MNT6BatchPoseidonHash},
+        crh::parameters::{
+            MNT4BatchPoseidonHash, MNT4PoseidonHash, MNT6BatchPoseidonHash, MNT6PoseidonHash,
+        },
         merkle_tree::field_based_mht::{
-            FieldBasedMerkleTree, NaiveMerkleTree,
-            FieldBasedMerkleTreePath, FieldBasedMerkleTreeParameters,
-            BatchFieldBasedMerkleTreeParameters, FieldBasedOptimizedMHT,
-            parameters::{
-                MNT4753_MHT_POSEIDON_PARAMETERS, MNT6753_MHT_POSEIDON_PARAMETERS
-            }
-        }, FieldBasedMerkleTreePrecomputedZeroConstants, FieldBasedMHTPath};
+            parameters::{MNT4753_MHT_POSEIDON_PARAMETERS, MNT6753_MHT_POSEIDON_PARAMETERS},
+            BatchFieldBasedMerkleTreeParameters, FieldBasedMerkleTree,
+            FieldBasedMerkleTreeParameters, FieldBasedMerkleTreePath, FieldBasedOptimizedMHT,
+            NaiveMerkleTree,
+        },
+        FieldBasedMHTPath, FieldBasedMerkleTreePrecomputedZeroConstants,
+    };
 
     // OptimizedMHT definitions for tests below
     #[derive(Clone, Debug)]
@@ -379,8 +397,9 @@ mod test {
         type Data = MNT4753Fr;
         type H = MNT4PoseidonHash;
         const MERKLE_ARITY: usize = 2;
-        const ZERO_NODE_CST: Option<FieldBasedMerkleTreePrecomputedZeroConstants<'static, Self::H>> =
-            Some(MNT4753_MHT_POSEIDON_PARAMETERS);
+        const ZERO_NODE_CST: Option<
+            FieldBasedMerkleTreePrecomputedZeroConstants<'static, Self::H>,
+        > = Some(MNT4753_MHT_POSEIDON_PARAMETERS);
     }
 
     impl BatchFieldBasedMerkleTreeParameters for MNT4753FieldBasedOptimizedMerkleTreeParams {
@@ -394,8 +413,9 @@ mod test {
         type Data = MNT6753Fr;
         type H = MNT6PoseidonHash;
         const MERKLE_ARITY: usize = 2;
-        const ZERO_NODE_CST: Option<FieldBasedMerkleTreePrecomputedZeroConstants<'static, Self::H>> =
-            Some(MNT6753_MHT_POSEIDON_PARAMETERS);
+        const ZERO_NODE_CST: Option<
+            FieldBasedMerkleTreePrecomputedZeroConstants<'static, Self::H>,
+        > = Some(MNT6753_MHT_POSEIDON_PARAMETERS);
     }
 
     impl BatchFieldBasedMerkleTreeParameters for MNT6753FieldBasedOptimizedMerkleTreeParams {
@@ -403,12 +423,11 @@ mod test {
     }
 
     fn merkle_tree_root_test<T: BatchFieldBasedMerkleTreeParameters, R: RngCore>(
-        height:        usize,
-        num_leaves:    usize,
+        height: usize,
+        num_leaves: usize,
         expected_root: T::Data,
-        mut rng:       &mut R
-    )
-    {
+        mut rng: &mut R,
+    ) {
         // Init in memory optimized tree
         let mut tree = FieldBasedOptimizedMHT::<T>::init(height, num_leaves).unwrap();
 
@@ -416,7 +435,9 @@ mod test {
         let mut naive_mt = NaiveMerkleTree::<T>::new(height);
 
         // Create leaves at random
-        let leaves = (0..num_leaves).map(|_| T::Data::rand(&mut rng)).collect::<Vec<_>>();
+        let leaves = (0..num_leaves)
+            .map(|_| T::Data::rand(&mut rng))
+            .collect::<Vec<_>>();
 
         // Append leaves to tree
         leaves.iter().for_each(|leaf| {
@@ -435,27 +456,25 @@ mod test {
         let optimized_root = tree.root().unwrap();
         let naive_root = naive_mt.root().unwrap();
         assert_eq!(naive_root, optimized_root);
-        assert_eq!(
-            tree.root().unwrap(),
-            expected_root,
-        );
+        assert_eq!(tree.root().unwrap(), expected_root,);
     }
 
     /// Tests that effectively all the nodes of the tree are zeroed after a reset
     fn merkle_tree_reset_test<T: BatchFieldBasedMerkleTreeParameters, R: RngCore>(
-        height:        usize,
-        num_leaves:    usize,
-        mut rng:       &mut R
-    )
-    {
+        height: usize,
+        num_leaves: usize,
+        mut rng: &mut R,
+    ) {
         // Init in memory optimized tree
         let mut tree = FieldBasedOptimizedMHT::<T>::init(height, num_leaves).unwrap();
 
         // Create leaves at random
-        let leaves = (0..num_leaves).map(|_| T::Data::rand(&mut rng)).collect::<Vec<_>>();
+        let leaves = (0..num_leaves)
+            .map(|_| T::Data::rand(&mut rng))
+            .collect::<Vec<_>>();
 
         // Add leaves to tree (don't fill the tree completely)
-        leaves[..num_leaves/2].iter().for_each(|leaf| {
+        leaves[..num_leaves / 2].iter().for_each(|leaf| {
             tree.append(leaf.clone()).unwrap();
         });
 
@@ -464,7 +483,7 @@ mod test {
         let expected_root = tree.finalize().unwrap().root().unwrap();
 
         // Finish filling the tree
-        leaves[num_leaves/2..].iter().for_each(|leaf| {
+        leaves[num_leaves / 2..].iter().for_each(|leaf| {
             tree.append(leaf.clone()).unwrap();
         });
 
@@ -472,7 +491,7 @@ mod test {
         tree.finalize_in_place().unwrap().reset();
 
         // Add the same leaves as we did initially
-        leaves[..num_leaves/2].iter().for_each(|leaf| {
+        leaves[..num_leaves / 2].iter().for_each(|leaf| {
             tree.append(leaf.clone()).unwrap();
         });
 
@@ -560,14 +579,21 @@ mod test {
             16287955982068396368,
             2574770790166887043,
             15847921958357229891,
-            431926751316706
+            431926751316706,
         ]));
         let height = 10;
         let num_leaves = 2usize.pow(height as u32);
         let rng = &mut XorShiftRng::seed_from_u64(1231275789u64);
 
-        merkle_tree_root_test::<MNT4753FieldBasedOptimizedMerkleTreeParams, _>(height, num_leaves, expected_output, rng);
-        merkle_tree_reset_test::<MNT4753FieldBasedOptimizedMerkleTreeParams, _>(height, num_leaves,rng);
+        merkle_tree_root_test::<MNT4753FieldBasedOptimizedMerkleTreeParams, _>(
+            height,
+            num_leaves,
+            expected_output,
+            rng,
+        );
+        merkle_tree_reset_test::<MNT4753FieldBasedOptimizedMerkleTreeParams, _>(
+            height, num_leaves, rng,
+        );
         merkle_tree_test_edge_cases::<MNT4753FieldBasedOptimizedMerkleTreeParams>();
     }
 
@@ -585,15 +611,22 @@ mod test {
             14391757241795953360,
             10971839229749467698,
             17614506209597433225,
-            374251447408225
+            374251447408225,
         ]));
         let height = 10;
         let num_leaves = 2usize.pow(height as u32);
 
         let rng = &mut XorShiftRng::seed_from_u64(1231275789u64);
 
-        merkle_tree_root_test::<MNT6753FieldBasedOptimizedMerkleTreeParams, _>(height, num_leaves, expected_output, rng);
-        merkle_tree_reset_test::<MNT6753FieldBasedOptimizedMerkleTreeParams, _>(height, num_leaves,rng);
+        merkle_tree_root_test::<MNT6753FieldBasedOptimizedMerkleTreeParams, _>(
+            height,
+            num_leaves,
+            expected_output,
+            rng,
+        );
+        merkle_tree_reset_test::<MNT6753FieldBasedOptimizedMerkleTreeParams, _>(
+            height, num_leaves, rng,
+        );
         merkle_tree_test_edge_cases::<MNT6753FieldBasedOptimizedMerkleTreeParams>();
     }
 
@@ -610,14 +643,18 @@ mod test {
             }
 
             // Push them in a Naive Poseidon Merkle Tree and get the root
-            leaves.extend_from_slice(vec![<T::Data as Field>::zero(); max_leaves - num_leaves].as_slice());
+            leaves.extend_from_slice(
+                vec![<T::Data as Field>::zero(); max_leaves - num_leaves].as_slice(),
+            );
             let mut naive_mt = NaiveMerkleTree::<T>::new(max_height);
             naive_mt.append(leaves.as_slice()).unwrap();
             let naive_root = naive_mt.root().unwrap();
 
             // Push them in a Poseidon Merkle Tree and get the root
             let mut mt = FieldBasedOptimizedMHT::<T>::init(max_height, num_leaves).unwrap();
-            leaves[0..num_leaves].iter().for_each(|&leaf| { mt.append(leaf).unwrap(); });
+            leaves[0..num_leaves].iter().for_each(|&leaf| {
+                mt.append(leaf).unwrap();
+            });
             let root = mt.finalize_in_place().unwrap().root().unwrap();
 
             assert_eq!(naive_root, root);
@@ -628,22 +665,26 @@ mod test {
         for num_leaves in 1..=max_leaves {
             // Make half of the added leaves empty
             let mut leaves = Vec::with_capacity(num_leaves);
-            for _ in 0..num_leaves/2 {
+            for _ in 0..num_leaves / 2 {
                 leaves.push(<T::Data as Field>::zero())
             }
-            for _ in num_leaves/2..num_leaves {
+            for _ in num_leaves / 2..num_leaves {
                 leaves.push(T::Data::rand(&mut rng))
             }
 
             // Push them in a Naive Poseidon Merkle Tree and get the root
-            leaves.extend_from_slice(vec![<T::Data as Field>::zero(); max_leaves - num_leaves].as_slice());
+            leaves.extend_from_slice(
+                vec![<T::Data as Field>::zero(); max_leaves - num_leaves].as_slice(),
+            );
             let mut naive_mt = NaiveMerkleTree::<T>::new(max_height);
             naive_mt.append(leaves.as_slice()).unwrap();
             let naive_root = naive_mt.root().unwrap();
 
             // Push them in a Poseidon Merkle Tree and get the root
             let mut mt = FieldBasedOptimizedMHT::<T>::init(max_height, num_leaves).unwrap();
-            leaves[..].iter().for_each(|&leaf| { mt.append(leaf).unwrap(); });
+            leaves[..].iter().for_each(|&leaf| {
+                mt.append(leaf).unwrap();
+            });
             let root = mt.finalize_in_place().unwrap().root().unwrap();
 
             assert_eq!(naive_root, root);
@@ -656,7 +697,9 @@ mod test {
         let max_height = 6;
         let max_leaves = 2usize.pow(max_height as u32);
 
-        merkle_tree_test_empty_leaves::<MNT4753FieldBasedOptimizedMerkleTreeParams, _>(max_height, max_leaves, rng)
+        merkle_tree_test_empty_leaves::<MNT4753FieldBasedOptimizedMerkleTreeParams, _>(
+            max_height, max_leaves, rng,
+        )
     }
 
     #[test]
@@ -665,7 +708,9 @@ mod test {
         let max_height = 6;
         let max_leaves = 2usize.pow(max_height as u32);
 
-        merkle_tree_test_empty_leaves::<MNT6753FieldBasedOptimizedMerkleTreeParams, _>(max_height, max_leaves, rng)
+        merkle_tree_test_empty_leaves::<MNT6753FieldBasedOptimizedMerkleTreeParams, _>(
+            max_height, max_leaves, rng,
+        )
     }
 
     fn merkle_tree_path_test<T: BatchFieldBasedMerkleTreeParameters, R: RngCore>(
@@ -677,12 +722,12 @@ mod test {
         let mut tree = FieldBasedOptimizedMHT::<T>::init(height, num_leaves).unwrap();
 
         // Generate random leaves, half of which empty
-        for _ in 0..num_leaves/2 {
+        for _ in 0..num_leaves / 2 {
             let leaf = T::Data::rand(&mut rng);
             tree.append(leaf).unwrap();
             leaves.push(leaf);
         }
-        for _ in num_leaves/2..num_leaves {
+        for _ in num_leaves / 2..num_leaves {
             let leaf = <T::Data as Field>::zero();
             leaves.push(leaf);
         }
@@ -696,7 +741,6 @@ mod test {
         assert_eq!(root, naive_root);
 
         for i in 0..num_leaves {
-
             // Create and verify a FieldBasedMHTPath
             let path = tree.get_merkle_path(i).unwrap();
             assert!(path.is_valid());
@@ -705,7 +749,9 @@ mod test {
             // Create and verify a Naive path
             let naive_path = naive_tree.generate_proof(i, &leaves[i]).unwrap();
             assert!(naive_path.is_valid());
-            assert!(naive_path.verify(naive_tree.height(), &leaves[i], &naive_root ).unwrap());
+            assert!(naive_path
+                .verify(naive_tree.height(), &leaves[i], &naive_root)
+                .unwrap());
 
             // Assert the two paths are equal
             assert_eq!(naive_path, path);
@@ -713,16 +759,17 @@ mod test {
             // Check leaf index is the correct one
             assert_eq!(i, path.leaf_index());
 
-            if i == 0 { // leftmost check
+            if i == 0 {
+                // leftmost check
                 assert!(path.is_leftmost());
-            }
-            else if i == (num_leaves / 2) - 1 { // non-empty rightmost check
+            } else if i == (num_leaves / 2) - 1 {
+                // non-empty rightmost check
                 assert!(path.are_right_leaves_empty());
-            }
-            else if i == num_leaves - 1 { //rightmost check
+            } else if i == num_leaves - 1 {
+                //rightmost check
                 assert!(path.is_rightmost());
-            }
-            else { // Other cases check
+            } else {
+                // Other cases check
                 assert!(!path.is_leftmost());
                 assert!(!path.is_rightmost());
 
@@ -736,17 +783,20 @@ mod test {
 
             // Serialization/deserialization test
             let path_serialized = to_bytes!(path).unwrap();
-            let path_deserialized = FieldBasedMHTPath::<T>::read(path_serialized.as_slice()).unwrap();
+            let path_deserialized =
+                FieldBasedMHTPath::<T>::read(path_serialized.as_slice()).unwrap();
             assert_eq!(path, path_deserialized);
         }
     }
 
-    fn merkle_tree_path_are_right_leaves_empty_test<T: BatchFieldBasedMerkleTreeParameters, R: RngCore>(
+    fn merkle_tree_path_are_right_leaves_empty_test<
+        T: BatchFieldBasedMerkleTreeParameters,
+        R: RngCore,
+    >(
         height: usize,
         num_leaves: usize,
         mut rng: &mut R,
-    )
-    {
+    ) {
         let mut tree = FieldBasedOptimizedMHT::<T>::init(height, num_leaves).unwrap();
 
         // Generate random leaves
@@ -762,23 +812,29 @@ mod test {
 
     #[test]
     fn merkle_tree_path_test_mnt4() {
-
         let height = 6;
         let num_leaves = 2usize.pow(height as u32);
         let rng = &mut XorShiftRng::seed_from_u64(1231275789u64);
 
-        merkle_tree_path_test::<MNT4753FieldBasedOptimizedMerkleTreeParams, _>(height, num_leaves, rng);
-        merkle_tree_path_are_right_leaves_empty_test::<MNT4753FieldBasedOptimizedMerkleTreeParams, _>(height, num_leaves, rng);
+        merkle_tree_path_test::<MNT4753FieldBasedOptimizedMerkleTreeParams, _>(
+            height, num_leaves, rng,
+        );
+        merkle_tree_path_are_right_leaves_empty_test::<MNT4753FieldBasedOptimizedMerkleTreeParams, _>(
+            height, num_leaves, rng,
+        );
     }
 
     #[test]
     fn merkle_tree_path_test_mnt6() {
-
         let height = 6;
         let num_leaves = 2usize.pow(height as u32);
         let rng = &mut XorShiftRng::seed_from_u64(1231275789u64);
 
-        merkle_tree_path_test::<MNT6753FieldBasedOptimizedMerkleTreeParams, _>(height, num_leaves, rng);
-        merkle_tree_path_are_right_leaves_empty_test::<MNT6753FieldBasedOptimizedMerkleTreeParams, _>(height, num_leaves, rng);
+        merkle_tree_path_test::<MNT6753FieldBasedOptimizedMerkleTreeParams, _>(
+            height, num_leaves, rng,
+        );
+        merkle_tree_path_are_right_leaves_empty_test::<MNT6753FieldBasedOptimizedMerkleTreeParams, _>(
+            height, num_leaves, rng,
+        );
     }
 }

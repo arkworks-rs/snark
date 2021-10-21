@@ -1,11 +1,10 @@
 use rand::Rng;
 use rayon::prelude::*;
 
-use algebra::{
-    groups::Group, AffineCurve, Field, PairingEngine, PrimeField,
-    ProjectiveCurve, UniformRand,
-};
 use algebra::msm::VariableBaseMSM;
+use algebra::{
+    groups::Group, AffineCurve, Field, PairingEngine, PrimeField, ProjectiveCurve, UniformRand,
+};
 
 use crate::groth16::{push_constraints, r1cs_to_qap::R1CStoQAP, Parameters, Proof};
 
@@ -26,7 +25,7 @@ pub struct ProvingAssignment<E: PairingEngine> {
 
     // Assignments of variables
     pub(crate) input_assignment: Vec<E::Fr>,
-    pub(crate) aux_assignment:   Vec<E::Fr>,
+    pub(crate) aux_assignment: Vec<E::Fr>,
 }
 
 impl<E: PairingEngine> ConstraintSystem<E::Fr> for ProvingAssignment<E> {
@@ -119,9 +118,9 @@ pub fn create_proof_no_zk<E, C>(
     circuit: C,
     params: &Parameters<E>,
 ) -> Result<Proof<E>, SynthesisError>
-    where
-        E: PairingEngine,
-        C: ConstraintSynthesizer<E::Fr>,
+where
+    E: PairingEngine,
+    C: ConstraintSynthesizer<E::Fr>,
 {
     create_proof::<E, C>(circuit, params, E::Fr::zero(), E::Fr::zero())
 }
@@ -138,11 +137,11 @@ where
 {
     let prover_time = start_timer!(|| "Prover");
     let mut prover = ProvingAssignment {
-        at:               vec![],
-        bt:               vec![],
-        ct:               vec![],
+        at: vec![],
+        bt: vec![],
+        ct: vec![],
         input_assignment: vec![],
-        aux_assignment:   vec![],
+        aux_assignment: vec![],
     };
 
     // Allocate the "one" input variable
@@ -165,7 +164,8 @@ where
     );
 
     let aux_assignment = Arc::new(
-        prover.aux_assignment
+        prover
+            .aux_assignment
             .into_par_iter()
             .map(|s| s.into_repr())
             .collect::<Vec<_>>(),
@@ -197,7 +197,6 @@ where
     } else {
         <E::G1Projective as ProjectiveCurve>::zero()
     };
-
 
     // Compute B in G2
     let b_g2_acc_time = start_timer!(|| "Compute B in G2");

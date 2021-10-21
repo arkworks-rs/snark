@@ -2,9 +2,9 @@ use super::quadratic_extension::*;
 use std::marker::PhantomData;
 
 use crate::{
-    fields::{Fp2, Fp2Parameters, Field, SquareRootField},
-    bits::{ToBits, ToCompressedBits, FromBits, FromCompressedBits},
-    Error, BitSerializationError,
+    bits::{FromBits, FromCompressedBits, ToBits, ToCompressedBits},
+    fields::{Field, Fp2, Fp2Parameters, SquareRootField},
+    BitSerializationError, Error,
 };
 
 /// Model for quadratic extension field F4 as towered extension
@@ -64,7 +64,10 @@ impl<P: Fp4Parameters> QuadExtParameters for Fp4ParamsWrapper<P> {
         let c = b.square() - &a;
         let d = Self::mul_base_field_by_nonresidue(&a);
         let e = c - &d;
-        QuadExtField::<Self>::new(d.double() + &Self::BaseField::one(), e - &Self::BaseField::one())
+        QuadExtField::<Self>::new(
+            d.double() + &Self::BaseField::one(),
+            e - &Self::BaseField::one(),
+        )
     }
 }
 
@@ -82,14 +85,12 @@ impl<P: Fp4Parameters> Fp4<P> {
     }
 
     //Mul by an element of the form (c0: [c0, 0] c1: [c2, c3])
-    pub fn mul_by_023(self, other: &Self) -> Self
-    {
-        let v0 =
-            {
-                let v0_c0 = self.c0.c0 * &other.c0.c0;
-                let v0_c1 = self.c0.c1 * &other.c0.c0;
-                Fp2::new(v0_c0, v0_c1)
-            };
+    pub fn mul_by_023(self, other: &Self) -> Self {
+        let v0 = {
+            let v0_c0 = self.c0.c0 * &other.c0.c0;
+            let v0_c1 = self.c0.c1 * &other.c0.c0;
+            Fp2::new(v0_c0, v0_c1)
+        };
         let v1 = self.c1 * &other.c1;
 
         let c0 = v0 + &P::mul_fp2_by_nonresidue(&v1);
@@ -105,10 +106,8 @@ impl<P: Fp4Parameters> Fp4<P> {
 /// of the result.
 
 impl<P: Fp4Parameters> ToCompressedBits for Fp4<P> {
-
     #[inline]
     fn compress(&self) -> Vec<bool> {
-
         //Serialize c1
         let mut res = self.c1.write_bits();
 
@@ -121,7 +120,6 @@ impl<P: Fp4Parameters> ToCompressedBits for Fp4<P> {
 }
 
 impl<P: Fp4Parameters> FromCompressedBits for Fp4<P> {
-
     #[inline]
     fn decompress(compressed: Vec<bool>) -> Result<Self, Error> {
         let len = compressed.len() - 1;
@@ -137,12 +135,15 @@ impl<P: Fp4Parameters> FromCompressedBits for Fp4<P> {
         };
 
         match c0 {
-
             //Estabilish c0 parity
             Some(c0_u) => {
-                let c0_s = if c0_u.is_odd() ^ parity_flag_set {-c0_u} else {c0_u};
+                let c0_s = if c0_u.is_odd() ^ parity_flag_set {
+                    -c0_u
+                } else {
+                    c0_u
+                };
                 Ok(Self::new(c0_s, c1))
-            },
+            }
 
             //sqrt(1 + nr*c1^2) doesn't exists in the field
             _ => Err(Box::new(BitSerializationError::UndefinedSqrt)),

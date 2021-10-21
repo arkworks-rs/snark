@@ -1,6 +1,6 @@
-use primitives::crh::pedersen::{PedersenCRH, PedersenParameters, PedersenWindow};
 use crate::FixedLengthCRHGadget;
 use algebra::{Field, Group};
+use primitives::crh::pedersen::{PedersenCRH, PedersenParameters, PedersenWindow};
 use r1cs_core::{ConstraintSystem, SynthesisError};
 use r1cs_std::prelude::*;
 use std::{borrow::Borrow, marker::PhantomData};
@@ -15,10 +15,10 @@ pub struct PedersenCRHGadgetParameters<
     ConstraintF: Field,
     GG: GroupGadget<G, ConstraintF>,
 > {
-    params:   PedersenParameters<G>,
+    params: PedersenParameters<G>,
     _group_g: PhantomData<GG>,
-    _engine:  PhantomData<ConstraintF>,
-    _window:  PhantomData<W>,
+    _engine: PhantomData<ConstraintF>,
+    _window: PhantomData<W>,
 }
 
 pub struct PedersenCRHGadget<G: Group, ConstraintF: Field, GG: GroupGadget<G, ConstraintF>> {
@@ -55,16 +55,21 @@ where
             }
         }
         if padded_input.len() * 8 != W::WINDOW_SIZE * W::NUM_WINDOWS {
-            Err(SynthesisError::Other("padded input length verification failed".to_owned()))?
+            Err(SynthesisError::Other(
+                "padded input length verification failed".to_owned(),
+            ))?
         }
         if parameters.params.generators.len() != W::NUM_WINDOWS {
-            Err(SynthesisError::Other(format!(
-                "Incorrect pp of size {:?}x{:?} for window params {:?}x{:?}",
-                parameters.params.generators[0].len(),
-                parameters.params.generators.len(),
-                W::WINDOW_SIZE,
-                W::NUM_WINDOWS
-            ).to_owned()))?
+            Err(SynthesisError::Other(
+                format!(
+                    "Incorrect pp of size {:?}x{:?} for window params {:?}x{:?}",
+                    parameters.params.generators[0].len(),
+                    parameters.params.generators.len(),
+                    W::WINDOW_SIZE,
+                    W::NUM_WINDOWS
+                )
+                .to_owned(),
+            ))?
         }
 
         // Allocate new variable for the result.
@@ -124,12 +129,9 @@ mod test {
     use algebra::fields::bls12_381::fr::Fr;
     use rand::{thread_rng, Rng};
 
-    use primitives::crh::pedersen::{PedersenCRH, PedersenWindow};
-    use crate::crh::{
-        pedersen::PedersenCRHGadget,
-        FixedLengthCRH, FixedLengthCRHGadget,
-    };
+    use crate::crh::{pedersen::PedersenCRHGadget, FixedLengthCRH, FixedLengthCRHGadget};
     use algebra::curves::{jubjub::JubJubProjective as JubJub, ProjectiveCurve};
+    use primitives::crh::pedersen::{PedersenCRH, PedersenWindow};
     use r1cs_core::ConstraintSystem;
     use r1cs_std::{
         instantiated::jubjub::JubJubGadget, prelude::*,

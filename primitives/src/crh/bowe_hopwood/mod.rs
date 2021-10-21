@@ -1,4 +1,4 @@
-use crate::{Error, bytes_to_bits, CryptoError};
+use crate::{bytes_to_bits, CryptoError, Error};
 use rand::Rng;
 use rayon::prelude::*;
 use std::{
@@ -9,7 +9,7 @@ use std::{
 use super::pedersen::{PedersenCRH, PedersenWindow};
 use crate::crh::FixedLengthCRH;
 use algebra::{biginteger::BigInteger, fields::PrimeField, groups::Group};
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
 pub const CHUNK_SIZE: usize = 3;
 
@@ -20,7 +20,7 @@ pub struct BoweHopwoodPedersenParameters<G: Group> {
 }
 
 pub struct BoweHopwoodPedersenCRH<G: Group, W: PedersenWindow> {
-    group:  PhantomData<G>,
+    group: PhantomData<G>,
     window: PhantomData<W>,
 }
 
@@ -85,13 +85,16 @@ impl<G: Group, W: PedersenWindow> FixedLengthCRH for BoweHopwoodPedersenCRH<G, W
         let eval_time = start_timer!(|| "BoweHopwoodPedersenCRH::Eval");
 
         if (input.len() * 8) > W::WINDOW_SIZE * W::NUM_WINDOWS * CHUNK_SIZE {
-            return Err(Box::new(CryptoError::Other(format!(
-                "incorrect input length {:?} for window params {:?}x{:?}x{}",
-                input.len(),
-                W::WINDOW_SIZE,
-                W::NUM_WINDOWS,
-                CHUNK_SIZE,
-            ).to_owned())));
+            return Err(Box::new(CryptoError::Other(
+                format!(
+                    "incorrect input length {:?} for window params {:?}x{:?}x{}",
+                    input.len(),
+                    W::WINDOW_SIZE,
+                    W::NUM_WINDOWS,
+                    CHUNK_SIZE,
+                )
+                .to_owned(),
+            )));
         }
 
         let mut padded_input = Vec::with_capacity(input.len());
@@ -106,21 +109,27 @@ impl<G: Group, W: PedersenWindow> FixedLengthCRH for BoweHopwoodPedersenCRH<G, W
         }
 
         if padded_input.len() % CHUNK_SIZE != 0 {
-            Err(Box::new(CryptoError::Other(format!(
-                "Input is not multiple of the chunk size. Input len: {}, chunk size: {}",
-                padded_input.len(),
-                CHUNK_SIZE,
-            ).to_owned())))?
+            Err(Box::new(CryptoError::Other(
+                format!(
+                    "Input is not multiple of the chunk size. Input len: {}, chunk size: {}",
+                    padded_input.len(),
+                    CHUNK_SIZE,
+                )
+                .to_owned(),
+            )))?
         }
 
         if parameters.generators.len() != W::NUM_WINDOWS {
-            Err(Box::new(CryptoError::Other(format!(
-                "Incorrect pp of size {:?} for window params {:?}x{:?}x{}",
-                parameters.generators.len(),
-                W::WINDOW_SIZE,
-                W::NUM_WINDOWS,
-                CHUNK_SIZE
-            ).to_owned())))?
+            Err(Box::new(CryptoError::Other(
+                format!(
+                    "Incorrect pp of size {:?} for window params {:?}x{:?}x{}",
+                    parameters.generators.len(),
+                    W::WINDOW_SIZE,
+                    W::NUM_WINDOWS,
+                    CHUNK_SIZE
+                )
+                .to_owned(),
+            )))?
         }
         for generators in parameters.generators.iter() {
             if generators.len() != W::WINDOW_SIZE {
@@ -134,7 +143,7 @@ impl<G: Group, W: PedersenWindow> FixedLengthCRH for BoweHopwoodPedersenCRH<G, W
 
         assert_eq!(CHUNK_SIZE, 3);
 
-        // Compute sum of h_i^{sum of (1-2*c_{i,j,2})*(1+c_{i,j,0}+2*c_{i,j,1})*2^{4*(j-1)} for all j in segment} for all i. 
+        // Compute sum of h_i^{sum of (1-2*c_{i,j,2})*(1+c_{i,j,0}+2*c_{i,j,1})*2^{4*(j-1)} for all j in segment} for all i.
         // Described in section 5.4.1.7 in the Zcash protocol specification.
         let result = padded_input
             .par_chunks(W::WINDOW_SIZE * CHUNK_SIZE)
@@ -175,7 +184,7 @@ impl<G: Group> Debug for BoweHopwoodPedersenParameters<G> {
     }
 }
 
-impl<G: Group> BoweHopwoodPedersenParameters<G>{
+impl<G: Group> BoweHopwoodPedersenParameters<G> {
     pub fn check_consistency(&self) -> bool {
         for (i, p1) in self.generators.iter().enumerate() {
             if p1[0] == G::zero() {

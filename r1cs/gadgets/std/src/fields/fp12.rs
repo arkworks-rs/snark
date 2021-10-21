@@ -2,43 +2,46 @@ use r1cs_core::{ConstraintSystem, SynthesisError};
 
 use algebra::{
     fields::{
-        fp12_2over3over2::{Fp12, Fp12Parameters, Fp12ParamsWrapper, characteristic_square_mod_6_is_one},
+        fp12_2over3over2::{
+            characteristic_square_mod_6_is_one, Fp12, Fp12Parameters, Fp12ParamsWrapper,
+        },
         fp6_3over2::{Fp6Parameters, Fp6ParamsWrapper},
         Fp2Parameters,
     },
-    Field, PrimeField, SquareRootField
+    Field, PrimeField, SquareRootField,
 };
 
 use crate::{
-    prelude::*, fields::{
-        fp2::Fp2Gadget, fp6_3over2::Fp6Gadget
-    },
+    fields::{fp2::Fp2Gadget, fp6_3over2::Fp6Gadget},
+    prelude::*,
 };
 
-impl<P, ConstraintF: PrimeField + SquareRootField> QuadExtParametersGadget<ConstraintF> for Fp12ParamsWrapper<P>
-    where
-        P: Fp12Parameters,
-        <P::Fp6Params as Fp6Parameters>::Fp2Params: Fp2Parameters<Fp = ConstraintF>,
+impl<P, ConstraintF: PrimeField + SquareRootField> QuadExtParametersGadget<ConstraintF>
+    for Fp12ParamsWrapper<P>
+where
+    P: Fp12Parameters,
+    <P::Fp6Params as Fp6Parameters>::Fp2Params: Fp2Parameters<Fp = ConstraintF>,
 {
     type BaseFieldGadget = Fp6Gadget<P::Fp6Params, ConstraintF>;
 
     fn mul_base_field_gadget_by_nonresidue<CS: ConstraintSystem<ConstraintF>>(
         cs: CS,
-        fe: &Self::BaseFieldGadget
-    ) -> Result<Self::BaseFieldGadget, SynthesisError>
-    {
-        let new_c0 = Fp6ParamsWrapper::<P::Fp6Params>::mul_base_field_gadget_by_nonresidue(cs, &fe.c2)?;
+        fe: &Self::BaseFieldGadget,
+    ) -> Result<Self::BaseFieldGadget, SynthesisError> {
+        let new_c0 =
+            Fp6ParamsWrapper::<P::Fp6Params>::mul_base_field_gadget_by_nonresidue(cs, &fe.c2)?;
         let new_c1 = fe.c0.clone();
         let new_c2 = fe.c1.clone();
-        Ok(Fp6Gadget::<P::Fp6Params, ConstraintF>::new(new_c0, new_c1, new_c2))
+        Ok(Fp6Gadget::<P::Fp6Params, ConstraintF>::new(
+            new_c0, new_c1, new_c2,
+        ))
     }
 
     fn mul_base_field_gadget_by_frobenius_coeff<CS: ConstraintSystem<ConstraintF>>(
         mut cs: CS,
         c1: &mut Self::BaseFieldGadget,
-        power: usize
-    ) -> Result<(), SynthesisError>
-    {
+        power: usize,
+    ) -> Result<(), SynthesisError> {
         c1.c0
             .mul_by_constant_in_place(cs.ns(|| "mul1"), &P::FROBENIUS_COEFF_FP12_C1[power % 12])?;
         c1.c1
@@ -50,11 +53,11 @@ impl<P, ConstraintF: PrimeField + SquareRootField> QuadExtParametersGadget<Const
 
     fn cyclotomic_square_gadget<CS: ConstraintSystem<ConstraintF>>(
         mut cs: CS,
-        fe: &QuadExtFieldGadget<Self, ConstraintF>
-    ) -> Result<QuadExtFieldGadget<Self, ConstraintF>, SynthesisError>
-    {
+        fe: &QuadExtFieldGadget<Self, ConstraintF>,
+    ) -> Result<QuadExtFieldGadget<Self, ConstraintF>, SynthesisError> {
         if characteristic_square_mod_6_is_one(Fp12::<P>::characteristic()) {
-            let mut result = QuadExtFieldGadget::<Self, ConstraintF>::zero(cs.ns(|| "alloc result"))?;
+            let mut result =
+                QuadExtFieldGadget::<Self, ConstraintF>::zero(cs.ns(|| "alloc result"))?;
             let fp2_nr = <P::Fp6Params as Fp6Parameters>::NONRESIDUE;
 
             let z0 = &fe.c0.c0;
@@ -180,9 +183,9 @@ impl<P, ConstraintF: PrimeField + SquareRootField> QuadExtParametersGadget<Const
 pub type Fp12Gadget<P, ConstraintF> = QuadExtFieldGadget<Fp12ParamsWrapper<P>, ConstraintF>;
 
 impl<P, ConstraintF: PrimeField + SquareRootField> Fp12Gadget<P, ConstraintF>
-    where
-        P: Fp12Parameters,
-        <P::Fp6Params as Fp6Parameters>::Fp2Params: Fp2Parameters<Fp = ConstraintF>,
+where
+    P: Fp12Parameters,
+    <P::Fp6Params as Fp6Parameters>::Fp2Params: Fp2Parameters<Fp = ConstraintF>,
 {
     /// Multiplies by an element of the form (c0 = (c0, c1, 0), c1 = (0, d1, 0))
     #[inline]
@@ -195,8 +198,11 @@ impl<P, ConstraintF: PrimeField + SquareRootField> Fp12Gadget<P, ConstraintF>
     ) -> Result<Self, SynthesisError> {
         let v0 = self.c0.mul_by_c0_c1_0(cs.ns(|| "v0"), &c0, &c1)?;
         let v1 = self.c1.mul_by_0_c1_0(cs.ns(|| "v1"), &d1)?;
-        let new_c0 = Fp12ParamsWrapper::<P>::mul_base_field_gadget_by_nonresidue(cs.ns(|| "first mul_by_nr"), &v1)?
-            .add(cs.ns(|| "v0 + nonresidue * v1"), &v0)?;
+        let new_c0 = Fp12ParamsWrapper::<P>::mul_base_field_gadget_by_nonresidue(
+            cs.ns(|| "first mul_by_nr"),
+            &v1,
+        )?
+        .add(cs.ns(|| "v0 + nonresidue * v1"), &v0)?;
 
         let c1 = {
             let tmp = c1.add(cs.ns(|| "c1 + d1"), &d1)?;
@@ -232,10 +238,9 @@ impl<P, ConstraintF: PrimeField + SquareRootField> Fp12Gadget<P, ConstraintF>
             .mul_by_c0_c1_0(cs.ns(|| "compute e"), &c0, &c1)?;
         let a_plus_b = a.add(cs.ns(|| "a + b"), &b)?;
         let c1 = e.sub(cs.ns(|| "e - (a + b)"), &a_plus_b)?;
-        let c0 = Fp12ParamsWrapper::<P>::mul_base_field_gadget_by_nonresidue(
-            cs.ns(|| "b *nr"),
-            &b)?
-            .add(cs.ns(|| "plus a"), &a)?;
+        let c0 =
+            Fp12ParamsWrapper::<P>::mul_base_field_gadget_by_nonresidue(cs.ns(|| "b *nr"), &b)?
+                .add(cs.ns(|| "plus a"), &a)?;
 
         Ok(Self::new(c0, c1))
     }

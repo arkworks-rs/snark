@@ -39,14 +39,20 @@ impl From<Box<dyn std::error::Error>> for SynthesisError {
 impl std::fmt::Display for SynthesisError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            SynthesisError::AssignmentMissing => write!(f, "an assignment for a variable could not be computed"),
+            SynthesisError::AssignmentMissing => {
+                write!(f, "an assignment for a variable could not be computed")
+            }
             SynthesisError::DivisionByZero => write!(f, "division by zero"),
             SynthesisError::Unsatisfiable => write!(f, "unsatisfiable constraint system"),
             SynthesisError::PolynomialDegreeTooLarge => write!(f, "polynomial degree is too large"),
-            SynthesisError::UnexpectedIdentity => write!(f, "encountered an identity element in the CRS"),
+            SynthesisError::UnexpectedIdentity => {
+                write!(f, "encountered an identity element in the CRS")
+            }
             SynthesisError::IoError(e) => write!(f, "{:?}", e),
             SynthesisError::MalformedVerifyingKey => write!(f, "malformed verifying key"),
-            SynthesisError::UnconstrainedVariable => write!(f, "auxiliary variable was unconstrained"),
+            SynthesisError::UnconstrainedVariable => {
+                write!(f, "auxiliary variable was unconstrained")
+            }
             SynthesisError::Other(e) => write!(f, "{:?}", e),
         }
     }

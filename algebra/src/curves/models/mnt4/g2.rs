@@ -1,29 +1,29 @@
 use crate::curves::models::mnt4::{MNT4Parameters, MNT4p};
 use crate::curves::short_weierstrass_projective::{GroupAffine, GroupProjective};
-use crate::{Fp2, ToBytes, AffineCurve, FromBytes};
-use std::io::{Write, Result as IoResult, Read};
-use std::io;
+use crate::{AffineCurve, Fp2, FromBytes, ToBytes};
 use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
+use std::io;
+use std::io::{Read, Result as IoResult, Write};
 
 pub type G2Affine<P> = GroupAffine<<P as MNT4Parameters>::G2Parameters>;
 pub type G2Projective<P> = GroupProjective<<P as MNT4Parameters>::G2Parameters>;
 
 #[derive(Derivative)]
 #[derivative(
-Clone(bound = "P: MNT4Parameters"),
-Debug(bound = "P: MNT4Parameters"),
-PartialEq(bound = "P: MNT4Parameters"),
-Eq(bound = "P: MNT4Parameters")
+    Clone(bound = "P: MNT4Parameters"),
+    Debug(bound = "P: MNT4Parameters"),
+    PartialEq(bound = "P: MNT4Parameters"),
+    Eq(bound = "P: MNT4Parameters")
 )]
 #[derive(Serialize, Deserialize)]
-pub struct G2PreparedCoefficients<P: MNT4Parameters>{
-    pub r_y:         Fp2<P::Fp2Params>,
-    pub gamma:       Fp2<P::Fp2Params>,
-    pub gamma_x:     Fp2<P::Fp2Params>,
+pub struct G2PreparedCoefficients<P: MNT4Parameters> {
+    pub r_y: Fp2<P::Fp2Params>,
+    pub gamma: Fp2<P::Fp2Params>,
+    pub gamma_x: Fp2<P::Fp2Params>,
 }
 
-impl<P: MNT4Parameters>ToBytes for G2PreparedCoefficients<P> {
+impl<P: MNT4Parameters> ToBytes for G2PreparedCoefficients<P> {
     fn write<W: Write>(&self, mut writer: W) -> IoResult<()> {
         self.r_y.write(&mut writer)?;
         self.gamma.write(&mut writer)?;
@@ -40,22 +40,26 @@ impl<P: MNT4Parameters> FromBytes for G2PreparedCoefficients<P> {
             .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
         let gamma_x = Fp2::<P::Fp2Params>::read(&mut reader)
             .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
-        Ok(G2PreparedCoefficients{r_y, gamma, gamma_x})
+        Ok(G2PreparedCoefficients {
+            r_y,
+            gamma,
+            gamma_x,
+        })
     }
 }
 
 #[derive(Derivative)]
 #[derivative(
-Clone(bound = "P: MNT4Parameters"),
-Debug(bound = "P: MNT4Parameters"),
-PartialEq(bound = "P: MNT4Parameters"),
-Eq(bound = "P: MNT4Parameters")
+    Clone(bound = "P: MNT4Parameters"),
+    Debug(bound = "P: MNT4Parameters"),
+    PartialEq(bound = "P: MNT4Parameters"),
+    Eq(bound = "P: MNT4Parameters")
 )]
 #[derive(Serialize, Deserialize)]
 #[serde(bound(serialize = "P: MNT4Parameters"))]
 #[serde(bound(deserialize = "P: MNT4Parameters"))]
-pub struct G2Prepared<P: MNT4Parameters>{
-    pub q:      G2Affine<P>,
+pub struct G2Prepared<P: MNT4Parameters> {
+    pub q: G2Affine<P>,
     pub coeffs: Vec<G2PreparedCoefficients<P>>,
 }
 
@@ -63,7 +67,7 @@ impl<P: MNT4Parameters> ToBytes for G2Prepared<P> {
     fn write<W: Write>(&self, mut writer: W) -> IoResult<()> {
         self.q.write(&mut writer)?;
         writer.write_u32::<BigEndian>(self.coeffs.len() as u32)?;
-        for c in &self.coeffs{
+        for c in &self.coeffs {
             c.write(&mut writer)?;
         }
         Ok(())
@@ -83,7 +87,7 @@ impl<P: MNT4Parameters> FromBytes for G2Prepared<P> {
                 .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
             coeffs.push(c);
         }
-        Ok(G2Prepared{q, coeffs})
+        Ok(G2Prepared { q, coeffs })
     }
 }
 

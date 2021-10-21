@@ -1,29 +1,21 @@
 //! A test circuit which, besides processing additional data according to
 //! a simple quadratic relation, allocates a given instance of `FinalDarlinDeferredData`,
 //! and wires it to the outside via system inputs.
-use algebra::{AffineCurve, ToConstraintField, UniformRand};
-use r1cs_core::{ConstraintSynthesizer, ConstraintSystem, SynthesisError};
 use crate::darlin::{
-    pcd::{
-        PCD, PCDParameters, PCDCircuit,
-        final_darlin::FinalDarlinPCD,
-        error::PCDError,
-    },
     accumulators::ItemAccumulator,
     data_structures::FinalDarlinDeferredData,
-    FinalDarlinProverKey, FinalDarlinVerifierKey, FinalDarlin,
+    pcd::{error::PCDError, final_darlin::FinalDarlinPCD, PCDCircuit, PCDParameters, PCD},
+    FinalDarlin, FinalDarlinProverKey, FinalDarlinVerifierKey,
 };
-use poly_commit::{
-    ipa_pc::{InnerProductArgPC, CommitterKey, UniversalParams},
-    Error as PCError
-};
-use rand::{ Rng, RngCore };
+use algebra::{AffineCurve, ToConstraintField, UniformRand};
 use digest::Digest;
-use r1cs_std::{
-    alloc::AllocGadget,
-    fields::fp::FpGadget,
-    eq::EqGadget,
+use poly_commit::{
+    ipa_pc::{CommitterKey, InnerProductArgPC, UniversalParams},
+    Error as PCError,
 };
+use r1cs_core::{ConstraintSynthesizer, ConstraintSystem, SynthesisError};
+use r1cs_std::{alloc::AllocGadget, eq::EqGadget, fields::fp::FpGadget};
+use rand::{Rng, RngCore};
 
 // Dummy Acc used for testing
 pub struct TestAcc {}
@@ -37,17 +29,15 @@ impl ItemAccumulator for TestAcc {
     fn check_items<R: RngCore>(
         _vk: &Self::AccumulatorVerifierKey,
         _accumulators: &[Self::Item],
-        _rng: &mut R
-    ) -> Result<bool, PCError>
-    {
+        _rng: &mut R,
+    ) -> Result<bool, PCError> {
         Ok(true)
     }
 
     fn accumulate_items(
         _ck: &Self::AccumulatorProverKey,
-        _accumulators: Vec<Self::Item>
-    ) -> Result<(Self::Item, Self::AccumulationProof), PCError>
-    {
+        _accumulators: Vec<Self::Item>,
+    ) -> Result<(Self::Item, Self::AccumulationProof), PCError> {
         Ok(((), ()))
     }
 
@@ -56,9 +46,8 @@ impl ItemAccumulator for TestAcc {
         _vk: &Self::AccumulatorVerifierKey,
         _previous_accumulators: Vec<Self::Item>,
         _proof: &Self::AccumulationProof,
-        _rng: &mut R
-    ) -> Result<bool, PCError>
-    {
+        _rng: &mut R,
+    ) -> Result<bool, PCError> {
         Ok(true)
     }
 }
@@ -66,9 +55,10 @@ impl ItemAccumulator for TestAcc {
 // Test PCDVk
 pub struct TestPCDVk {}
 
-impl AsRef<()> for TestPCDVk
-{
-    fn as_ref(&self) -> &() { &() }
+impl AsRef<()> for TestPCDVk {
+    fn as_ref(&self) -> &() {
+        &()
+    }
 }
 
 /// For testing purposes, TestPrevPCD already serves correct sys_ins and usr_ins
@@ -79,15 +69,20 @@ pub struct TestPrevPCD<G1: AffineCurve, G2: AffineCurve> {
 }
 
 impl<G1, G2> PCD for TestPrevPCD<G1, G2>
-    where
-        G1: AffineCurve<BaseField = <G2 as AffineCurve>::ScalarField> + ToConstraintField<<G2 as AffineCurve>::ScalarField>,
-        G2: AffineCurve<BaseField = <G1 as AffineCurve>::ScalarField> + ToConstraintField<<G1 as AffineCurve>::ScalarField>,
+where
+    G1: AffineCurve<BaseField = <G2 as AffineCurve>::ScalarField>
+        + ToConstraintField<<G2 as AffineCurve>::ScalarField>,
+    G2: AffineCurve<BaseField = <G1 as AffineCurve>::ScalarField>
+        + ToConstraintField<<G1 as AffineCurve>::ScalarField>,
 {
     type PCDAccumulator = TestAcc;
     type PCDVerifierKey = TestPCDVk;
 
     // there is nothing to succinctly verify
-    fn succinct_verify(&self, _vk: &Self::PCDVerifierKey) -> Result<<Self::PCDAccumulator as ItemAccumulator>::Item, PCDError> {
+    fn succinct_verify(
+        &self,
+        _vk: &Self::PCDVerifierKey,
+    ) -> Result<<Self::PCDAccumulator as ItemAccumulator>::Item, PCDError> {
         Ok(())
     }
 }
@@ -96,13 +91,12 @@ impl<G1, G2> PCD for TestPrevPCD<G1, G2>
 #[derive(Clone)]
 pub struct CircuitInfo<G1: AffineCurve, G2: AffineCurve> {
     pub num_constraints: usize,
-    pub num_variables:   usize,
+    pub num_variables: usize,
     /// just used to deduce the number of field elements to allocate on the
     /// circuit for simplicity. Would've been the same passing a parameter
     /// like "number_of_deferred_field_element_to_allocate"
-    pub dummy_deferred:  FinalDarlinDeferredData<G1, G2>,
+    pub dummy_deferred: FinalDarlinDeferredData<G1, G2>,
 }
-
 
 /// This test circuit simply allocates `deferred`, i.e. a valid instance of FinalDarlinDeferredData,
 /// and wires it to the outside via system inputs.
@@ -116,7 +110,6 @@ pub struct CircuitInfo<G1: AffineCurve, G2: AffineCurve> {
 /// dummy witness variables are allocated.
 #[derive(Clone, Default)]
 pub struct TestCircuit<G1: AffineCurve, G2: AffineCurve> {
-
     /// Incremental data (to be allocated as witnesses)
     pub a: Option<G1::ScalarField>,
     pub b: Option<G1::ScalarField>,
@@ -138,15 +131,16 @@ pub struct TestCircuit<G1: AffineCurve, G2: AffineCurve> {
 }
 
 impl<G1, G2> ConstraintSynthesizer<G1::ScalarField> for TestCircuit<G1, G2>
-    where
-        G1: AffineCurve<BaseField = <G2 as AffineCurve>::ScalarField> + ToConstraintField<<G2 as AffineCurve>::ScalarField>,
-        G2: AffineCurve<BaseField = <G1 as AffineCurve>::ScalarField> + ToConstraintField<<G1 as AffineCurve>::ScalarField>,
+where
+    G1: AffineCurve<BaseField = <G2 as AffineCurve>::ScalarField>
+        + ToConstraintField<<G2 as AffineCurve>::ScalarField>,
+    G2: AffineCurve<BaseField = <G1 as AffineCurve>::ScalarField>
+        + ToConstraintField<<G1 as AffineCurve>::ScalarField>,
 {
     fn generate_constraints<CS: ConstraintSystem<G1::ScalarField>>(
         self,
         cs: &mut CS,
-    ) -> Result<(), SynthesisError>
-    {
+    ) -> Result<(), SynthesisError> {
         // convert the FinalDarlinDeferred efficiently to circuit inputs
         let deferred_as_native_fes = self.deferred.to_field_elements().unwrap();
         let deferred_len = deferred_as_native_fes.len();
@@ -156,7 +150,7 @@ impl<G1, G2> ConstraintSynthesizer<G1::ScalarField> for TestCircuit<G1, G2>
         for (i, fe) in deferred_as_native_fes.iter().enumerate() {
             let ins_g = FpGadget::<G1::ScalarField>::alloc_input(
                 cs.ns(|| format!("Alloc input deferred elem {}", i)),
-                || Ok(fe)
+                || Ok(fe),
             )?;
             deferred_input_gs.push(ins_g);
         }
@@ -166,19 +160,21 @@ impl<G1, G2> ConstraintSynthesizer<G1::ScalarField> for TestCircuit<G1, G2>
         for (i, fe) in deferred_as_native_fes.into_iter().enumerate() {
             let witness_g = FpGadget::<G1::ScalarField>::alloc(
                 cs.ns(|| format!("Alloc deferred elem {}", i)),
-                || Ok(fe)
+                || Ok(fe),
             )?;
             deferred_gs.push(witness_g);
         }
 
         // Enforce the system inputs to the circuit to be equal to the allocated `deferred`.
-        // This is a simple way to allow test cases where sys data (i.e. the deferred 
+        // This is a simple way to allow test cases where sys data (i.e. the deferred
         // accumulators) are wrong.
         let mut test_constraints = cs.num_constraints();
-        for (i, (deferred_w, deferred_ins)) in deferred_input_gs.into_iter().zip(deferred_gs).enumerate() {
+        for (i, (deferred_w, deferred_ins)) in
+            deferred_input_gs.into_iter().zip(deferred_gs).enumerate()
+        {
             deferred_w.enforce_equal(
                 cs.ns(|| format!("enforce deferred equal {}", i)),
-                &deferred_ins
+                &deferred_ins,
             )?;
         }
         test_constraints = cs.num_constraints() - test_constraints;
@@ -187,16 +183,16 @@ impl<G1, G2> ConstraintSynthesizer<G1::ScalarField> for TestCircuit<G1, G2>
 
         let a = cs.alloc(|| "a", || self.a.ok_or(SynthesisError::AssignmentMissing))?;
         let b = cs.alloc(|| "b", || self.b.ok_or(SynthesisError::AssignmentMissing))?;
-        let c_prev = cs.alloc(|| "c_prev", || self.c_prev.ok_or(SynthesisError::AssignmentMissing))?;
-        let d_prev = cs.alloc(|| "d_prev", || self.d_prev.ok_or(SynthesisError::AssignmentMissing))?;
-        let c = cs.alloc_input(
-            || "c",
-            || self.c.ok_or(SynthesisError::AssignmentMissing)
+        let c_prev = cs.alloc(
+            || "c_prev",
+            || self.c_prev.ok_or(SynthesisError::AssignmentMissing),
         )?;
-        let d = cs.alloc_input(
-            || "d",
-            || self.d.ok_or(SynthesisError::AssignmentMissing)
+        let d_prev = cs.alloc(
+            || "d_prev",
+            || self.d_prev.ok_or(SynthesisError::AssignmentMissing),
         )?;
+        let c = cs.alloc_input(|| "c", || self.c.ok_or(SynthesisError::AssignmentMissing))?;
+        let d = cs.alloc_input(|| "d", || self.d.ok_or(SynthesisError::AssignmentMissing))?;
 
         // TODO: This calculation is wrong, as enforce_equal allocates new variables.
         //       However, fixing this may cause unit tests to crash since num_constraints
@@ -209,7 +205,7 @@ impl<G1, G2> ConstraintSynthesizer<G1::ScalarField> for TestCircuit<G1, G2>
             )?;
         }
 
-        for i in 0..(self.num_constraints - 1 - test_constraints){
+        for i in 0..(self.num_constraints - 1 - test_constraints) {
             cs.enforce(
                 || format!("constraint {}", i),
                 |lc| lc + a,
@@ -229,14 +225,16 @@ impl<G1, G2> ConstraintSynthesizer<G1::ScalarField> for TestCircuit<G1, G2>
 }
 
 impl<G1, G2> PCDCircuit<G1> for TestCircuit<G1, G2>
-    where
-        G1: AffineCurve<BaseField = <G2 as AffineCurve>::ScalarField> + ToConstraintField<<G2 as AffineCurve>::ScalarField>,
-        G2: AffineCurve<BaseField = <G1 as AffineCurve>::ScalarField> + ToConstraintField<<G1 as AffineCurve>::ScalarField>,
+where
+    G1: AffineCurve<BaseField = <G2 as AffineCurve>::ScalarField>
+        + ToConstraintField<<G2 as AffineCurve>::ScalarField>,
+    G2: AffineCurve<BaseField = <G1 as AffineCurve>::ScalarField>
+        + ToConstraintField<<G1 as AffineCurve>::ScalarField>,
 {
-    type SetupData       =  CircuitInfo<G1, G2>;
-    type AdditionalData =  (G1::ScalarField, G1::ScalarField);
-    type SystemInputs    =  FinalDarlinDeferredData<G1, G2>;
-    type PreviousPCD     =  TestPrevPCD<G1, G2>;
+    type SetupData = CircuitInfo<G1, G2>;
+    type AdditionalData = (G1::ScalarField, G1::ScalarField);
+    type SystemInputs = FinalDarlinDeferredData<G1, G2>;
+    type PreviousPCD = TestPrevPCD<G1, G2>;
 
     fn init(config: Self::SetupData) -> Self {
         Self {
@@ -248,17 +246,16 @@ impl<G1, G2> PCDCircuit<G1> for TestCircuit<G1, G2>
             d: None,
             num_constraints: config.num_constraints,
             num_variables: config.num_variables,
-            deferred: config.dummy_deferred.clone()
+            deferred: config.dummy_deferred.clone(),
         }
     }
 
     fn init_state(
-        config:               Self::SetupData,
+        config: Self::SetupData,
         previous_proofs_data: Vec<Self::PreviousPCD>,
         _previous_proofs_vks: Vec<<Self::PreviousPCD as PCD>::PCDVerifierKey>,
-        additional_data:     Self::AdditionalData
-    ) -> Self
-    {
+        additional_data: Self::AdditionalData,
+    ) -> Self {
         assert_eq!(previous_proofs_data.len(), 1);
 
         let a = additional_data.0;
@@ -293,27 +290,28 @@ impl<G1, G2> PCDCircuit<G1> for TestCircuit<G1, G2>
     }
 }
 
-/// Generates a FinalDarlinPCD from TestCircuit1, given an instance of 
-/// FinalDarlinDeferred as previous PCD (via CircuitInfo). 
+/// Generates a FinalDarlinPCD from TestCircuit1, given an instance of
+/// FinalDarlinDeferred as previous PCD (via CircuitInfo).
 /// The additional data a,b is sampled randomly.
 #[allow(dead_code)]
-pub fn generate_test_pcd<'a, G1: AffineCurve, G2:AffineCurve, D: Digest + 'a, R: RngCore>(
+pub fn generate_test_pcd<'a, G1: AffineCurve, G2: AffineCurve, D: Digest + 'a, R: RngCore>(
     pc_ck_g1: &CommitterKey<G1>,
     final_darlin_pk: &FinalDarlinProverKey<G1::ScalarField, InnerProductArgPC<G1, D>>,
     info: CircuitInfo<G1, G2>,
     zk: bool,
     rng: &mut R,
 ) -> FinalDarlinPCD<'a, G1, G2, D>
-    where
-        G1: AffineCurve<BaseField = <G2 as AffineCurve>::ScalarField> + ToConstraintField<<G2 as AffineCurve>::ScalarField>,
-        G2: AffineCurve<BaseField = <G1 as AffineCurve>::ScalarField> + ToConstraintField<<G1 as AffineCurve>::ScalarField>,
+where
+    G1: AffineCurve<BaseField = <G2 as AffineCurve>::ScalarField>
+        + ToConstraintField<<G2 as AffineCurve>::ScalarField>,
+    G2: AffineCurve<BaseField = <G1 as AffineCurve>::ScalarField>
+        + ToConstraintField<<G1 as AffineCurve>::ScalarField>,
 {
-
     let prev_pcd = TestPrevPCD::<G1, G2> {
         // as we have already generated a dummy deferred for CircuitInfo, let's
         // just re-use it
         sys_ins: info.dummy_deferred.clone(),
-        usr_ins: (G1::ScalarField::rand(rng), G1::ScalarField::rand(rng))
+        usr_ins: (G1::ScalarField::rand(rng), G1::ScalarField::rand(rng)),
     };
 
     // our additional data witnesses
@@ -328,11 +326,12 @@ pub fn generate_test_pcd<'a, G1: AffineCurve, G2:AffineCurve, D: Digest + 'a, R:
         vec![],
         (a, b),
         zk,
-        if zk { Some(rng) } else { None }
-    ).unwrap()
+        if zk { Some(rng) } else { None },
+    )
+    .unwrap()
 }
 
-/// Generates `num_proofs` random instances of FinalDarlinPCDs for TestCircuit1 at given 
+/// Generates `num_proofs` random instances of FinalDarlinPCDs for TestCircuit1 at given
 /// `num_constraints`, using `segment_size` for the dlog commitment scheme.
 #[allow(dead_code)]
 pub fn generate_test_data<'a, G1: AffineCurve, G2: AffineCurve, D: Digest + 'a, R: RngCore>(
@@ -344,11 +343,13 @@ pub fn generate_test_data<'a, G1: AffineCurve, G2: AffineCurve, D: Digest + 'a, 
     rng: &mut R,
 ) -> (
     Vec<FinalDarlinPCD<'a, G1, G2, D>>,
-    Vec<FinalDarlinVerifierKey<G1::ScalarField, InnerProductArgPC<G1, D>>>
+    Vec<FinalDarlinVerifierKey<G1::ScalarField, InnerProductArgPC<G1, D>>>,
 )
-    where
-        G1: AffineCurve<BaseField = <G2 as AffineCurve>::ScalarField> + ToConstraintField<<G2 as AffineCurve>::ScalarField>,
-        G2: AffineCurve<BaseField = <G1 as AffineCurve>::ScalarField> + ToConstraintField<<G1 as AffineCurve>::ScalarField>,
+where
+    G1: AffineCurve<BaseField = <G2 as AffineCurve>::ScalarField>
+        + ToConstraintField<<G2 as AffineCurve>::ScalarField>,
+    G2: AffineCurve<BaseField = <G1 as AffineCurve>::ScalarField>
+        + ToConstraintField<<G1 as AffineCurve>::ScalarField>,
 {
     // Trim committer key and verifier key
     let config = PCDParameters { segment_size };
@@ -368,19 +369,16 @@ pub fn generate_test_data<'a, G1: AffineCurve, G2: AffineCurve, D: Digest + 'a, 
         dummy_deferred,
     };
 
-    let (index_pk, index_vk) = FinalDarlin::<G1, G2, D>::index::<TestCircuit<G1, G2>>(
-        &committer_key_g1,
-        info.clone()
-    ).unwrap();
+    let (index_pk, index_vk) =
+        FinalDarlin::<G1, G2, D>::index::<TestCircuit<G1, G2>>(&committer_key_g1, info.clone())
+            .unwrap();
 
     // Generate Final Darlin PCDs
-    let final_darlin_pcd = generate_test_pcd::<G1, G2, D, R>(
-        &committer_key_g1,
-        &index_pk,
-        info,
-        rng.gen(),
-        rng,
-    );
+    let final_darlin_pcd =
+        generate_test_pcd::<G1, G2, D, R>(&committer_key_g1, &index_pk, info, rng.gen(), rng);
 
-    (vec![final_darlin_pcd; num_proofs], vec![index_vk; num_proofs])
+    (
+        vec![final_darlin_pcd; num_proofs],
+        vec![index_vk; num_proofs],
+    )
 }

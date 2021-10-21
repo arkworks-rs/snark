@@ -1,17 +1,26 @@
 use crate::Error;
-use algebra::{bytes::{
-    ToBytes, FromBytes
-}, Field, FromBytesChecked, UniformRand};
+use algebra::{
+    bytes::{FromBytes, ToBytes},
+    Field, FromBytesChecked, UniformRand,
+};
 use rand::Rng;
-use std::hash::Hash;
+use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
-use serde::{Serialize, Deserialize};
+use std::hash::Hash;
 
 pub mod schnorr;
 
 pub trait SignatureScheme {
     type Parameters: Clone + Send + Sync + Serialize + for<'a> Deserialize<'a>;
-    type PublicKey: ToBytes + Serialize + for<'a> Deserialize<'a> + Hash + Eq + Clone + Default + Send + Sync;
+    type PublicKey: ToBytes
+        + Serialize
+        + for<'a> Deserialize<'a>
+        + Hash
+        + Eq
+        + Clone
+        + Default
+        + Send
+        + Sync;
     type SecretKey: ToBytes + Serialize + for<'a> Deserialize<'a> + Clone + Default;
     type Signature: Serialize + for<'a> Deserialize<'a> + Clone + Default + Send + Sync;
 
@@ -50,23 +59,39 @@ pub trait SignatureScheme {
 }
 
 pub trait FieldBasedSignatureScheme {
-
     type Data: Field;
-    type PublicKey: FromBytes + FromBytesChecked + ToBytes + Hash + Eq + Copy +
-                    Clone + Default + Debug + Send + Sync + UniformRand
-                    + Serialize + for<'a> Deserialize<'a>;
+    type PublicKey: FromBytes
+        + FromBytesChecked
+        + ToBytes
+        + Hash
+        + Eq
+        + Copy
+        + Clone
+        + Default
+        + Debug
+        + Send
+        + Sync
+        + UniformRand
+        + Serialize
+        + for<'a> Deserialize<'a>;
     type SecretKey: ToBytes + Clone + Default + Serialize + for<'a> Deserialize<'a>;
-    type Signature: Copy + Clone + Default + Send + Sync + Debug + Eq + PartialEq
-                    + ToBytes + FromBytes + FromBytesChecked + Serialize
-                    + for<'a> Deserialize<'a>;
+    type Signature: Copy
+        + Clone
+        + Default
+        + Send
+        + Sync
+        + Debug
+        + Eq
+        + PartialEq
+        + ToBytes
+        + FromBytes
+        + FromBytesChecked
+        + Serialize
+        + for<'a> Deserialize<'a>;
 
-    fn keygen<R: Rng>(
-        rng: &mut R,
-    ) -> (Self::PublicKey, Self::SecretKey);
+    fn keygen<R: Rng>(rng: &mut R) -> (Self::PublicKey, Self::SecretKey);
 
-    fn get_public_key(
-        sk: &Self::SecretKey
-    ) -> Self::PublicKey;
+    fn get_public_key(sk: &Self::SecretKey) -> Self::PublicKey;
 
     fn sign<R: Rng>(
         rng: &mut R,
@@ -81,7 +106,5 @@ pub trait FieldBasedSignatureScheme {
         signature: &Self::Signature,
     ) -> Result<bool, Error>;
 
-    fn keyverify(
-        pk: &Self::PublicKey,
-    ) -> bool;
+    fn keyverify(pk: &Self::PublicKey) -> bool;
 }

@@ -1,8 +1,4 @@
-use algebra::{
-    fields::mnt6753::Fr,
-    fft::get_best_evaluation_domain,
-    UniformRand,
-};
+use algebra::{fft::get_best_evaluation_domain, fields::mnt6753::Fr, UniformRand};
 use rand::SeedableRng;
 use rand_xorshift::XorShiftRng;
 
@@ -23,7 +19,8 @@ fn bench_basic_domain_fft(b: &mut ::test::Bencher) {
                 v.push(Fr::rand(&mut rng));
             }
             v
-        }).collect();
+        })
+        .collect();
 
     let v_b: Vec<Vec<Fr>> = (0..SAMPLES)
         .map(|_| {
@@ -32,7 +29,8 @@ fn bench_basic_domain_fft(b: &mut ::test::Bencher) {
                 v.push(Fr::rand(&mut rng));
             }
             v
-        }).collect();
+        })
+        .collect();
 
     let v_c: Vec<Vec<Fr>> = (0..SAMPLES)
         .map(|_| {
@@ -41,7 +39,8 @@ fn bench_basic_domain_fft(b: &mut ::test::Bencher) {
                 v.push(Fr::rand(&mut rng));
             }
             v
-        }).collect();
+        })
+        .collect();
 
     let mut count = 0;
     b.iter(|| {
@@ -80,7 +79,8 @@ fn bench_mixed_domain_fft(b: &mut ::test::Bencher) {
                 v.push(Fr::rand(&mut rng));
             }
             v
-        }).collect();
+        })
+        .collect();
 
     let v_b: Vec<Vec<Fr>> = (0..SAMPLES)
         .map(|_| {
@@ -89,7 +89,8 @@ fn bench_mixed_domain_fft(b: &mut ::test::Bencher) {
                 v.push(Fr::rand(&mut rng));
             }
             v
-        }).collect();
+        })
+        .collect();
 
     let v_c: Vec<Vec<Fr>> = (0..SAMPLES)
         .map(|_| {
@@ -98,7 +99,8 @@ fn bench_mixed_domain_fft(b: &mut ::test::Bencher) {
                 v.push(Fr::rand(&mut rng));
             }
             v
-        }).collect();
+        })
+        .collect();
 
     let mut count = 0;
     b.iter(|| {

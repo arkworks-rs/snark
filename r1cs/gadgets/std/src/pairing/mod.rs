@@ -8,17 +8,13 @@ pub mod bn;
 pub mod mnt4;
 pub mod mnt6;
 
-
 pub trait PairingGadget<PairingE: PairingEngine, ConstraintF: Field> {
-
     type G1Gadget: GroupGadget<PairingE::G1Projective, ConstraintF>;
     type G2Gadget: GroupGadget<PairingE::G2Projective, ConstraintF>;
 
-    type G1PreparedGadget:
-    ToBytesGadget<ConstraintF> + Clone + Debug;
+    type G1PreparedGadget: ToBytesGadget<ConstraintF> + Clone + Debug;
 
-    type G2PreparedGadget:
-    ToBytesGadget<ConstraintF> + Clone + Debug;
+    type G2PreparedGadget: ToBytesGadget<ConstraintF> + Clone + Debug;
 
     type GTGadget: FieldGadget<PairingE::Fqk, ConstraintF> + Clone;
 
@@ -66,9 +62,7 @@ pub trait PairingGadget<PairingE: PairingEngine, ConstraintF: Field> {
 
 #[cfg(test)]
 pub(crate) mod tests {
-    use crate::{
-        bits::boolean::Boolean, prelude::*, test_constraint_system::TestConstraintSystem,
-    };
+    use crate::{bits::boolean::Boolean, prelude::*, test_constraint_system::TestConstraintSystem};
     use algebra::{BitIterator, Field, Group, PairingEngine, PrimeField, UniformRand};
     use r1cs_core::ConstraintSystem;
     use rand;

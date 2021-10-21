@@ -1,7 +1,8 @@
 use crate::{
+    biginteger::BigInteger384 as BigInteger,
+    field_new,
     fields::bn_382::fq::{Fq, FQ_ONE, FQ_ZERO},
     fp2::{Fp2, Fp2Parameters},
-    biginteger::BigInteger384 as BigInteger, field_new,
     Field,
 };
 

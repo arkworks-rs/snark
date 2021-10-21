@@ -1,28 +1,38 @@
-use algebra::PrimeField;
-use std::marker::PhantomData;
 use crate::crh::BatchFieldBasedHash;
-use crate::{Error, PoseidonParameters, PoseidonHash, BatchSBox, CryptoError};
+use crate::{BatchSBox, CryptoError, Error, PoseidonHash, PoseidonParameters};
+use algebra::PrimeField;
 use rayon::prelude::*;
+use std::marker::PhantomData;
 
-pub struct PoseidonBatchHash<F: PrimeField, P: PoseidonParameters<Fr = F>, SB: BatchSBox<Field = F, Parameters = P>>
-{
-    _field:      PhantomData<F>,
+pub struct PoseidonBatchHash<
+    F: PrimeField,
+    P: PoseidonParameters<Fr = F>,
+    SB: BatchSBox<Field = F, Parameters = P>,
+> {
+    _field: PhantomData<F>,
     _parameters: PhantomData<P>,
-    _sbox:       PhantomData<SB>,
+    _sbox: PhantomData<SB>,
 }
 
 impl<F, P, SB> PoseidonBatchHash<F, P, SB>
-    where
-        F: PrimeField,
-        P: PoseidonParameters<Fr = F>,
-        SB: BatchSBox<Field = F, Parameters = P>,
+where
+    F: PrimeField,
+    P: PoseidonParameters<Fr = F>,
+    SB: BatchSBox<Field = F, Parameters = P>,
 {
     fn apply_permutation(input_array: &[F]) -> Vec<Vec<F>> {
-
         // Sanity checks
         let array_length = input_array.len() / P::R;
-        assert_eq!(input_array.len() % P::R, 0, "The length of the input data array is not a multiple of the rate.");
-        assert_ne!(input_array.len(), 0, "Input data array does not contain any data.");
+        assert_eq!(
+            input_array.len() % P::R,
+            0,
+            "The length of the input data array is not a multiple of the rate."
+        );
+        assert_ne!(
+            input_array.len(),
+            0,
+            "Input data array does not contain any data."
+        );
 
         // Assign pre-computed values of the state vector equivalent to a permutation with zero element state vector
         let mut state_z = Vec::new();
@@ -50,19 +60,17 @@ impl<F, P, SB> PoseidonBatchHash<F, P, SB>
 
         // Calculate the chunk size to split the state vector
         let cpus = rayon::current_num_threads();
-        let chunk_size = (array_length as f64/ cpus as f64).ceil() as usize;
+        let chunk_size = (array_length as f64 / cpus as f64).ceil() as usize;
 
         // apply permutation to different chunks in parallel
-        state.par_chunks_mut(chunk_size)
-            .for_each(| p1| {
-                Self::poseidon_perm_gen(p1);
-            });
+        state.par_chunks_mut(chunk_size).for_each(|p1| {
+            Self::poseidon_perm_gen(p1);
+        });
 
         state
     }
 
     fn poseidon_full_round(vec_state: &mut [Vec<P::Fr>], round_cst_idx: &mut usize) {
-
         // go over each of the state vectors and add the round constants
         for k in 0..vec_state.len() {
             let round_cst_idx_copy = &mut round_cst_idx.clone();
@@ -80,7 +88,6 @@ impl<F, P, SB> PoseidonBatchHash<F, P, SB>
     }
 
     fn poseidon_partial_round(vec_state: &mut [Vec<P::Fr>], round_cst_idx: &mut usize) {
-
         // go over each of the state vectors and add the round constants
         for k in 0..vec_state.len() {
             let round_cst_idx_copy = &mut round_cst_idx.clone();
@@ -98,7 +105,6 @@ impl<F, P, SB> PoseidonBatchHash<F, P, SB>
     }
 
     pub fn poseidon_perm_gen(vec_state: &mut [Vec<P::Fr>]) {
-
         // index that goes over the round constants
         let mut round_cst_idx: usize = 0;
 
@@ -120,16 +126,15 @@ impl<F, P, SB> PoseidonBatchHash<F, P, SB>
 }
 
 impl<F, P, SB> BatchFieldBasedHash for PoseidonBatchHash<F, P, SB>
-    where
-        F: PrimeField,
-        P: PoseidonParameters<Fr = F>,
-        SB: BatchSBox<Field = F, Parameters = P>,
+where
+    F: PrimeField,
+    P: PoseidonParameters<Fr = F>,
+    SB: BatchSBox<Field = F, Parameters = P>,
 {
     type Data = F;
     type BaseHash = PoseidonHash<F, P, SB>;
 
     fn batch_evaluate(input_array: &[F]) -> Result<Vec<F>, Error> {
-
         // Input:
         // This function calculates the hashes of inputs by groups of the rate P::R.
         // The inputs are arranged in an array and arranged as consecutive chunks
@@ -143,13 +148,13 @@ impl<F, P, SB> BatchFieldBasedHash for PoseidonBatchHash<F, P, SB>
 
         if input_array.len() % P::R != 0 {
             Err(Box::new(CryptoError::Other(
-                "The length of the input data array is not a multiple of the rate.".to_owned()
+                "The length of the input data array is not a multiple of the rate.".to_owned(),
             )))?
         }
 
         if input_array.len() == 0 {
             Err(Box::new(CryptoError::Other(
-                "Input data array does not contain any data.".to_owned()
+                "Input data array does not contain any data.".to_owned(),
             )))?
         }
 
@@ -163,8 +168,7 @@ impl<F, P, SB> BatchFieldBasedHash for PoseidonBatchHash<F, P, SB>
         Ok(output_array)
     }
 
-    fn batch_evaluate_in_place(input_array: &mut[F], output_array: &mut[F]) -> Result<(), Error> {
-
+    fn batch_evaluate_in_place(input_array: &mut [F], output_array: &mut [F]) -> Result<(), Error> {
         // Input:
         // This function calculates the hashes of inputs by groups of the rate P::R.
         // The inputs are arranged in an array and arranged as consecutive chunks
@@ -176,13 +180,13 @@ impl<F, P, SB> BatchFieldBasedHash for PoseidonBatchHash<F, P, SB>
 
         if input_array.len() % P::R != 0 {
             Err(Box::new(CryptoError::Other(
-                "The length of the input data array is not a multiple of the rate.".to_owned()
+                "The length of the input data array is not a multiple of the rate.".to_owned(),
             )))?
         }
 
         if input_array.len() == 0 {
             Err(Box::new(CryptoError::Other(
-                "Input data array does not contain any data.".to_owned()
+                "Input data array does not contain any data.".to_owned(),
             )))?
         }
 
@@ -208,17 +212,17 @@ impl<F, P, SB> BatchFieldBasedHash for PoseidonBatchHash<F, P, SB>
 
 #[cfg(test)]
 mod test {
+    use crate::{BatchFieldBasedHash, FieldBasedHash};
     use algebra::{Field, UniformRand};
-    use crate::{FieldBasedHash, BatchFieldBasedHash};
-    use rand_xorshift::XorShiftRng;
     use rand::SeedableRng;
+    use rand_xorshift::XorShiftRng;
     use std::str::FromStr;
 
     #[cfg(feature = "mnt4_753")]
     mod mnt4_753 {
         use super::*;
+        use crate::{MNT4BatchPoseidonHash, MNT4PoseidonHash};
         use algebra::fields::mnt4753::Fr as MNT4753Fr;
-        use crate::{MNT4PoseidonHash, MNT4BatchPoseidonHash};
 
         #[test]
         fn test_batch_hash_mnt4() {
@@ -250,7 +254,9 @@ mod test {
 
             input_serial.iter().for_each(|p| {
                 let mut digest = MNT4PoseidonHash::init_constant_length(2, None);
-                p.into_iter().for_each(|&f| { digest.update(f); });
+                p.into_iter().for_each(|&f| {
+                    digest.update(f);
+                });
                 output_4753.push(digest.finalize().unwrap());
             });
 
@@ -260,17 +266,26 @@ mod test {
             // =============================================================================
             // Compare results
             for i in 0..num_hashes {
-                assert_eq!(output_4753[i], output_vec[i], "Hash outputs, position {}, for MNT4 are not equal.", i);
+                assert_eq!(
+                    output_4753[i], output_vec[i],
+                    "Hash outputs, position {}, for MNT4 are not equal.",
+                    i
+                );
             }
 
             // Check with one single hash
             let single_output = MNT4PoseidonHash::init_constant_length(2, None)
                 .update(input_serial[0][0])
                 .update(input_serial[0][1])
-                .finalize().unwrap();
+                .finalize()
+                .unwrap();
             let single_batch_output = MNT4BatchPoseidonHash::batch_evaluate(&input_batch[0..2]);
 
-            assert_eq!(single_output, single_batch_output.unwrap()[0], "Single instance hash outputs are not equal for MNT4.");
+            assert_eq!(
+                single_output,
+                single_batch_output.unwrap()[0],
+                "Single instance hash outputs are not equal for MNT4."
+            );
         }
 
         #[test]
@@ -294,12 +309,20 @@ mod test {
             let output_vec = (MNT4BatchPoseidonHash::batch_evaluate(&input_batch)).unwrap();
 
             let mut output_vec_in_place = vec![MNT4753Fr::zero(); num_hashes];
-            MNT4BatchPoseidonHash::batch_evaluate_in_place(&mut input_batch[..], &mut output_vec_in_place[..]).unwrap();
+            MNT4BatchPoseidonHash::batch_evaluate_in_place(
+                &mut input_batch[..],
+                &mut output_vec_in_place[..],
+            )
+            .unwrap();
 
             // =============================================================================
             // Compare results
             for i in 0..num_hashes {
-                assert_eq!(output_vec_in_place[i], output_vec[i], "Hash outputs, position {}, for MNT6 are not equal.", i);
+                assert_eq!(
+                    output_vec_in_place[i], output_vec[i],
+                    "Hash outputs, position {}, for MNT6 are not equal.",
+                    i
+                );
             }
         }
 
@@ -335,12 +358,11 @@ mod test {
     #[cfg(feature = "mnt6_753")]
     mod mnt6_753 {
         use super::*;
+        use crate::{MNT6BatchPoseidonHash, MNT6PoseidonHash};
         use algebra::fields::mnt6753::Fr as MNT6753Fr;
-        use crate::{MNT6PoseidonHash, MNT6BatchPoseidonHash};
 
         #[test]
         fn test_batch_hash_mnt6() {
-
             //  the number of hashes to test
             let num_hashes = 1000;
 
@@ -369,7 +391,9 @@ mod test {
 
             input_serial.iter().for_each(|p| {
                 let mut digest = MNT6PoseidonHash::init_constant_length(2, None);
-                p.into_iter().for_each(|&f| { digest.update(f); });
+                p.into_iter().for_each(|&f| {
+                    digest.update(f);
+                });
                 output_6753.push(digest.finalize().unwrap());
             });
 
@@ -379,22 +403,30 @@ mod test {
             // =============================================================================
             // Compare results
             for i in 0..num_hashes {
-                assert_eq!(output_6753[i], output_vec[i], "Hash outputs, position {}, for MNT6 are not equal.", i);
+                assert_eq!(
+                    output_6753[i], output_vec[i],
+                    "Hash outputs, position {}, for MNT6 are not equal.",
+                    i
+                );
             }
 
             // Check with one single hash
             let single_output = MNT6PoseidonHash::init_constant_length(2, None)
                 .update(input_serial[0][0])
                 .update(input_serial[0][1])
-                .finalize().unwrap();
+                .finalize()
+                .unwrap();
             let single_batch_output = MNT6BatchPoseidonHash::batch_evaluate(&input_batch[0..2]);
 
-            assert_eq!(single_output, single_batch_output.unwrap()[0], "Single instance hash outputs are not equal for MNT6.");
+            assert_eq!(
+                single_output,
+                single_batch_output.unwrap()[0],
+                "Single instance hash outputs are not equal for MNT6."
+            );
         }
 
         #[test]
         fn test_batch_hash_mnt6_in_place() {
-
             //  the number of hashes to test
             let num_hashes = 1000;
 
@@ -414,12 +446,20 @@ mod test {
             let output_vec = (MNT6BatchPoseidonHash::batch_evaluate(&input_batch)).unwrap();
 
             let mut output_vec_in_place = vec![MNT6753Fr::zero(); num_hashes];
-            MNT6BatchPoseidonHash::batch_evaluate_in_place(&mut input_batch[..], &mut output_vec_in_place[..]).unwrap();
+            MNT6BatchPoseidonHash::batch_evaluate_in_place(
+                &mut input_batch[..],
+                &mut output_vec_in_place[..],
+            )
+            .unwrap();
 
             // =============================================================================
             // Compare results
             for i in 0..num_hashes {
-                assert_eq!(output_vec_in_place[i], output_vec[i], "Hash outputs, position {}, for MNT6 are not equal.", i);
+                assert_eq!(
+                    output_vec_in_place[i], output_vec[i],
+                    "Hash outputs, position {}, for MNT6 are not equal.",
+                    i
+                );
             }
         }
 
@@ -455,14 +495,11 @@ mod test {
     #[cfg(feature = "bn_382")]
     mod bn_382 {
         use super::*;
-        use algebra::fields::bn_382::{
-            Fr as BN382Fr,
-            Fq as BN382Fq,
-        };
         use crate::{
-            BN382FrPoseidonHash, BN382FrBatchPoseidonHash,
-            BN382FqPoseidonHash, BN382FqBatchPoseidonHash,
+            BN382FqBatchPoseidonHash, BN382FqPoseidonHash, BN382FrBatchPoseidonHash,
+            BN382FrPoseidonHash,
         };
+        use algebra::fields::bn_382::{Fq as BN382Fq, Fr as BN382Fr};
 
         #[test]
         fn test_batch_hash_bn382fq() {
@@ -493,7 +530,9 @@ mod test {
 
             input_serial.iter().for_each(|p| {
                 let mut digest = BN382FqPoseidonHash::init_constant_length(2, None);
-                p.into_iter().for_each(|&f| { digest.update(f); });
+                p.into_iter().for_each(|&f| {
+                    digest.update(f);
+                });
                 output.push(digest.finalize().unwrap());
             });
 
@@ -502,7 +541,11 @@ mod test {
             // =============================================================================
             // Compare results
             for i in 0..num_hashes {
-                assert_eq!(output[i], output_vec[i], "Hash outputs, position {}, for BN382Fq are not equal.", i);
+                assert_eq!(
+                    output[i], output_vec[i],
+                    "Hash outputs, position {}, for BN382Fq are not equal.",
+                    i
+                );
             }
 
             // Check with one single hash
@@ -513,12 +556,15 @@ mod test {
                 .unwrap();
             let single_batch_output = BN382FqBatchPoseidonHash::batch_evaluate(&input_batch[0..2]);
 
-            assert_eq!(single_output, single_batch_output.unwrap()[0], "Single instance hash outputs are not equal for BN382Fq.");
+            assert_eq!(
+                single_output,
+                single_batch_output.unwrap()[0],
+                "Single instance hash outputs are not equal for BN382Fq."
+            );
         }
 
         #[test]
         fn test_batch_hash_bn382fr() {
-
             //  the number of hashes to test
             let num_hashes = 1000;
 
@@ -546,7 +592,9 @@ mod test {
 
             input_serial.iter().for_each(|p| {
                 let mut digest = BN382FrPoseidonHash::init_constant_length(2, None);
-                p.into_iter().for_each(|&f| { digest.update(f); });
+                p.into_iter().for_each(|&f| {
+                    digest.update(f);
+                });
                 output.push(digest.finalize().unwrap());
             });
 
@@ -555,7 +603,11 @@ mod test {
             // =============================================================================
             // Compare results
             for i in 0..num_hashes {
-                assert_eq!(output[i], output_vec[i], "Hash outputs, position {}, for BN382Fr are not equal.", i);
+                assert_eq!(
+                    output[i], output_vec[i],
+                    "Hash outputs, position {}, for BN382Fr are not equal.",
+                    i
+                );
             }
 
             // Check with one single hash
@@ -566,7 +618,11 @@ mod test {
                 .unwrap();
             let single_batch_output = BN382FrBatchPoseidonHash::batch_evaluate(&input_batch[0..2]);
 
-            assert_eq!(single_output, single_batch_output.unwrap()[0], "Single instance hash outputs are not equal for BN382Fr.");
+            assert_eq!(
+                single_output,
+                single_batch_output.unwrap()[0],
+                "Single instance hash outputs are not equal for BN382Fr."
+            );
         }
 
         #[test]
@@ -590,18 +646,25 @@ mod test {
             let output_vec = (BN382FqBatchPoseidonHash::batch_evaluate(&input_batch)).unwrap();
 
             let mut output_vec_in_place = vec![BN382Fq::zero(); num_hashes];
-            BN382FqBatchPoseidonHash::batch_evaluate_in_place(&mut input_batch[..], &mut output_vec_in_place[..]).unwrap();
+            BN382FqBatchPoseidonHash::batch_evaluate_in_place(
+                &mut input_batch[..],
+                &mut output_vec_in_place[..],
+            )
+            .unwrap();
 
             // =============================================================================
             // Compare results
             for i in 0..num_hashes {
-                assert_eq!(output_vec_in_place[i], output_vec[i], "Hash outputs, position {}, for BN382Fq are not equal.", i);
+                assert_eq!(
+                    output_vec_in_place[i], output_vec[i],
+                    "Hash outputs, position {}, for BN382Fq are not equal.",
+                    i
+                );
             }
         }
 
         #[test]
         fn test_batch_hash_bn382fr_in_place() {
-
             //  the number of hashes to test
             let num_hashes = 1000;
 
@@ -621,12 +684,20 @@ mod test {
             let output_vec = (BN382FrBatchPoseidonHash::batch_evaluate(&input_batch)).unwrap();
 
             let mut output_vec_in_place = vec![BN382Fr::zero(); num_hashes];
-            BN382FrBatchPoseidonHash::batch_evaluate_in_place(&mut input_batch[..], &mut output_vec_in_place[..]).unwrap();
+            BN382FrBatchPoseidonHash::batch_evaluate_in_place(
+                &mut input_batch[..],
+                &mut output_vec_in_place[..],
+            )
+            .unwrap();
 
             // =============================================================================
             // Compare results
             for i in 0..num_hashes {
-                assert_eq!(output_vec_in_place[i], output_vec[i], "Hash outputs, position {}, for BN382Fr are not equal.", i);
+                assert_eq!(
+                    output_vec_in_place[i], output_vec[i],
+                    "Hash outputs, position {}, for BN382Fr are not equal.",
+                    i
+                );
             }
         }
     }
@@ -634,14 +705,11 @@ mod test {
     #[cfg(feature = "tweedle")]
     mod tweedle {
         use super::*;
-        use algebra::fields::tweedle::{
-            Fr as TweedleFr,
-            Fq as TweedleFq,
-        };
         use crate::{
-            TweedleFrPoseidonHash, TweedleFrBatchPoseidonHash,
-            TweedleFqPoseidonHash, TweedleFqBatchPoseidonHash,
+            TweedleFqBatchPoseidonHash, TweedleFqPoseidonHash, TweedleFrBatchPoseidonHash,
+            TweedleFrPoseidonHash,
         };
+        use algebra::fields::tweedle::{Fq as TweedleFq, Fr as TweedleFr};
 
         #[test]
         fn test_batch_hash_tweedlefq() {
@@ -672,7 +740,9 @@ mod test {
 
             input_serial.iter().for_each(|p| {
                 let mut digest = TweedleFqPoseidonHash::init_constant_length(2, None);
-                p.into_iter().for_each(|&f| { digest.update(f); });
+                p.into_iter().for_each(|&f| {
+                    digest.update(f);
+                });
                 output.push(digest.finalize().unwrap());
             });
 
@@ -681,7 +751,11 @@ mod test {
             // =============================================================================
             // Compare results
             for i in 0..num_hashes {
-                assert_eq!(output[i], output_vec[i], "Hash outputs, position {}, for TweedleFr are not equal.", i);
+                assert_eq!(
+                    output[i], output_vec[i],
+                    "Hash outputs, position {}, for TweedleFr are not equal.",
+                    i
+                );
             }
 
             // Check with one single hash
@@ -690,14 +764,18 @@ mod test {
                 .update(input_serial[0][1])
                 .finalize()
                 .unwrap();
-            let single_batch_output = TweedleFqBatchPoseidonHash::batch_evaluate(&input_batch[0..2]);
+            let single_batch_output =
+                TweedleFqBatchPoseidonHash::batch_evaluate(&input_batch[0..2]);
 
-            assert_eq!(single_output, single_batch_output.unwrap()[0], "Single instance hash outputs are not equal for TweedleFq.");
+            assert_eq!(
+                single_output,
+                single_batch_output.unwrap()[0],
+                "Single instance hash outputs are not equal for TweedleFq."
+            );
         }
 
         #[test]
         fn test_batch_hash_tweedlefr() {
-
             //  the number of hashes to test
             let num_hashes = 1000;
 
@@ -725,7 +803,9 @@ mod test {
 
             input_serial.iter().for_each(|p| {
                 let mut digest = TweedleFrPoseidonHash::init_constant_length(2, None);
-                p.into_iter().for_each(|&f| { digest.update(f); });
+                p.into_iter().for_each(|&f| {
+                    digest.update(f);
+                });
                 output.push(digest.finalize().unwrap());
             });
 
@@ -734,7 +814,11 @@ mod test {
             // =============================================================================
             // Compare results
             for i in 0..num_hashes {
-                assert_eq!(output[i], output_vec[i], "Hash outputs, position {}, for TweedleFr are not equal.", i);
+                assert_eq!(
+                    output[i], output_vec[i],
+                    "Hash outputs, position {}, for TweedleFr are not equal.",
+                    i
+                );
             }
 
             // Check with one single hash
@@ -743,9 +827,14 @@ mod test {
                 .update(input_serial[0][1])
                 .finalize()
                 .unwrap();
-            let single_batch_output = TweedleFrBatchPoseidonHash::batch_evaluate(&input_batch[0..2]);
+            let single_batch_output =
+                TweedleFrBatchPoseidonHash::batch_evaluate(&input_batch[0..2]);
 
-            assert_eq!(single_output, single_batch_output.unwrap()[0], "Single instance hash outputs are not equal for TweedleFr.");
+            assert_eq!(
+                single_output,
+                single_batch_output.unwrap()[0],
+                "Single instance hash outputs are not equal for TweedleFr."
+            );
         }
 
         #[test]
@@ -769,18 +858,25 @@ mod test {
             let output_vec = (TweedleFqBatchPoseidonHash::batch_evaluate(&input_batch)).unwrap();
 
             let mut output_vec_in_place = vec![TweedleFq::zero(); num_hashes];
-            TweedleFqBatchPoseidonHash::batch_evaluate_in_place(&mut input_batch[..], &mut output_vec_in_place[..]).unwrap();
+            TweedleFqBatchPoseidonHash::batch_evaluate_in_place(
+                &mut input_batch[..],
+                &mut output_vec_in_place[..],
+            )
+            .unwrap();
 
             // =============================================================================
             // Compare results
             for i in 0..num_hashes {
-                assert_eq!(output_vec_in_place[i], output_vec[i], "Hash outputs, position {}, for TweedleFq are not equal.", i);
+                assert_eq!(
+                    output_vec_in_place[i], output_vec[i],
+                    "Hash outputs, position {}, for TweedleFq are not equal.",
+                    i
+                );
             }
         }
 
         #[test]
         fn test_batch_hash_tweedlefr_in_place() {
-
             //  the number of hashes to test
             let num_hashes = 1000;
 
@@ -800,12 +896,20 @@ mod test {
             let output_vec = (TweedleFrBatchPoseidonHash::batch_evaluate(&input_batch)).unwrap();
 
             let mut output_vec_in_place = vec![TweedleFr::zero(); num_hashes];
-            TweedleFrBatchPoseidonHash::batch_evaluate_in_place(&mut input_batch[..], &mut output_vec_in_place[..]).unwrap();
+            TweedleFrBatchPoseidonHash::batch_evaluate_in_place(
+                &mut input_batch[..],
+                &mut output_vec_in_place[..],
+            )
+            .unwrap();
 
             // =============================================================================
             // Compare results
             for i in 0..num_hashes {
-                assert_eq!(output_vec_in_place[i], output_vec[i], "Hash outputs, position {}, for TweedleFr are not equal.", i);
+                assert_eq!(
+                    output_vec_in_place[i], output_vec[i],
+                    "Hash outputs, position {}, for TweedleFr are not equal.",
+                    i
+                );
             }
         }
     }

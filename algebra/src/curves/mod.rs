@@ -1,17 +1,17 @@
+use crate::UniformRand;
 use crate::{
-    Error,
+    bits::{FromCompressedBits, ToCompressedBits},
     bytes::{FromBytes, ToBytes},
     fields::{Field, PrimeField, SquareRootField},
-    groups::Group, SemanticallyValid, FromBytesChecked, bits::{FromCompressedBits, ToCompressedBits},
-    CanonicalSerialize, CanonicalDeserialize
+    groups::Group,
+    CanonicalDeserialize, CanonicalSerialize, Error, FromBytesChecked, SemanticallyValid,
 };
-use crate::UniformRand;
+use serde::{Deserialize, Serialize};
 use std::{
     fmt::{Debug, Display},
     hash::Hash,
     ops::{Add, AddAssign, Neg, Sub, SubAssign},
 };
-use serde::{Serialize, Deserialize};
 
 pub mod models;
 
@@ -69,8 +69,16 @@ pub trait PairingEngine: Sized + 'static + Copy + Debug + Sync + Send + Eq + Par
         + Into<Self::G1Prepared>;
 
     /// A G1 element that has been preprocessed for use in a pairing.
-    type G1Prepared: ToBytes + FromBytes + Serialize + for<'a> Deserialize<'a> + Default + Clone +
-                     Send + Sync + Debug + From<Self::G1Affine>;
+    type G1Prepared: ToBytes
+        + FromBytes
+        + Serialize
+        + for<'a> Deserialize<'a>
+        + Default
+        + Clone
+        + Send
+        + Sync
+        + Debug
+        + From<Self::G1Affine>;
 
     /// The projective representation of an element in G2.
     type G2Projective: ProjectiveCurve<BaseField = Self::Fqe, ScalarField = Self::Fr, Affine = Self::G2Affine>
@@ -84,8 +92,18 @@ pub trait PairingEngine: Sized + 'static + Copy + Debug + Sync + Send + Eq + Par
         + Into<Self::G2Prepared>;
 
     /// A G2 element that has been preprocessed for use in a pairing.
-    type G2Prepared: ToBytes + FromBytes + Serialize + for<'a> Deserialize<'a> + Default + Eq +
-                     PartialEq + Clone + Send + Sync + Debug + From<Self::G2Affine>;
+    type G2Prepared: ToBytes
+        + FromBytes
+        + Serialize
+        + for<'a> Deserialize<'a>
+        + Default
+        + Eq
+        + PartialEq
+        + Clone
+        + Send
+        + Sync
+        + Debug
+        + From<Self::G2Affine>;
 
     /// The base field that hosts G1.
     type Fq: PrimeField + SquareRootField;
@@ -99,8 +117,8 @@ pub trait PairingEngine: Sized + 'static + Copy + Debug + Sync + Send + Eq + Par
     /// Perform a miller loop with some number of (G1, G2) pairs.
     #[must_use]
     fn miller_loop<'a, I>(i: I) -> Result<Self::Fqk, Error>
-        where
-            I: IntoIterator<Item = &'a (Self::G1Prepared, Self::G2Prepared)>;
+    where
+        I: IntoIterator<Item = &'a (Self::G1Prepared, Self::G2Prepared)>;
 
     /// Perform final exponentiation of the result of a miller loop.
     #[must_use]
@@ -109,8 +127,8 @@ pub trait PairingEngine: Sized + 'static + Copy + Debug + Sync + Send + Eq + Par
     /// Computes a product of pairings.
     #[must_use]
     fn product_of_pairings<'a, I>(i: I) -> Result<Self::Fqk, Error>
-        where
-            I: IntoIterator<Item = &'a (Self::G1Prepared, Self::G2Prepared)>,
+    where
+        I: IntoIterator<Item = &'a (Self::G1Prepared, Self::G2Prepared)>,
     {
         Self::final_exponentiation(&Self::miller_loop(i)?)
     }
@@ -118,9 +136,9 @@ pub trait PairingEngine: Sized + 'static + Copy + Debug + Sync + Send + Eq + Par
     /// Performs multiple pairing operations
     #[must_use]
     fn pairing<G1, G2>(p: G1, q: G2) -> Result<Self::Fqk, Error>
-        where
-            G1: Into<Self::G1Affine>,
-            G2: Into<Self::G2Affine>,
+    where
+        G1: Into<Self::G1Affine>,
+        G2: Into<Self::G2Affine>,
     {
         let g1_prep = Self::G1Prepared::from(p.into());
         let g2_prep = Self::G2Prepared::from(q.into());
@@ -136,7 +154,7 @@ pub trait ProjectiveCurve:
     + ToBytes
     + FromBytes
     + Serialize
-    + for <'a> Deserialize<'a>
+    + for<'a> Deserialize<'a>
     + CanonicalSerialize
     + CanonicalDeserialize
     + SemanticallyValid
@@ -232,7 +250,7 @@ pub trait AffineCurve:
     + ToBytes
     + FromBytes
     + Serialize
-    + for <'a> Deserialize<'a>
+    + for<'a> Deserialize<'a>
     + CanonicalSerialize
     + CanonicalDeserialize
     + SemanticallyValid

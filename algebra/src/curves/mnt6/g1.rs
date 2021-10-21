@@ -1,4 +1,3 @@
-use crate::{field_new, FromBytes};
 use crate::{
     biginteger::BigInteger320,
     bytes::ToBytes,
@@ -10,9 +9,10 @@ use crate::{
     },
     fields::mnt6::{Fq, Fq3, Fr},
 };
-use std::io::{Result as IoResult, Write, Read};
+use crate::{field_new, FromBytes};
+use serde::{Deserialize, Serialize};
 use std::io;
-use serde::{Serialize, Deserialize};
+use std::io::{Read, Result as IoResult, Write};
 
 pub type G1Affine = GroupAffine<MNT6G1Parameters>;
 pub type G1Projective = GroupProjective<MNT6G1Parameters>;
@@ -27,35 +27,44 @@ impl ModelParameters for MNT6G1Parameters {
 
 impl SWModelParameters for MNT6G1Parameters {
     /// COEFF_A =
-    const COEFF_A: Fq = field_new!(Fq, BigInteger320([
-        0xb9b2411bfd0eafef,
-        0xc61a10fadd9fecbd,
-        0x89f128e59811f3fb,
-        0x980c0f780adadabb,
-        0x9ba1f11320,
-    ]));
+    const COEFF_A: Fq = field_new!(
+        Fq,
+        BigInteger320([
+            0xb9b2411bfd0eafef,
+            0xc61a10fadd9fecbd,
+            0x89f128e59811f3fb,
+            0x980c0f780adadabb,
+            0x9ba1f11320,
+        ])
+    );
 
     /// COEFF_B =
-    const COEFF_B: Fq = field_new!(Fq, BigInteger320([
-        0xa94cb16ed8e733b,
-        0xe1ed15e8119bae6,
-        0xae927592157c8121,
-        0x990dbcbc6661cf95,
-        0xecff0892ef,
-    ]));
+    const COEFF_B: Fq = field_new!(
+        Fq,
+        BigInteger320([
+            0xa94cb16ed8e733b,
+            0xe1ed15e8119bae6,
+            0xae927592157c8121,
+            0x990dbcbc6661cf95,
+            0xecff0892ef,
+        ])
+    );
 
     /// COFACTOR = 1
     const COFACTOR: &'static [u64] = &[1];
 
     /// COFACTOR^(-1) mod r =
     /// 1
-    const COFACTOR_INV: Fr = field_new!(Fr, BigInteger320([
-        1784298994435064924,
-        16852041090100268533,
-        14258261760832875328,
-        2961187778261111191,
-        1929014752195,
-    ]));
+    const COFACTOR_INV: Fr = field_new!(
+        Fr,
+        BigInteger320([
+            1784298994435064924,
+            16852041090100268533,
+            14258261760832875328,
+            2961187778261111191,
+            1929014752195,
+        ])
+    );
 
     /// AFFINE_GENERATOR_COEFFS = (G1_GENERATOR_X, G1_GENERATOR_Y)
     const AFFINE_GENERATOR_COEFFS: (Self::BaseField, Self::BaseField) =
@@ -63,27 +72,33 @@ impl SWModelParameters for MNT6G1Parameters {
 }
 
 /// G1_GENERATOR_X =
-pub const G1_GENERATOR_X: Fq = field_new!(Fq, BigInteger320([
-    0x1a663562f74e1d24,
-    0xc1d1d583fccd1b79,
-    0xda077538a9763df2,
-    0x70c4a4ea36aa01d9,
-    0x86537578a8,
-]));
+pub const G1_GENERATOR_X: Fq = field_new!(
+    Fq,
+    BigInteger320([
+        0x1a663562f74e1d24,
+        0xc1d1d583fccd1b79,
+        0xda077538a9763df2,
+        0x70c4a4ea36aa01d9,
+        0x86537578a8,
+    ])
+);
 
 /// G1_GENERATOR_Y =
-pub const G1_GENERATOR_Y: Fq = field_new!(Fq, BigInteger320([
-    0x7ad5bfd16dcfffb2,
-    0x88dd739252215070,
-    0x43f137a8b517b339,
-    0x9a7fac709a8c463c,
-    0x3140fbc3593,
-]));
+pub const G1_GENERATOR_Y: Fq = field_new!(
+    Fq,
+    BigInteger320([
+        0x7ad5bfd16dcfffb2,
+        0x88dd739252215070,
+        0x43f137a8b517b339,
+        0x9a7fac709a8c463c,
+        0x3140fbc3593,
+    ])
+);
 
 #[derive(Eq, PartialEq, Copy, Clone, Debug, Serialize, Deserialize)]
 pub struct G1Prepared {
-    pub x:       Fq,
-    pub y:       Fq,
+    pub x: Fq,
+    pub y: Fq,
     pub x_twist: Fq3,
     pub y_twist: Fq3,
 }
@@ -99,15 +114,18 @@ impl ToBytes for G1Prepared {
 
 impl FromBytes for G1Prepared {
     fn read<R: Read>(mut reader: R) -> IoResult<Self> {
-        let x = Fq::read(&mut reader)
-            .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
-        let y = Fq::read(&mut reader)
-            .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
-        let x_twist = Fq3::read(&mut reader)
-            .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
-        let y_twist = Fq3::read(&mut reader)
-            .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
-        Ok(G1Prepared{x, y, x_twist, y_twist})
+        let x = Fq::read(&mut reader).map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
+        let y = Fq::read(&mut reader).map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
+        let x_twist =
+            Fq3::read(&mut reader).map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
+        let y_twist =
+            Fq3::read(&mut reader).map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
+        Ok(G1Prepared {
+            x,
+            y,
+            x_twist,
+            y_twist,
+        })
     }
 }
 

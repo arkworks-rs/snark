@@ -1,25 +1,24 @@
-use std::{
-    cmp::{Ord, Ordering, PartialOrd},
-    fmt,
-    marker::PhantomData,
-    ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Sub, SubAssign},
-    io::{Read, Result as IoResult, Write},
-};
 use rand::{
     distributions::{Distribution, Standard},
     Rng,
 };
+use std::{
+    cmp::{Ord, Ordering, PartialOrd},
+    fmt,
+    io::{Read, Result as IoResult, Write},
+    marker::PhantomData,
+    ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Sub, SubAssign},
+};
 
 use crate::{
-    bytes::{FromBytes, ToBytes},
     bits::{FromBits, ToBits},
+    bytes::{FromBytes, ToBytes},
     fields::{Field, FpParameters, PrimeField},
-    UniformRand, Error, SemanticallyValid,
-    CanonicalSerialize, Flags,
-    SerializationError, CanonicalSerializeWithFlags, CanonicalDeserialize,
-    CanonicalDeserializeWithFlags, EmptyFlags
+    CanonicalDeserialize, CanonicalDeserializeWithFlags, CanonicalSerialize,
+    CanonicalSerializeWithFlags, EmptyFlags, Error, Flags, SemanticallyValid, SerializationError,
+    UniformRand,
 };
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
 /// Model for cubic extension field of a prime field F=BasePrimeField
 ///     F3 = F[X]/(X^3-alpha),
@@ -68,13 +67,13 @@ pub trait CubicExtParameters: 'static + Send + Sync {
 
 #[derive(Derivative)]
 #[derivative(
-Default(bound = "P: CubicExtParameters"),
-Hash(bound = "P: CubicExtParameters"),
-Clone(bound = "P: CubicExtParameters"),
-Copy(bound = "P: CubicExtParameters"),
-Debug(bound = "P: CubicExtParameters"),
-PartialEq(bound = "P: CubicExtParameters"),
-Eq(bound = "P: CubicExtParameters"),
+    Default(bound = "P: CubicExtParameters"),
+    Hash(bound = "P: CubicExtParameters"),
+    Clone(bound = "P: CubicExtParameters"),
+    Copy(bound = "P: CubicExtParameters"),
+    Debug(bound = "P: CubicExtParameters"),
+    PartialEq(bound = "P: CubicExtParameters"),
+    Eq(bound = "P: CubicExtParameters")
 )]
 #[derive(Serialize, Deserialize)]
 pub struct CubicExtField<P: CubicExtParameters> {
@@ -115,7 +114,6 @@ impl<P: CubicExtParameters> CubicExtField<P> {
     }
 }
 
-
 impl<P: CubicExtParameters> Field for CubicExtField<P> {
     type BasePrimeField = P::BasePrimeField;
 
@@ -146,9 +144,9 @@ impl<P: CubicExtParameters> Field for CubicExtField<P> {
     }
 
     fn is_odd(&self) -> bool {
-        self.c2.is_odd() ||
-            (self.c2.is_zero() && self.c1.is_odd()) ||
-            ( self.c2.is_zero() && self.c1.is_zero() && self.c0.is_odd())
+        self.c2.is_odd()
+            || (self.c2.is_zero() && self.c1.is_odd())
+            || (self.c2.is_zero() && self.c1.is_zero() && self.c0.is_odd())
     }
 
     #[inline]
@@ -268,7 +266,7 @@ impl<P: CubicExtParameters> Field for CubicExtField<P> {
         if let Some(c0) = P::BaseField::from_random_bytes(&bytes[..split_at]) {
             if let Some(c1) = P::BaseField::from_random_bytes(&bytes[split_at..2 * split_at]) {
                 if let Some((c2, flags)) =
-                P::BaseField::from_random_bytes_with_flags(&bytes[2 * split_at..])
+                    P::BaseField::from_random_bytes_with_flags(&bytes[2 * split_at..])
                 {
                     return Some((CubicExtField::new(c0, c1, c2), flags));
                 }
@@ -310,8 +308,8 @@ impl<P: CubicExtParameters> PartialOrd for CubicExtField<P> {
 }
 
 impl<P: CubicExtParameters> From<u128> for CubicExtField<P>
-    where
-        P::BaseField: From<u128>,
+where
+    P::BaseField: From<u128>,
 {
     fn from(other: u128) -> Self {
         let fe: P::BaseField = other.into();
@@ -320,8 +318,8 @@ impl<P: CubicExtParameters> From<u128> for CubicExtField<P>
 }
 
 impl<P: CubicExtParameters> From<u64> for CubicExtField<P>
-    where
-        P::BaseField: From<u64>,
+where
+    P::BaseField: From<u64>,
 {
     fn from(other: u64) -> Self {
         let fe: P::BaseField = other.into();
@@ -330,8 +328,8 @@ impl<P: CubicExtParameters> From<u64> for CubicExtField<P>
 }
 
 impl<P: CubicExtParameters> From<u32> for CubicExtField<P>
-    where
-        P::BaseField: From<u32>,
+where
+    P::BaseField: From<u32>,
 {
     fn from(other: u32) -> Self {
         let fe: P::BaseField = other.into();
@@ -340,8 +338,8 @@ impl<P: CubicExtParameters> From<u32> for CubicExtField<P>
 }
 
 impl<P: CubicExtParameters> From<u16> for CubicExtField<P>
-    where
-        P::BaseField: From<u16>,
+where
+    P::BaseField: From<u16>,
 {
     fn from(other: u16) -> Self {
         let fe: P::BaseField = other.into();
@@ -350,8 +348,8 @@ impl<P: CubicExtParameters> From<u16> for CubicExtField<P>
 }
 
 impl<P: CubicExtParameters> From<u8> for CubicExtField<P>
-    where
-        P::BaseField: From<u8>,
+where
+    P::BaseField: From<u8>,
 {
     fn from(other: u8) -> Self {
         let fe: P::BaseField = other.into();
@@ -384,16 +382,16 @@ impl<P: CubicExtParameters> ToBits for CubicExtField<P> {
         bits.extend_from_slice(self.c1.write_bits().as_slice());
         bits.extend_from_slice(self.c2.write_bits().as_slice());
         bits
-
     }
 }
 
 impl<P: CubicExtParameters> FromBits for CubicExtField<P> {
     fn read_bits(bits: Vec<bool>) -> Result<Self, Error> {
-        let size = (P::DEGREE_OVER_BASE_PRIME_FIELD/3) * <P::BasePrimeField as PrimeField>::Params::MODULUS_BITS as usize;
+        let size = (P::DEGREE_OVER_BASE_PRIME_FIELD / 3)
+            * <P::BasePrimeField as PrimeField>::Params::MODULUS_BITS as usize;
         let c0 = P::BaseField::read_bits(bits[..size].to_vec())?;
-        let c1 = P::BaseField::read_bits(bits[size..(2*size)].to_vec())?;
-        let c2 = P::BaseField::read_bits(bits[(2*size)..].to_vec())?;
+        let c1 = P::BaseField::read_bits(bits[size..(2 * size)].to_vec())?;
+        let c2 = P::BaseField::read_bits(bits[(2 * size)..].to_vec())?;
         Ok(CubicExtField::new(c0, c1, c2))
     }
 }
@@ -456,9 +454,7 @@ impl<P: CubicExtParameters> CanonicalDeserialize for CubicExtField<P> {
 impl<P: CubicExtParameters> SemanticallyValid for CubicExtField<P> {
     #[inline]
     fn is_valid(&self) -> bool {
-        self.c0.is_valid() &&
-            self.c1.is_valid() &&
-            self.c2.is_valid()
+        self.c0.is_valid() && self.c1.is_valid() && self.c2.is_valid()
     }
 }
 

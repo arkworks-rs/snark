@@ -1,6 +1,6 @@
 use crate::{
     biginteger::BigInteger256 as BigInteger,
-    fields::{FpParameters, Fp256, Fp256Parameters},
+    fields::{Fp256, Fp256Parameters, FpParameters},
 };
 
 pub type Fr = Fp256<FrParameters>;
@@ -16,21 +16,21 @@ impl FpParameters for FrParameters {
         0xa14064e200000001,
         0x38aa1276c3f59b9,
         0x0,
-        0x4000000000000000
+        0x4000000000000000,
     ]);
 
     const R: BigInteger = BigInteger([
         0x1c3ed159fffffffd,
         0xf5601c89bb41f2d3,
         0xffffffffffffffff,
-        0x3fffffffffffffff
+        0x3fffffffffffffff,
     ]);
 
     const R2: BigInteger = BigInteger([
         0x280c9c4000000010,
         0x91a4409b5400af74,
         0xdd7b28e19094c659,
-        0xc8ad9107ccca0e
+        0xc8ad9107ccca0e,
     ]);
 
     const MODULUS_MINUS_ONE_DIV_TWO: BigInteger = BigInteger([
@@ -51,7 +51,7 @@ impl FpParameters for FrParameters {
         0x8388339ffffffed,
         0xbcb60a12f74c5739,
         0xffffffffffffffff,
-        0x3fffffffffffffff
+        0x3fffffffffffffff,
     ]);
 
     const MODULUS_BITS: u32 = 255;

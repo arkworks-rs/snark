@@ -6,6 +6,4 @@ pub(crate) mod multicore;
 
 pub use domain::*;
 pub use evaluations::Evaluations;
-pub use polynomial::{DensePolynomial, SparsePolynomial, DenseOrSparsePolynomial};
-
-
+pub use polynomial::{DenseOrSparsePolynomial, DensePolynomial, SparsePolynomial};

@@ -1,8 +1,5 @@
 use crate::groups::curves::twisted_edwards::AffineGadget;
-use algebra::{
-    fields::edwards_sw6::fq::Fq,
-    curves::edwards_sw6::EdwardsParameters,
-};
+use algebra::{curves::edwards_sw6::EdwardsParameters, fields::edwards_sw6::fq::Fq};
 
 use crate::edwards_sw6::FqGadget;
 

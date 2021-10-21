@@ -29,11 +29,8 @@ use csv;
 
 // For randomness (during paramgen and proof generation)
 use algebra::{
-    curves::{
-        mnt4753::MNT4 as MNT4_753,
-        mnt6753::MNT6 as MNT6_753,
-    },
-    UniformRand, PairingEngine
+    curves::{mnt4753::MNT4 as MNT4_753, mnt6753::MNT6 as MNT6_753},
+    PairingEngine, UniformRand,
 };
 
 use r1cs_std::instantiated::{

@@ -1,7 +1,7 @@
 use crate::{
     biginteger::BigInteger768 as BigInteger,
-    fields::{Fp768, Fp768Parameters, FpParameters},
     field_new,
+    fields::{Fp768, Fp768Parameters, FpParameters},
 };
 
 pub type Fq = Fp768<FqParameters>;

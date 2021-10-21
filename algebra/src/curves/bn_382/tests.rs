@@ -1,19 +1,18 @@
 use crate::{
     biginteger::BigInteger384,
     curves::{
-        models::SWModelParameters, bn_382::*,
+        bn_382::*,
+        models::SWModelParameters,
         tests::{curve_tests, sw_jacobian_tests},
         AffineCurve, PairingEngine, ProjectiveCurve,
     },
-    groups::tests::group_test,
-    fields::{Field, SquareRootField, bn_382::*},
     field_new,
+    fields::{bn_382::*, Field, SquareRootField},
+    groups::tests::group_test,
 };
 use std::ops::{AddAssign, MulAssign};
 
-use rand::{
-    Rng, SeedableRng
-};
+use rand::{Rng, SeedableRng};
 use rand_xorshift::XorShiftRng;
 
 #[test]

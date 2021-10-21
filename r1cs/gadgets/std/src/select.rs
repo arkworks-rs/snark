@@ -29,16 +29,18 @@ where
         constants: &[Self::TableConstant],
     ) -> Result<Self, SynthesisError>;
 
-    fn two_bit_lookup_lc<CS: ConstraintSystem<ConstraintF>>
-    (   cs: CS,
+    fn two_bit_lookup_lc<CS: ConstraintSystem<ConstraintF>>(
+        cs: CS,
         precomp: &Boolean,
         b: &[Boolean],
-        c: &[Self::TableConstant]
+        c: &[Self::TableConstant],
     ) -> Result<Self, SynthesisError>;
 
     fn cost() -> usize;
 
-    fn cost_of_lc() -> usize { 0 }
+    fn cost_of_lc() -> usize {
+        0
+    }
 }
 
 /// Uses three bits to perform a lookup into a table, where the last bit

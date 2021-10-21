@@ -37,9 +37,12 @@ impl<ConstraintF: Field> ConstraintSynthesizer<ConstraintF> for MySillyCircuit<C
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::groth16::{Parameters, Proof, VerifyingKey, PreparedVerifyingKey, create_random_proof, generate_random_parameters, prepare_verifying_key, verify_proof, create_proof_no_zk};
+    use crate::groth16::{
+        create_proof_no_zk, create_random_proof, generate_random_parameters, prepare_verifying_key,
+        verify_proof, Parameters, PreparedVerifyingKey, Proof, VerifyingKey,
+    };
 
-    use algebra::{UniformRand, ToBytes, FromBytes, to_bytes, PairingEngine};
+    use algebra::{to_bytes, FromBytes, PairingEngine, ToBytes, UniformRand};
     use rand::thread_rng;
     use std::ops::MulAssign;
 
@@ -66,7 +69,8 @@ mod test {
                     },
                     &params,
                     rng,
-                ).unwrap()
+                )
+                .unwrap()
             } else {
                 create_proof_no_zk(
                     MySillyCircuit {
@@ -74,7 +78,8 @@ mod test {
                         b: Some(b),
                     },
                     &params,
-                ).unwrap()
+                )
+                .unwrap()
             };
 
             assert!(verify_proof(&pvk, &proof, &[c]).unwrap());
@@ -92,7 +97,8 @@ mod test {
         let vk = params.vk.clone();
 
         let params_serialized = to_bytes!(params).unwrap();
-        let params_deserialized = Parameters::<E>::read_checked(params_serialized.as_slice()).unwrap();
+        let params_deserialized =
+            Parameters::<E>::read_checked(params_serialized.as_slice()).unwrap();
         assert_eq!(params, params_deserialized);
 
         let vk_serialized = to_bytes!(vk).unwrap();
@@ -111,14 +117,16 @@ mod test {
             &params_deserialized,
             rng,
         )
-            .unwrap();
+        .unwrap();
 
-        let proof_deserialized = Proof::<E>::read_checked(to_bytes!(proof).unwrap().as_slice()).unwrap();
+        let proof_deserialized =
+            Proof::<E>::read_checked(to_bytes!(proof).unwrap().as_slice()).unwrap();
         assert_eq!(proof, proof_deserialized);
         drop(proof);
 
         let pvk = prepare_verifying_key(&vk_deserialized);
-        let pvk_deserialized = PreparedVerifyingKey::<E>::read(to_bytes!(pvk).unwrap().as_slice()).unwrap();
+        let pvk_deserialized =
+            PreparedVerifyingKey::<E>::read(to_bytes!(pvk).unwrap().as_slice()).unwrap();
         assert_eq!(pvk, pvk_deserialized);
 
         assert!(verify_proof(&pvk_deserialized, &proof_deserialized, &[c]).unwrap())

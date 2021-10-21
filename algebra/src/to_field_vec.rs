@@ -2,13 +2,14 @@ use crate::{
     curves::{
         models::{SWModelParameters, TEModelParameters},
         short_weierstrass_jacobian::{GroupAffine as SWJAffine, GroupProjective as SWJProjective},
-        short_weierstrass_projective::{GroupAffine as SWPAffine, GroupProjective as SWPProjective},
+        short_weierstrass_projective::{
+            GroupAffine as SWPAffine, GroupProjective as SWPProjective,
+        },
         twisted_edwards_extended::{GroupAffine as TEAffine, GroupProjective as TEProjective},
         ProjectiveCurve,
     },
-    QuadExtField, QuadExtParameters,
-    CubicExtField, CubicExtParameters,
-    FpParameters, Field, PrimeField,
+    CubicExtField, CubicExtParameters, Field, FpParameters, PrimeField, QuadExtField,
+    QuadExtParameters,
 };
 
 type Error = Box<dyn std::error::Error>;
@@ -42,8 +43,8 @@ impl<ConstraintF: Field> ToConstraintField<ConstraintF> for () {
 }
 
 impl<P: QuadExtParameters> ToConstraintField<P::BasePrimeField> for QuadExtField<P>
-    where
-        P::BaseField: ToConstraintField<P::BasePrimeField>,
+where
+    P::BaseField: ToConstraintField<P::BasePrimeField>,
 {
     fn to_field_elements(&self) -> Result<Vec<P::BasePrimeField>, Error> {
         let mut res = Vec::new();
@@ -58,8 +59,8 @@ impl<P: QuadExtParameters> ToConstraintField<P::BasePrimeField> for QuadExtField
 }
 
 impl<P: CubicExtParameters> ToConstraintField<P::BasePrimeField> for CubicExtField<P>
-    where
-        P::BaseField: ToConstraintField<P::BasePrimeField>,
+where
+    P::BaseField: ToConstraintField<P::BasePrimeField>,
 {
     fn to_field_elements(&self) -> Result<Vec<P::BasePrimeField>, Error> {
         let mut res = Vec::new();
@@ -130,8 +131,8 @@ where
 }
 
 impl<M: SWModelParameters, ConstraintF: Field> ToConstraintField<ConstraintF> for SWPAffine<M>
-    where
-        M::BaseField: ToConstraintField<ConstraintF>,
+where
+    M::BaseField: ToConstraintField<ConstraintF>,
 {
     #[inline]
     fn to_field_elements(&self) -> Result<Vec<ConstraintF>, Error> {
@@ -145,8 +146,8 @@ impl<M: SWModelParameters, ConstraintF: Field> ToConstraintField<ConstraintF> fo
 }
 
 impl<M: SWModelParameters, ConstraintF: Field> ToConstraintField<ConstraintF> for SWPProjective<M>
-    where
-        M::BaseField: ToConstraintField<ConstraintF>,
+where
+    M::BaseField: ToConstraintField<ConstraintF>,
 {
     #[inline]
     fn to_field_elements(&self) -> Result<Vec<ConstraintF>, Error> {
@@ -163,10 +164,9 @@ impl<ConstraintF: PrimeField> ToConstraintField<ConstraintF> for [u8] {
     fn to_field_elements(&self) -> Result<Vec<ConstraintF>, Error> {
         let max_size = <ConstraintF as PrimeField>::Params::CAPACITY / 8;
         let max_size = max_size as usize;
-        let bigint_size = (
-            <ConstraintF as PrimeField>::Params::MODULUS_BITS +
-            <ConstraintF as PrimeField>::Params::REPR_SHAVE_BITS
-        )/8;
+        let bigint_size = (<ConstraintF as PrimeField>::Params::MODULUS_BITS
+            + <ConstraintF as PrimeField>::Params::REPR_SHAVE_BITS)
+            / 8;
         let fes = self
             .chunks(max_size)
             .map(|chunk| {
@@ -188,9 +188,7 @@ impl<ConstraintF: PrimeField> ToConstraintField<ConstraintF> for [bool] {
         let max_size = <ConstraintF as PrimeField>::Params::CAPACITY as usize;
         let fes = self
             .chunks(max_size)
-            .map(|chunk| {
-                ConstraintF::read_bits(chunk.to_vec())
-            })
+            .map(|chunk| ConstraintF::read_bits(chunk.to_vec()))
             .collect::<Result<Vec<_>, _>>()?;
         Ok(fes)
     }

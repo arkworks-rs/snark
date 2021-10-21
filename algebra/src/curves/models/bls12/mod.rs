@@ -1,12 +1,17 @@
-use crate::{curves::{
-    models::{ModelParameters, SWModelParameters}, PairingEngine
-}, fields::{
-    models::quadratic_extension::QuadExtParameters,
-    fp12_2over3over2::{Fp12, Fp12Parameters, Fp12ParamsWrapper},
-    fp2::Fp2Parameters,
-    fp6_3over2::Fp6Parameters,
-    BitIterator, Field, Fp2, PrimeField, SquareRootField,
-}, Error};
+use crate::{
+    curves::{
+        models::{ModelParameters, SWModelParameters},
+        PairingEngine,
+    },
+    fields::{
+        fp12_2over3over2::{Fp12, Fp12Parameters, Fp12ParamsWrapper},
+        fp2::Fp2Parameters,
+        fp6_3over2::Fp6Parameters,
+        models::quadratic_extension::QuadExtParameters,
+        BitIterator, Field, Fp2, PrimeField, SquareRootField,
+    },
+    Error,
+};
 
 use std::marker::PhantomData;
 
@@ -58,12 +63,12 @@ impl<P: Bls12Parameters> Bls12<P> {
                 c2.mul_assign_by_basefield(&p.y);
                 c1.mul_assign_by_basefield(&p.x);
                 f.mul_by_014(&c0, &c1, &c2);
-            },
+            }
             TwistType::D => {
                 c0.mul_assign_by_basefield(&p.y);
                 c1.mul_assign_by_basefield(&p.x);
                 f.mul_by_034(&c0, &c1, &c2);
-            },
+            }
         }
     }
 
@@ -76,8 +81,7 @@ impl<P: Bls12Parameters> Bls12<P> {
     }
 }
 
-impl<P: Bls12Parameters> PairingEngine for Bls12<P>
-{
+impl<P: Bls12Parameters> PairingEngine for Bls12<P> {
     type Fr = <P::G1Parameters as ModelParameters>::ScalarField;
     type G1Projective = G1Projective<P>;
     type G1Affine = G1Affine<P>;
@@ -90,8 +94,8 @@ impl<P: Bls12Parameters> PairingEngine for Bls12<P>
     type Fqk = Fp12<P::Fp12Params>;
 
     fn miller_loop<'a, I>(i: I) -> Result<Self::Fqk, Error>
-        where
-            I: IntoIterator<Item = &'a (Self::G1Prepared, Self::G2Prepared)>,
+    where
+        I: IntoIterator<Item = &'a (Self::G1Prepared, Self::G2Prepared)>,
     {
         let mut pairs = vec![];
         for (p, q) in i {
@@ -178,7 +182,7 @@ impl<P: Bls12Parameters> PairingEngine for Bls12<P>
                 y5 *= &y4;
                 y5 *= &y1;
                 Ok(y5)
-            },
+            }
             None => Err(format!("f is zero"))?,
         }
     }

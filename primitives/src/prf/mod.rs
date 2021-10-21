@@ -5,7 +5,7 @@ use crate::CryptoError;
 
 pub mod blake2s;
 pub use self::blake2s::*;
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
 pub trait PRF {
     type Input: FromBytes + Serialize + for<'a> Deserialize<'a> + Default;

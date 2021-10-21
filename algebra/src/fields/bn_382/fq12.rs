@@ -1,7 +1,9 @@
 use crate::{
-    biginteger::BigInteger384, field_new,
+    biginteger::BigInteger384,
+    field_new,
     fields::bn_382::{
-        Fq, fq2::{Fq2, FQ2_ZERO, FQ2_ONE}, Fq6, Fq6Parameters,
+        fq2::{Fq2, FQ2_ONE, FQ2_ZERO},
+        Fq, Fq6, Fq6Parameters,
     },
     fp12_2over3over2::{Fp12, Fp12Parameters},
 };

@@ -3,15 +3,13 @@ use rand_xorshift::XorShiftRng;
 use std::ops::{AddAssign, MulAssign, SubAssign};
 
 use algebra::{
-    fields::bls12_381::{
-        fq::Fq, fq2::Fq2, fr::Fr, Fq12
-    },
-    curves::bls12_381::{
-        Bls12_381, G1Affine, G1Projective as G1, G2Affine,
-        G2Projective as G2, Bls12_381Parameters as Parameters,
-    },
     biginteger::{BigInteger256 as FrRepr, BigInteger384 as FqRepr},
     bls12::{G1Prepared, G2Prepared},
+    curves::bls12_381::{
+        Bls12_381, Bls12_381Parameters as Parameters, G1Affine, G1Projective as G1, G2Affine,
+        G2Projective as G2,
+    },
+    fields::bls12_381::{fq::Fq, fq2::Fq2, fr::Fr, Fq12},
     BigInteger, Field, PairingEngine, PrimeField, ProjectiveCurve, SquareRootField, UniformRand,
 };
 

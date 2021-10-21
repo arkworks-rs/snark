@@ -1,14 +1,14 @@
 use algebra::{
-    QuadExtField, QuadExtParameters,
-    biginteger::arithmetic::find_wnaf,
-    Field, PrimeField, SquareRootField
+    biginteger::arithmetic::find_wnaf, Field, PrimeField, QuadExtField, QuadExtParameters,
+    SquareRootField,
 };
 use r1cs_core::{ConstraintSystem, SynthesisError};
 use std::{borrow::Borrow, marker::PhantomData};
 
 use crate::{fields::FieldGadget, prelude::*};
 
-pub trait QuadExtParametersGadget<ConstraintF: PrimeField>: QuadExtParameters<BasePrimeField = ConstraintF>
+pub trait QuadExtParametersGadget<ConstraintF: PrimeField>:
+    QuadExtParameters<BasePrimeField = ConstraintF>
 {
     type BaseFieldGadget: FieldGadget<Self::BaseField, ConstraintF>;
 
@@ -30,24 +30,31 @@ pub trait QuadExtParametersGadget<ConstraintF: PrimeField>: QuadExtParameters<Ba
         cs: CS,
         fe: &QuadExtFieldGadget<Self, ConstraintF>,
     ) -> Result<QuadExtFieldGadget<Self, ConstraintF>, SynthesisError>
-        where
-            ConstraintF: PrimeField + SquareRootField,
+    where
+        ConstraintF: PrimeField + SquareRootField,
     {
         fe.square(cs)
     }
 }
 
 #[derive(Derivative)]
-#[derivative(Debug(bound = "P: QuadExtParametersGadget<ConstraintF>, ConstraintF: PrimeField + SquareRootField"))]
+#[derivative(Debug(
+    bound = "P: QuadExtParametersGadget<ConstraintF>, ConstraintF: PrimeField + SquareRootField"
+))]
 #[must_use]
-pub struct QuadExtFieldGadget<P: QuadExtParametersGadget<ConstraintF>, ConstraintF: PrimeField + SquareRootField> {
+pub struct QuadExtFieldGadget<
+    P: QuadExtParametersGadget<ConstraintF>,
+    ConstraintF: PrimeField + SquareRootField,
+> {
     pub c0: P::BaseFieldGadget,
     pub c1: P::BaseFieldGadget,
     #[derivative(Debug = "ignore")]
     _params: PhantomData<P>,
 }
 
-impl<P: QuadExtParametersGadget<ConstraintF>, ConstraintF: PrimeField + SquareRootField> QuadExtFieldGadget<P, ConstraintF> {
+impl<P: QuadExtParametersGadget<ConstraintF>, ConstraintF: PrimeField + SquareRootField>
+    QuadExtFieldGadget<P, ConstraintF>
+{
     pub fn new(c0: P::BaseFieldGadget, c1: P::BaseFieldGadget) -> Self {
         Self {
             c0,
@@ -88,7 +95,7 @@ impl<P: QuadExtParametersGadget<ConstraintF>, ConstraintF: PrimeField + SquareRo
 
         for (j, &value) in naf.iter().rev().enumerate() {
             if found_nonzero {
-                res = P::cyclotomic_square_gadget(cs.ns(||format!("res_square_{:?}", j)), &res)?;
+                res = P::cyclotomic_square_gadget(cs.ns(|| format!("res_square_{:?}", j)), &res)?;
             }
             if value != 0 {
                 found_nonzero = true;
@@ -457,7 +464,11 @@ impl<P: QuadExtParametersGadget<ConstraintF>, ConstraintF: PrimeField + SquareRo
         self.c0.frobenius_map_in_place(&mut cs.ns(|| "c0"), power)?;
         self.c1.frobenius_map_in_place(&mut cs.ns(|| "c1"), power)?;
 
-        P::mul_base_field_gadget_by_frobenius_coeff(&mut cs.ns(|| "c1_power"), &mut self.c1, power)?;
+        P::mul_base_field_gadget_by_frobenius_coeff(
+            &mut cs.ns(|| "c1_power"),
+            &mut self.c1,
+            power,
+        )?;
         Ok(self)
     }
 
@@ -475,25 +486,28 @@ impl<P: QuadExtParametersGadget<ConstraintF>, ConstraintF: PrimeField + SquareRo
 }
 
 impl<P: QuadExtParametersGadget<ConstraintF>, ConstraintF: PrimeField + SquareRootField> PartialEq
-for QuadExtFieldGadget<P, ConstraintF>
+    for QuadExtFieldGadget<P, ConstraintF>
 {
     fn eq(&self, other: &Self) -> bool {
         self.c0 == other.c0 && self.c1 == other.c1
     }
 }
 
-impl<P: QuadExtParametersGadget<ConstraintF>, ConstraintF: PrimeField + SquareRootField> Eq for QuadExtFieldGadget<P, ConstraintF> {}
+impl<P: QuadExtParametersGadget<ConstraintF>, ConstraintF: PrimeField + SquareRootField> Eq
+    for QuadExtFieldGadget<P, ConstraintF>
+{
+}
 
-impl<P: QuadExtParametersGadget<ConstraintF>, ConstraintF: PrimeField + SquareRootField> EqGadget<ConstraintF>
-for QuadExtFieldGadget<P, ConstraintF>
+impl<P: QuadExtParametersGadget<ConstraintF>, ConstraintF: PrimeField + SquareRootField>
+    EqGadget<ConstraintF> for QuadExtFieldGadget<P, ConstraintF>
 {
     fn is_eq<CS: ConstraintSystem<ConstraintF>>(
         &self,
         mut cs: CS,
-        other: &Self
+        other: &Self,
     ) -> Result<Boolean, SynthesisError> {
         let b0 = self.c0.is_eq(cs.ns(|| "c0"), &other.c0)?;
-        let b1 = self.c1.is_eq(cs.ns(|| "c1"),&other.c1)?;
+        let b1 = self.c1.is_eq(cs.ns(|| "c1"), &other.c1)?;
         Boolean::and(cs.ns(|| "b0 AND b1"), &b0, &b1)
     }
 
@@ -502,10 +516,12 @@ for QuadExtFieldGadget<P, ConstraintF>
         &self,
         mut cs: CS,
         other: &Self,
-        should_enforce: &Boolean
+        should_enforce: &Boolean,
     ) -> Result<(), SynthesisError> {
-        self.c0.conditional_enforce_equal(cs.ns(|| "c0"),&other.c0, should_enforce)?;
-        self.c1.conditional_enforce_equal(cs.ns(|| "c1"),&other.c1, should_enforce)?;
+        self.c0
+            .conditional_enforce_equal(cs.ns(|| "c0"), &other.c0, should_enforce)?;
+        self.c1
+            .conditional_enforce_equal(cs.ns(|| "c1"), &other.c1, should_enforce)?;
         Ok(())
     }
 
@@ -514,16 +530,23 @@ for QuadExtFieldGadget<P, ConstraintF>
         &self,
         mut cs: CS,
         other: &Self,
-        should_enforce: &Boolean
+        should_enforce: &Boolean,
     ) -> Result<(), SynthesisError> {
         let is_equal = self.is_eq(cs.ns(|| "is_eq(self, other)"), other)?;
-        Boolean::and(cs.ns(|| "is_equal AND should_enforce"), &is_equal, should_enforce)?
-            .enforce_equal(cs.ns(|| "is_equal AND should_enforce == false"), &Boolean::Constant(false))
+        Boolean::and(
+            cs.ns(|| "is_equal AND should_enforce"),
+            &is_equal,
+            should_enforce,
+        )?
+        .enforce_equal(
+            cs.ns(|| "is_equal AND should_enforce == false"),
+            &Boolean::Constant(false),
+        )
     }
 }
 
-impl<P: QuadExtParametersGadget<ConstraintF>, ConstraintF: PrimeField + SquareRootField> ToBitsGadget<ConstraintF>
-for QuadExtFieldGadget<P, ConstraintF>
+impl<P: QuadExtParametersGadget<ConstraintF>, ConstraintF: PrimeField + SquareRootField>
+    ToBitsGadget<ConstraintF> for QuadExtFieldGadget<P, ConstraintF>
 {
     fn to_bits<CS: ConstraintSystem<ConstraintF>>(
         &self,
@@ -546,8 +569,8 @@ for QuadExtFieldGadget<P, ConstraintF>
     }
 }
 
-impl<P: QuadExtParametersGadget<ConstraintF>, ConstraintF: PrimeField + SquareRootField> ToBytesGadget<ConstraintF>
-for QuadExtFieldGadget<P, ConstraintF>
+impl<P: QuadExtParametersGadget<ConstraintF>, ConstraintF: PrimeField + SquareRootField>
+    ToBytesGadget<ConstraintF> for QuadExtFieldGadget<P, ConstraintF>
 {
     fn to_bytes<CS: ConstraintSystem<ConstraintF>>(
         &self,
@@ -571,19 +594,19 @@ for QuadExtFieldGadget<P, ConstraintF>
 }
 
 impl<P: QuadExtParametersGadget<ConstraintF>, ConstraintF: PrimeField + SquareRootField> Clone
-for QuadExtFieldGadget<P, ConstraintF>
+    for QuadExtFieldGadget<P, ConstraintF>
 {
     fn clone(&self) -> Self {
         Self {
-            c0:      self.c0.clone(),
-            c1:      self.c1.clone(),
+            c0: self.c0.clone(),
+            c1: self.c1.clone(),
             _params: PhantomData,
         }
     }
 }
 
-impl<P: QuadExtParametersGadget<ConstraintF>, ConstraintF: PrimeField + SquareRootField> CondSelectGadget<ConstraintF>
-for QuadExtFieldGadget<P, ConstraintF>
+impl<P: QuadExtParametersGadget<ConstraintF>, ConstraintF: PrimeField + SquareRootField>
+    CondSelectGadget<ConstraintF> for QuadExtFieldGadget<P, ConstraintF>
 {
     #[inline]
     fn conditionally_select<CS: ConstraintSystem<ConstraintF>>(
@@ -613,8 +636,8 @@ for QuadExtFieldGadget<P, ConstraintF>
     }
 }
 
-impl<P: QuadExtParametersGadget<ConstraintF>, ConstraintF: PrimeField + SquareRootField> TwoBitLookupGadget<ConstraintF>
-for QuadExtFieldGadget<P, ConstraintF>
+impl<P: QuadExtParametersGadget<ConstraintF>, ConstraintF: PrimeField + SquareRootField>
+    TwoBitLookupGadget<ConstraintF> for QuadExtFieldGadget<P, ConstraintF>
 {
     type TableConstant = QuadExtField<P>;
     fn two_bit_lookup<CS: ConstraintSystem<ConstraintF>>(
@@ -633,8 +656,8 @@ for QuadExtFieldGadget<P, ConstraintF>
         mut cs: CS,
         precomp: &Boolean,
         b: &[Boolean],
-        c: &[Self::TableConstant])
-        -> Result<Self, SynthesisError> {
+        c: &[Self::TableConstant],
+    ) -> Result<Self, SynthesisError> {
         let c0s = c.iter().map(|f| f.c0).collect::<Vec<_>>();
         let c1s = c.iter().map(|f| f.c1).collect::<Vec<_>>();
         let c0 = P::BaseFieldGadget::two_bit_lookup_lc(cs.ns(|| "Lookup c0"), precomp, b, &c0s)?;
@@ -648,7 +671,7 @@ for QuadExtFieldGadget<P, ConstraintF>
 }
 
 impl<P: QuadExtParametersGadget<ConstraintF>, ConstraintF: PrimeField + SquareRootField>
-ThreeBitCondNegLookupGadget<ConstraintF> for QuadExtFieldGadget<P, ConstraintF>
+    ThreeBitCondNegLookupGadget<ConstraintF> for QuadExtFieldGadget<P, ConstraintF>
 {
     type TableConstant = QuadExtField<P>;
 
@@ -660,8 +683,10 @@ ThreeBitCondNegLookupGadget<ConstraintF> for QuadExtFieldGadget<P, ConstraintF>
     ) -> Result<Self, SynthesisError> {
         let c0s = c.iter().map(|f| f.c0).collect::<Vec<_>>();
         let c1s = c.iter().map(|f| f.c1).collect::<Vec<_>>();
-        let c0 = P::BaseFieldGadget::three_bit_cond_neg_lookup(cs.ns(|| "Lookup c0"), b, b0b1, &c0s)?;
-        let c1 = P::BaseFieldGadget::three_bit_cond_neg_lookup(cs.ns(|| "Lookup c1"), b, b0b1, &c1s)?;
+        let c0 =
+            P::BaseFieldGadget::three_bit_cond_neg_lookup(cs.ns(|| "Lookup c0"), b, b0b1, &c0s)?;
+        let c1 =
+            P::BaseFieldGadget::three_bit_cond_neg_lookup(cs.ns(|| "Lookup c1"), b, b0b1, &c1s)?;
         Ok(Self::new(c0, c1))
     }
 
@@ -670,23 +695,23 @@ ThreeBitCondNegLookupGadget<ConstraintF> for QuadExtFieldGadget<P, ConstraintF>
     }
 }
 
-impl<P: QuadExtParametersGadget<ConstraintF>, ConstraintF: PrimeField + SquareRootField> AllocGadget<QuadExtField<P>, ConstraintF>
-for QuadExtFieldGadget<P, ConstraintF>
+impl<P: QuadExtParametersGadget<ConstraintF>, ConstraintF: PrimeField + SquareRootField>
+    AllocGadget<QuadExtField<P>, ConstraintF> for QuadExtFieldGadget<P, ConstraintF>
 {
     #[inline]
     fn alloc<F, T, CS: ConstraintSystem<ConstraintF>>(
         mut cs: CS,
         value_gen: F,
     ) -> Result<Self, SynthesisError>
-        where
-            F: FnOnce() -> Result<T, SynthesisError>,
-            T: Borrow<QuadExtField<P>>,
+    where
+        F: FnOnce() -> Result<T, SynthesisError>,
+        T: Borrow<QuadExtField<P>>,
     {
         let (c0, c1) = match value_gen() {
             Ok(fe) => {
                 let fe = *fe.borrow();
                 (Ok(fe.c0), Ok(fe.c1))
-            },
+            }
             Err(_) => (
                 Err(SynthesisError::AssignmentMissing),
                 Err(SynthesisError::AssignmentMissing),
@@ -703,15 +728,15 @@ for QuadExtFieldGadget<P, ConstraintF>
         mut cs: CS,
         value_gen: F,
     ) -> Result<Self, SynthesisError>
-        where
-            F: FnOnce() -> Result<T, SynthesisError>,
-            T: Borrow<QuadExtField<P>>,
+    where
+        F: FnOnce() -> Result<T, SynthesisError>,
+        T: Borrow<QuadExtField<P>>,
     {
         let (c0, c1) = match value_gen() {
             Ok(fe) => {
                 let fe = *fe.borrow();
                 (Ok(fe.c0), Ok(fe.c1))
-            },
+            }
             Err(_) => (
                 Err(SynthesisError::AssignmentMissing),
                 Err(SynthesisError::AssignmentMissing),
@@ -725,14 +750,10 @@ for QuadExtFieldGadget<P, ConstraintF>
 }
 
 impl<P: QuadExtParametersGadget<ConstraintF>, ConstraintF: PrimeField + SquareRootField>
-ConstantGadget<QuadExtField<P>, ConstraintF> for QuadExtFieldGadget<P, ConstraintF>
+    ConstantGadget<QuadExtField<P>, ConstraintF> for QuadExtFieldGadget<P, ConstraintF>
 {
     #[inline]
-    fn from_value<CS: ConstraintSystem<ConstraintF>>(
-        mut cs: CS,
-        value: &QuadExtField<P>,
-    ) -> Self
-    {
+    fn from_value<CS: ConstraintSystem<ConstraintF>>(mut cs: CS, value: &QuadExtField<P>) -> Self {
         let c0 = P::BaseFieldGadget::from_value(&mut cs.ns(|| "c0"), &value.c0);
         let c1 = P::BaseFieldGadget::from_value(&mut cs.ns(|| "c1"), &value.c1);
         Self::new(c0, c1)

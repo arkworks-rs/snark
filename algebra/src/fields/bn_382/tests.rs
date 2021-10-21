@@ -1,21 +1,22 @@
 use crate::{
     biginteger::{BigInteger, BigInteger384},
     fields::{
-        fp12_2over3over2::Fp12Parameters, Fp2Parameters, fp6_3over2::Fp6Parameters, FpParameters,
         bn_382::{
             Fq, Fq12, Fq12Parameters, Fq2, Fq2Parameters, Fq6, Fq6Parameters, FqParameters, Fr,
         },
-        Field, PrimeField, SquareRootField,
-        tests::{field_test, primefield_test, frobenius_test, sqrt_field_test},
+        fp12_2over3over2::Fp12Parameters,
+        fp6_3over2::Fp6Parameters,
+        tests::{field_test, frobenius_test, primefield_test, sqrt_field_test},
+        Field, Fp2Parameters, FpParameters, PrimeField, SquareRootField,
     },
     UniformRand,
 };
+use rand::SeedableRng;
+use rand_xorshift::XorShiftRng;
 use std::{
     cmp::Ordering,
     ops::{AddAssign, MulAssign},
 };
-use rand::SeedableRng;
-use rand_xorshift::XorShiftRng;
 
 pub(crate) const ITERATIONS: usize = 5;
 

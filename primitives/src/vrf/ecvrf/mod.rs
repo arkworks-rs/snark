@@ -1,46 +1,44 @@
-use algebra::{Field, PrimeField, convert, leading_zeros, Group, AffineCurve,
-              ProjectiveCurve, ToBytes, to_bytes, ToBits, UniformRand, ToConstraintField, FromBytes,
-              FromBytesChecked, SemanticallyValid, serialize::*,
+use crate::{
+    compute_truncation_size,
+    crh::{FieldBasedHash, FixedLengthCRH},
+    vrf::FieldBasedVrf,
+    CryptoError, Error,
 };
-use crate::{crh::{
-    FieldBasedHash, FixedLengthCRH,
-}, vrf::FieldBasedVrf, Error, CryptoError, compute_truncation_size};
-use std::marker::PhantomData;
-use rand::Rng;
-use std::io::{self, Read, Result as IoResult, Write, Error as IoError, ErrorKind};
+use algebra::{
+    convert, leading_zeros, serialize::*, to_bytes, AffineCurve, Field, FromBytes,
+    FromBytesChecked, Group, PrimeField, ProjectiveCurve, SemanticallyValid, ToBits, ToBytes,
+    ToConstraintField, UniformRand,
+};
 use rand::distributions::{Distribution, Standard};
-use serde::{Serialize, Deserialize};
+use rand::Rng;
+use serde::{Deserialize, Serialize};
+use std::io::{self, Error as IoError, ErrorKind, Read, Result as IoResult, Write};
+use std::marker::PhantomData;
 
-pub struct FieldBasedEcVrf<
-    F: PrimeField,
-    G: Group,
-    FH: FieldBasedHash,
-    GH: FixedLengthCRH,
->
-{
-    _field:         PhantomData<F>,
-    _group:         PhantomData<G>,
-    _field_hash:    PhantomData<FH>,
-    _group_hash:    PhantomData<GH>,
+pub struct FieldBasedEcVrf<F: PrimeField, G: Group, FH: FieldBasedHash, GH: FixedLengthCRH> {
+    _field: PhantomData<F>,
+    _group: PhantomData<G>,
+    _field_hash: PhantomData<FH>,
+    _group_hash: PhantomData<GH>,
 }
 
 #[derive(Derivative)]
 #[derivative(
-Copy(bound = "F: PrimeField, G: ProjectiveCurve"),
-Clone(bound = "F: PrimeField, G: ProjectiveCurve"),
-Default(bound = "F: PrimeField, G: ProjectiveCurve"),
-Eq(bound = "F: PrimeField, G: ProjectiveCurve"),
-PartialEq(bound = "F: PrimeField, G: ProjectiveCurve"),
-Debug(bound = "F: PrimeField, G: ProjectiveCurve")
+    Copy(bound = "F: PrimeField, G: ProjectiveCurve"),
+    Clone(bound = "F: PrimeField, G: ProjectiveCurve"),
+    Default(bound = "F: PrimeField, G: ProjectiveCurve"),
+    Eq(bound = "F: PrimeField, G: ProjectiveCurve"),
+    PartialEq(bound = "F: PrimeField, G: ProjectiveCurve"),
+    Debug(bound = "F: PrimeField, G: ProjectiveCurve")
 )]
 #[derive(Serialize, Deserialize)]
 #[serde(bound(serialize = "F: PrimeField, G: ProjectiveCurve"))]
 #[serde(bound(deserialize = "F: PrimeField, G: ProjectiveCurve"))]
 #[derive(CanonicalSerialize, CanonicalDeserialize)]
 pub struct FieldBasedEcVrfProof<F: PrimeField, G: ProjectiveCurve> {
-    pub gamma:  G,
-    pub c:      F,
-    pub s:      F,
+    pub gamma: G,
+    pub c: F,
+    pub s: F,
 }
 
 impl<F: PrimeField, G: ProjectiveCurve> ToBytes for FieldBasedEcVrfProof<F, G> {
@@ -56,73 +54,111 @@ impl<F: PrimeField, G: ProjectiveCurve> FromBytes for FieldBasedEcVrfProof<F, G>
         let gamma = G::Affine::read(&mut reader)?;
         let c = F::read(&mut reader)?;
         let s = F::read(&mut reader)?;
-        Ok(Self{ gamma: gamma.into_projective(), c, s })
+        Ok(Self {
+            gamma: gamma.into_projective(),
+            c,
+            s,
+        })
     }
 }
 
 impl<F: PrimeField, G: ProjectiveCurve> FromBytesChecked for FieldBasedEcVrfProof<F, G> {
     fn read_checked<R: Read>(mut reader: R) -> IoResult<Self> {
         let gamma = G::Affine::read_checked(&mut reader)
-            .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, format!("invalid proof.gamma: {}", e)))
+            .map_err(|e| {
+                io::Error::new(
+                    io::ErrorKind::InvalidData,
+                    format!("invalid proof.gamma: {}", e),
+                )
+            })
             .and_then(|p| {
-                if p.is_zero() { return Err(io::Error::new(io::ErrorKind::InvalidData, "invalid proof.gamma: point at infinity")); }
+                if p.is_zero() {
+                    return Err(io::Error::new(
+                        io::ErrorKind::InvalidData,
+                        "invalid proof.gamma: point at infinity",
+                    ));
+                }
                 Ok(p)
             })?;
         let c = F::read_checked(&mut reader)
-            .map_err(|err| io::Error::new(io::ErrorKind::InvalidData, format!("invalid proof.c: {}", err)))
+            .map_err(|err| {
+                io::Error::new(
+                    io::ErrorKind::InvalidData,
+                    format!("invalid proof.c: {}", err),
+                )
+            })
             .and_then(|c| {
                 let c_bits = c.write_bits();
                 let c_leading_zeros = leading_zeros(c_bits.as_slice()) as usize;
                 if (F::size_in_bits() - c_leading_zeros) >= G::ScalarField::size_in_bits() {
-                    return Err(io::Error::new(io::ErrorKind::InvalidData, format!("Invalid bit-length for proof.c: {}", c_bits.len() - c_leading_zeros)))
+                    return Err(io::Error::new(
+                        io::ErrorKind::InvalidData,
+                        format!(
+                            "Invalid bit-length for proof.c: {}",
+                            c_bits.len() - c_leading_zeros
+                        ),
+                    ));
                 }
                 Ok(c)
             })?;
         let s = F::read_checked(&mut reader)
-            .map_err(|err| io::Error::new(io::ErrorKind::InvalidData, format!("invalid proof.s: {}", err)))
+            .map_err(|err| {
+                io::Error::new(
+                    io::ErrorKind::InvalidData,
+                    format!("invalid proof.s: {}", err),
+                )
+            })
             .and_then(|s| {
                 let s_bits = s.write_bits();
                 let s_leading_zeros = leading_zeros(s_bits.as_slice()) as usize;
-                if (G::ScalarField::size_in_bits() - s_leading_zeros) >= F::size_in_bits(){
-                    return Err(io::Error::new(io::ErrorKind::InvalidData, format!("Invalid bit-length for proof.s: {}", s_bits.len() - s_leading_zeros)))
+                if (G::ScalarField::size_in_bits() - s_leading_zeros) >= F::size_in_bits() {
+                    return Err(io::Error::new(
+                        io::ErrorKind::InvalidData,
+                        format!(
+                            "Invalid bit-length for proof.s: {}",
+                            s_bits.len() - s_leading_zeros
+                        ),
+                    ));
                 }
                 Ok(s)
             })?;
-        Ok(Self{ gamma: gamma.into_projective(), c, s })
+        Ok(Self {
+            gamma: gamma.into_projective(),
+            c,
+            s,
+        })
     }
 }
 
 impl<F: PrimeField, G: ProjectiveCurve> SemanticallyValid for FieldBasedEcVrfProof<F, G> {
     fn is_valid(&self) -> bool {
-        ( self.gamma.is_valid() && !self.gamma.is_zero() )
-        &&
-        self.c.is_valid() &&
-        {
-            //Checks c had proper bit-length when converted into a G::ScalarField element
-            let c_bits = self.c.write_bits();
-            let c_leading_zeros = leading_zeros(c_bits.as_slice()) as usize;
-            F::size_in_bits() - c_leading_zeros < G::ScalarField::size_in_bits()
-        }
-        &&
-        self.s.is_valid() &&
-        {
-            //Checks s had proper bit-length when converted into a F element
-            let s_bits = self.s.write_bits();
-            let s_leading_zeros = leading_zeros(s_bits.as_slice()) as usize;
-            G::ScalarField::size_in_bits() - s_leading_zeros < F::size_in_bits()
-        }
+        (self.gamma.is_valid() && !self.gamma.is_zero())
+            && self.c.is_valid()
+            && {
+                //Checks c had proper bit-length when converted into a G::ScalarField element
+                let c_bits = self.c.write_bits();
+                let c_leading_zeros = leading_zeros(c_bits.as_slice()) as usize;
+                F::size_in_bits() - c_leading_zeros < G::ScalarField::size_in_bits()
+            }
+            && self.s.is_valid()
+            && {
+                //Checks s had proper bit-length when converted into a F element
+                let s_bits = self.s.write_bits();
+                let s_leading_zeros = leading_zeros(s_bits.as_slice()) as usize;
+                G::ScalarField::size_in_bits() - s_leading_zeros < F::size_in_bits()
+            }
     }
 }
 
 #[derive(Derivative)]
 #[derivative(
-Copy(bound = "G: Group"),
-Clone(bound = "G: Group"),
-Default(bound = "G: Group"),
-Hash(bound = "G: Group"),
-Eq(bound = "G: Group"),
-PartialEq(bound = "G: Group"),
-Debug(bound = "G: Group"),
+    Copy(bound = "G: Group"),
+    Clone(bound = "G: Group"),
+    Default(bound = "G: Group"),
+    Hash(bound = "G: Group"),
+    Eq(bound = "G: Group"),
+    PartialEq(bound = "G: Group"),
+    Debug(bound = "G: Group")
 )]
 #[derive(Serialize, Deserialize)]
 #[serde(bound(serialize = "G: Group"))]
@@ -147,7 +183,7 @@ impl<G: Group> ToBytes for FieldBasedEcVrfPk<G> {
 impl<G: Group> FromBytes for FieldBasedEcVrfPk<G> {
     fn read<R: Read>(mut reader: R) -> IoResult<Self> {
         let pk = G::read(&mut reader)?;
-        Ok( Self(pk) )
+        Ok(Self(pk))
     }
 }
 
@@ -156,10 +192,15 @@ impl<G: Group> FromBytesChecked for FieldBasedEcVrfPk<G> {
         let pk = G::read_checked(&mut reader)
             .map_err(|e| IoError::new(ErrorKind::InvalidData, format!("invalid ecvrf pk: {}", e)))
             .and_then(|p| {
-                if p.is_zero() { return Err(IoError::new(ErrorKind::InvalidData, "invalid ecvrf pk: point at infinity")); }
+                if p.is_zero() {
+                    return Err(IoError::new(
+                        ErrorKind::InvalidData,
+                        "invalid ecvrf pk: point at infinity",
+                    ));
+                }
                 Ok(p)
             })?;
-        Ok( Self(pk) )
+        Ok(Self(pk))
     }
 }
 
@@ -178,11 +219,11 @@ impl<G: Group> SemanticallyValid for FieldBasedEcVrfPk<G> {
 // input validity check. It's responsibility of the caller to do so, through keyverify()
 // function for the PublicKey, read() or is_valid() functions for FieldBasedEcVrfProof.
 impl<F, G, FH, GH> FieldBasedVrf for FieldBasedEcVrf<F, G, FH, GH>
-    where
-        F: PrimeField,
-        G: ProjectiveCurve + ToConstraintField<F>,
-        FH: FieldBasedHash<Data = F>,
-        GH: FixedLengthCRH<Output = G>,
+where
+    F: PrimeField,
+    G: ProjectiveCurve + ToConstraintField<F>,
+    FH: FieldBasedHash<Data = F>,
+    GH: FixedLengthCRH<Output = G>,
 {
     type Data = FH::Data;
     type PublicKey = FieldBasedEcVrfPk<G>;
@@ -190,16 +231,16 @@ impl<F, G, FH, GH> FieldBasedVrf for FieldBasedEcVrf<F, G, FH, GH>
     type Proof = FieldBasedEcVrfProof<F, G>;
     type GHParams = GH::Parameters;
 
-    fn keygen<R: Rng>(rng: &mut R) -> (Self::PublicKey, Self::SecretKey)
-    {
+    fn keygen<R: Rng>(rng: &mut R) -> (Self::PublicKey, Self::SecretKey) {
         let secret_key = loop {
             let r = G::ScalarField::rand(rng);
             // Reject sk = 0 to avoid generating obviously weak keypair. See keyverify() function
             // for additional explanations.
-            if !r.is_zero() { break(r) }
+            if !r.is_zero() {
+                break (r);
+            }
         };
-        let public_key = G::prime_subgroup_generator()
-            .mul(&secret_key);
+        let public_key = G::prime_subgroup_generator().mul(&secret_key);
         (FieldBasedEcVrfPk(public_key), secret_key)
     }
 
@@ -208,15 +249,15 @@ impl<F, G, FH, GH> FieldBasedVrf for FieldBasedEcVrf<F, G, FH, GH>
     }
 
     fn prove<R: Rng>(
-        rng:               &mut R,
+        rng: &mut R,
         group_hash_params: &Self::GHParams,
-        pk:                &Self::PublicKey,
-        sk:                &Self::SecretKey,
-        message:           Self::Data,
-    )-> Result<Self::Proof, Error>
-    {
+        pk: &Self::PublicKey,
+        sk: &Self::SecretKey,
+        message: Self::Data,
+    ) -> Result<Self::Proof, Error> {
         //Compute mh = hash_to_curve(message)
-        let message_on_curve = GH::evaluate(group_hash_params, to_bytes!(&message).unwrap().as_slice())?;
+        let message_on_curve =
+            GH::evaluate(group_hash_params, to_bytes!(&message).unwrap().as_slice())?;
 
         //Compute gamma = message_on_curve^sk
         let gamma = message_on_curve.mul(sk);
@@ -232,7 +273,6 @@ impl<F, G, FH, GH> FieldBasedVrf for FieldBasedEcVrf<F, G, FH, GH>
         );
 
         let (c, s) = loop {
-
             //Choose random scalar
             let r = G::ScalarField::rand(rng);
 
@@ -257,7 +297,9 @@ impl<F, G, FH, GH> FieldBasedVrf for FieldBasedEcVrf<F, G, FH, GH>
             let c_leading_zeros = leading_zeros(c_bits.as_slice()) as usize;
 
             //Enforce c bit length is strictly smaller than G::ScalarField modulus bit length
-            if c_leading_zeros < required_leading_zeros_c {continue};
+            if c_leading_zeros < required_leading_zeros_c {
+                continue;
+            };
 
             let c_conv = convert::<G::ScalarField>(c_bits)?;
 
@@ -266,26 +308,27 @@ impl<F, G, FH, GH> FieldBasedVrf for FieldBasedEcVrf<F, G, FH, GH>
             let s_bits = s.write_bits();
             let s_leading_zeros = leading_zeros(s_bits.as_slice()) as usize;
 
-            if s_leading_zeros < required_leading_zeros_s {continue};
+            if s_leading_zeros < required_leading_zeros_s {
+                continue;
+            };
 
             let s_conv = convert::<F>(s_bits)?;
 
-            break (c, s_conv)
+            break (c, s_conv);
         };
 
-        Ok(FieldBasedEcVrfProof {gamma, c, s})
+        Ok(FieldBasedEcVrfProof { gamma, c, s })
     }
 
     fn proof_to_hash(
         group_hash_params: &Self::GHParams,
-        pk:                &Self::PublicKey,
-        message:           Self::Data,
-        proof:             &Self::Proof
-    )
-        -> Result<Self::Data, Error>
-    {
+        pk: &Self::PublicKey,
+        message: Self::Data,
+        proof: &Self::Proof,
+    ) -> Result<Self::Data, Error> {
         //Compute mh = hash_to_curve(message)
-        let message_on_curve = GH::evaluate(group_hash_params, to_bytes!(&message).unwrap().as_slice())?;
+        let message_on_curve =
+            GH::evaluate(group_hash_params, to_bytes!(&message).unwrap().as_slice())?;
 
         let c_bits = proof.c.write_bits();
         let s_bits = proof.s.write_bits();
@@ -320,7 +363,9 @@ impl<F, G, FH, GH> FieldBasedVrf for FieldBasedEcVrf<F, G, FH, GH>
                 let output = {
                     let mut digest = FH::init_constant_length(3, None);
                     digest.update(message);
-                    gamma_coords.into_iter().for_each(|c| { digest.update(c); });
+                    gamma_coords.into_iter().for_each(|c| {
+                        digest.update(c);
+                    });
                     digest.finalize()
                 }?;
 
@@ -330,35 +375,27 @@ impl<F, G, FH, GH> FieldBasedVrf for FieldBasedEcVrf<F, G, FH, GH>
         }
     }
 
-    fn keyverify(
-        pk: &Self::PublicKey,
-    ) -> bool { pk.is_valid() }
+    fn keyverify(pk: &Self::PublicKey) -> bool {
+        pk.is_valid()
+    }
 }
 
 #[cfg(test)]
 mod test {
-    use algebra::curves::{
-        mnt4753::G1Projective as MNT4G1Projective,
-        mnt6753::G1Projective as MNT6G1Projective,
-    };
-    use algebra::fields::{
-        mnt4753::Fr as MNT4Fr,
-        mnt6753::Fr as MNT6Fr,
-    };
-    use algebra::{ToBytes, FromBytes, FromBytesChecked, SemanticallyValid, to_bytes};
     use crate::{
         crh::{
-            MNT4PoseidonHash, MNT6PoseidonHash,
-            bowe_hopwood::BoweHopwoodPedersenCRH,
-            pedersen::PedersenWindow,
+            bowe_hopwood::BoweHopwoodPedersenCRH, pedersen::PedersenWindow, MNT4PoseidonHash,
+            MNT6PoseidonHash,
         },
-        vrf::{
-            FieldBasedVrf,
-            ecvrf::FieldBasedEcVrf,
-        },
-        FixedLengthCRH
+        vrf::{ecvrf::FieldBasedEcVrf, FieldBasedVrf},
+        FixedLengthCRH,
     };
-    use rand::{Rng, thread_rng};
+    use algebra::curves::{
+        mnt4753::G1Projective as MNT4G1Projective, mnt6753::G1Projective as MNT6G1Projective,
+    };
+    use algebra::fields::{mnt4753::Fr as MNT4Fr, mnt6753::Fr as MNT6Fr};
+    use algebra::{to_bytes, FromBytes, FromBytesChecked, SemanticallyValid, ToBytes};
+    use rand::{thread_rng, Rng};
 
     #[derive(Clone)]
     struct TestWindow {}
@@ -383,7 +420,12 @@ mod test {
         assert!(S::proof_to_hash(pp, &pk, message, &proof).is_ok());
     }
 
-    fn failed_verification<S: FieldBasedVrf, R: Rng>(rng: &mut R, message: S::Data, bad_message: S::Data, pp: &S::GHParams) {
+    fn failed_verification<S: FieldBasedVrf, R: Rng>(
+        rng: &mut R,
+        message: S::Data,
+        bad_message: S::Data,
+        pp: &S::GHParams,
+    ) {
         let (pk, sk) = S::keygen(rng);
         assert!(S::keyverify(&pk));
         assert_eq!(pk, S::get_public_key(&sk));
@@ -401,13 +443,18 @@ mod test {
         assert!(S::proof_to_hash(pp, &new_pk, message, &proof).is_err());
     }
 
-    fn serialize_deserialize<S: FieldBasedVrf, R: Rng>(rng: &mut R, message: S::Data, pp: &S::GHParams) {
+    fn serialize_deserialize<S: FieldBasedVrf, R: Rng>(
+        rng: &mut R,
+        message: S::Data,
+        pp: &S::GHParams,
+    ) {
         let (pk, sk) = S::keygen(rng);
         let proof = S::prove(rng, pp, &pk, &sk, message).unwrap();
 
         let proof_serialized = to_bytes!(proof).unwrap();
 
-        let proof_deserialized = <S as FieldBasedVrf>::Proof::read(proof_serialized.as_slice()).unwrap();
+        let proof_deserialized =
+            <S as FieldBasedVrf>::Proof::read(proof_serialized.as_slice()).unwrap();
         assert_eq!(proof, proof_deserialized);
         assert!(<S as FieldBasedVrf>::Proof::read_checked(proof_serialized.as_slice()).is_ok());
         assert!(S::proof_to_hash(pp, &pk, message, &proof_deserialized).is_ok());

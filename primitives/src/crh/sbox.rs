@@ -1,8 +1,6 @@
-use algebra::Field;
 use crate::FieldBasedHashParameters;
-use rayon::iter::{
-    ParallelIterator, IntoParallelRefMutIterator
-};
+use algebra::Field;
+use rayon::iter::{IntoParallelRefMutIterator, ParallelIterator};
 
 pub trait SBox {
     type Field: Field;
@@ -16,12 +14,13 @@ pub trait SBox {
 }
 
 pub trait BatchSBox: SBox {
-
     fn apply_full_batch(vec_state: &mut [Vec<Self::Field>]) {
         vec_state.par_iter_mut().for_each(|s| Self::apply_full(s));
     }
 
     fn apply_partial_batch(vec_state: &mut [Vec<Self::Field>]) {
-        vec_state.par_iter_mut().for_each(|s| Self::apply_partial(s));
+        vec_state
+            .par_iter_mut()
+            .for_each(|s| Self::apply_partial(s));
     }
 }

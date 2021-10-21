@@ -1,7 +1,7 @@
 use crate::{
     biginteger::BigInteger256 as BigInteger,
+    field_new,
     fields::{Fp256, Fp256Parameters, FpParameters},
-    field_new
 };
 
 pub struct FqParameters;

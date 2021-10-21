@@ -1,5 +1,8 @@
-use crate::{fields::{Field, LegendreSymbol, PrimeField, SquareRootField}, ToBytes, to_bytes, Flags, CanonicalSerialize, CanonicalDeserialize, SWFlags};
-use rand::{Rng, SeedableRng, thread_rng};
+use crate::{
+    fields::{Field, LegendreSymbol, PrimeField, SquareRootField},
+    to_bytes, CanonicalDeserialize, CanonicalSerialize, Flags, SWFlags, ToBytes,
+};
+use rand::{thread_rng, Rng, SeedableRng};
 use rand_xorshift::XorShiftRng;
 use std::io::Cursor;
 
@@ -262,7 +265,7 @@ fn field_canonical_serialization_test<F: Field>(buf_size: usize) {
                 false
             });
             assert!(if let SerializationError::NotEnoughSpace =
-            F::deserialize_with_flags::<_, DummyFlags>(&mut &serialized[..]).unwrap_err()
+                F::deserialize_with_flags::<_, DummyFlags>(&mut &serialized[..]).unwrap_err()
             {
                 true
             } else {

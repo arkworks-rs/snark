@@ -1,11 +1,11 @@
 use crate::{BasicRadix2Domain, EvaluationDomain, MixedRadix2Domain};
-use crate::{
-    PrimeField, FpParameters,
-};
+use crate::{FpParameters, PrimeField};
 
 /// Return the smallest sized and most efficient Evaluation Domain able to support `num_coeffs` size
-pub fn get_best_evaluation_domain<F: PrimeField>(num_coeffs: usize) -> Option<Box<dyn EvaluationDomain<F>>>{
-// Let's assign an index to each domain:
+pub fn get_best_evaluation_domain<F: PrimeField>(
+    num_coeffs: usize,
+) -> Option<Box<dyn EvaluationDomain<F>>> {
+    // Let's assign an index to each domain:
     // -1: No suitable domain found
     // 0: BasicRadix2Domain
     // 1: MixedRadix2Domain
@@ -20,7 +20,7 @@ pub fn get_best_evaluation_domain<F: PrimeField>(num_coeffs: usize) -> Option<Bo
                 index = 0;
                 domain_size = size;
             }
-        },
+        }
         None => {}
     };
 
@@ -31,7 +31,7 @@ pub fn get_best_evaluation_domain<F: PrimeField>(num_coeffs: usize) -> Option<Bo
                     index = 1;
                     //domain_size = size;
                 }
-            },
+            }
             None => {}
         };
     }
@@ -46,8 +46,8 @@ pub fn get_best_evaluation_domain<F: PrimeField>(num_coeffs: usize) -> Option<Bo
 
 #[cfg(test)]
 mod test {
-    use crate::fields::mnt6753::fr::Fr;
     use crate::domain::*;
+    use crate::fields::mnt6753::fr::Fr;
 
     #[test]
     fn test_mnt6753_best_evaluation_domain() {
@@ -70,12 +70,10 @@ mod test {
         domain = get_best_evaluation_domain::<Fr>(domain_size).unwrap();
         assert_eq!(domain.size(), 32768, "Unexpected domain size");
 
-
         domain_size = 32769;
         //Expected Mixed to be chosen
         domain = get_best_evaluation_domain::<Fr>(domain_size).unwrap();
         assert_eq!(domain.size(), 40960, "Unexpected domain size");
-
 
         //Limit for the mixed radix2 domain support
         domain_size = 819200;
@@ -85,8 +83,8 @@ mod test {
         //No supported domain for this size should exist
         domain_size = 819201;
         match get_best_evaluation_domain::<Fr>(domain_size) {
-            None => {},
-           _ => panic!("No domain should exists for this size")
+            None => {}
+            _ => panic!("No domain should exists for this size"),
         }
     }
 }

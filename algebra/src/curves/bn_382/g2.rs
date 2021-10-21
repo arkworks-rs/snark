@@ -1,8 +1,9 @@
 use crate::{
     biginteger::BigInteger384 as BigInteger,
     curves::models::{ModelParameters, SWModelParameters},
-    Field, field_new,
-    fields::bn_382::*
+    field_new,
+    fields::bn_382::*,
+    Field,
 };
 
 #[derive(Copy, Clone, Default, PartialEq, Eq)]

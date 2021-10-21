@@ -2,9 +2,9 @@
 
 use std::fmt;
 
-use crate::{Field, PrimeField};
 use crate::DensePolynomial;
 use crate::{DenseOrSparsePolynomial, EvaluationDomain, Evaluations};
+use crate::{Field, PrimeField};
 
 /// Stores a sparse polynomial in coefficient form.
 #[derive(Clone, PartialEq, Eq, Hash, Default)]
@@ -96,10 +96,12 @@ impl<F: Field> SparsePolynomial<F> {
     }
 }
 
-
 impl<F: PrimeField> SparsePolynomial<F> {
     /// Evaluate `self` over `domain`.
-    pub fn evaluate_over_domain_by_ref(&self, domain: Box<dyn EvaluationDomain<F>>) -> Evaluations<F> {
+    pub fn evaluate_over_domain_by_ref(
+        &self,
+        domain: Box<dyn EvaluationDomain<F>>,
+    ) -> Evaluations<F> {
         let poly: DenseOrSparsePolynomial<'_, F> = self.into();
         DenseOrSparsePolynomial::<F>::evaluate_over_domain(poly, domain)
     }
@@ -123,9 +125,9 @@ impl<F: Field> Into<DensePolynomial<F>> for SparsePolynomial<F> {
 
 #[cfg(test)]
 mod tests {
-    use crate::{get_best_evaluation_domain, DensePolynomial, SparsePolynomial};
     use crate::fields::bls12_381::fr::Fr;
     use crate::Field;
+    use crate::{get_best_evaluation_domain, DensePolynomial, SparsePolynomial};
 
     #[test]
     fn evaluate_over_domain() {

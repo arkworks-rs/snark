@@ -28,7 +28,8 @@ pub trait GroupGadget<G: Group, ConstraintF: Field>:
 
     fn zero<CS: ConstraintSystem<ConstraintF>>(cs: CS) -> Result<Self, SynthesisError>;
 
-    fn is_zero<CS: ConstraintSystem<ConstraintF>>(&self, cs: CS) -> Result<Boolean, SynthesisError>;
+    fn is_zero<CS: ConstraintSystem<ConstraintF>>(&self, cs: CS)
+        -> Result<Boolean, SynthesisError>;
 
     fn add<CS: ConstraintSystem<ConstraintF>>(
         &self,
@@ -185,12 +186,7 @@ pub(crate) mod test {
     use rand::thread_rng;
 
     #[allow(dead_code)]
-    pub(crate) fn group_test<
-        ConstraintF: Field,
-        G: Group,
-        GG: GroupGadget<G, ConstraintF>,
-    >()
-    {
+    pub(crate) fn group_test<ConstraintF: Field, G: Group, GG: GroupGadget<G, ConstraintF>>() {
         let mut cs = TestConstraintSystem::<ConstraintF>::new();
 
         let a: G = UniformRand::rand(&mut thread_rng());
@@ -246,8 +242,7 @@ pub(crate) mod test {
         ConstraintF: Field,
         G: Group,
         GG: GroupGadget<G, ConstraintF>,
-    >()
-    {
+    >() {
         let mut cs = TestConstraintSystem::<ConstraintF>::new();
 
         let a: G = UniformRand::rand(&mut thread_rng());
@@ -277,8 +272,11 @@ pub(crate) mod test {
         a2.double_in_place(cs.ns(|| "2a")).unwrap();
         let a2_b = a2.add(cs.ns(|| "2a + b"), &b).unwrap();
 
-        let a_b_a = a.add(cs.ns(|| "a + b"), &b).unwrap()
-            .add(cs.ns(|| "a + b + a"), &a).unwrap();
+        let a_b_a = a
+            .add(cs.ns(|| "a + b"), &b)
+            .unwrap()
+            .add(cs.ns(|| "a + b + a"), &a)
+            .unwrap();
         assert_eq!(a2_b, a_b_a);
 
         // (b.double() + a) = (b + a) + b: Testing double() using a as shift
@@ -286,8 +284,11 @@ pub(crate) mod test {
         b2.double_in_place(cs.ns(|| "2b")).unwrap();
         let b2_a = b2.add(cs.ns(|| "2b + a"), &a).unwrap();
 
-        let b_a_b = b.add(cs.ns(|| "b + a"), &a).unwrap()
-            .add(cs.ns(|| "b + a + b"), &b).unwrap();
+        let b_a_b = b
+            .add(cs.ns(|| "b + a"), &a)
+            .unwrap()
+            .add(cs.ns(|| "b + a + b"), &b)
+            .unwrap();
         assert_eq!(b2_a, b_a_b);
 
         let _ = a.to_bytes(&mut cs.ns(|| "ToBytes")).unwrap();

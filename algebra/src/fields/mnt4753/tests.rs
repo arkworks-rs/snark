@@ -1,19 +1,18 @@
 use crate::{
     biginteger::{BigInteger, BigInteger768},
-    fields::tests::{field_test, frobenius_test, primefield_test, sqrt_field_test},
-    fields::mnt4753::{Fq, FqParameters, Fq2, Fq2Parameters, Fq4, Fq4Parameters, Fr},
-    fields::FpParameters,
+    bytes::{FromBytes, ToBytes},
+    fields::mnt4753::{Fq, Fq2, Fq2Parameters, Fq4, Fq4Parameters, FqParameters, Fr},
     fields::models::{fp2::Fp2Parameters, fp4::Fp4Parameters},
-    Field, PrimeField, SquareRootField,
-    UniformRand,
-    bytes::{ToBytes, FromBytes}, to_bytes, ToBits, SemanticallyValid,
+    fields::tests::{field_test, frobenius_test, primefield_test, sqrt_field_test},
+    fields::FpParameters,
+    to_bytes, Field, PrimeField, SemanticallyValid, SquareRootField, ToBits, UniformRand,
 };
 
 use rand::SeedableRng;
 use rand_xorshift::XorShiftRng;
 use std::{
-    ops::{AddAssign, MulAssign, SubAssign},
     cmp::Ordering,
+    ops::{AddAssign, MulAssign, SubAssign},
 };
 
 pub(crate) const ITERATIONS: usize = 5;
@@ -65,10 +64,8 @@ fn test_mnt4753_fq4() {
     frobenius_test::<Fq4, _>(Fq::characteristic(), 13);
 }
 
-
 #[test]
 fn test_frob_coeffs() {
-
     //Fq2 coefficients test
     let nqr = Fq::new(BigInteger768([
         11881297496860141143,
@@ -192,12 +189,8 @@ fn test_frob_coeffs() {
         0x361b84251779aa78,
         0x16215,
     ];
-    assert_eq!(
-        Fq4Parameters::FROBENIUS_COEFF_FP4_C1[3],
-        nqr.pow(t)
-    );
+    assert_eq!(Fq4Parameters::FROBENIUS_COEFF_FP4_C1[3], nqr.pow(t));
 }
-
 
 #[test]
 fn test_neg_one() {
@@ -218,7 +211,6 @@ fn test_neg_one() {
     assert_eq!(neg_one, -Fq::one());
 }
 
-
 #[test]
 fn test_fq_is_valid() {
     let mut a = Fq::new(FqParameters::MODULUS);
@@ -227,35 +219,35 @@ fn test_fq_is_valid() {
     assert!(a.is_valid());
     assert!(Fq::new(BigInteger768::from(0)).is_valid());
     assert!(Fq::new(BigInteger768([
-            0x20fc924b28d2f7d6,
-            0xeee2288b24070b7f,
-            0xbd14dcce936d92bf,
-            0x7705edb97ebcd3f3,
-            0x2c497d412bd2c3e8,
-            0x9363f538ef90135d,
-            0xb0109742cc4add3f,
-            0x577389b8e8af372e,
-            0xbb1fec3e1ab79a25,
-            0xcc9c980eac0222e2,
-            0xf738570ed0a42ffa,
-            0x1c3b43f4ef84d,
-        ]))
-        .is_valid());
+        0x20fc924b28d2f7d6,
+        0xeee2288b24070b7f,
+        0xbd14dcce936d92bf,
+        0x7705edb97ebcd3f3,
+        0x2c497d412bd2c3e8,
+        0x9363f538ef90135d,
+        0xb0109742cc4add3f,
+        0x577389b8e8af372e,
+        0xbb1fec3e1ab79a25,
+        0xcc9c980eac0222e2,
+        0xf738570ed0a42ffa,
+        0x1c3b43f4ef84d,
+    ]))
+    .is_valid());
     assert!(!Fq::new(BigInteger768([
-            0xffffffffffffffff,
-            0xffffffffffffffff,
-            0xffffffffffffffff,
-            0xffffffffffffffff,
-            0xffffffffffffffff,
-            0xffffffffffffffff,
-            0xffffffffffffffff,
-            0xffffffffffffffff,
-            0xffffffffffffffff,
-            0xffffffffffffffff,
-            0xffffffffffffffff,
-            0xffffffffffffffff,
-        ]))
-        .is_valid());
+        0xffffffffffffffff,
+        0xffffffffffffffff,
+        0xffffffffffffffff,
+        0xffffffffffffffff,
+        0xffffffffffffffff,
+        0xffffffffffffffff,
+        0xffffffffffffffff,
+        0xffffffffffffffff,
+        0xffffffffffffffff,
+        0xffffffffffffffff,
+        0xffffffffffffffff,
+        0xffffffffffffffff,
+    ]))
+    .is_valid());
 
     let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
 
@@ -265,7 +257,6 @@ fn test_fq_is_valid() {
         assert!(a.is_valid());
     }
 }
-
 
 #[test]
 fn test_fq_add_assign() {
@@ -303,7 +294,8 @@ fn test_fq_add_assign() {
                 0x5df407ccca403f0c,
                 0xef8fc932df51be4d,
                 0x188f263e1b224,
-            ])));
+            ]))
+        );
         // Add one and test for the result.
         tmp.add_assign(&Fq::new(BigInteger768::from(1)));
         assert_eq!(
@@ -321,7 +313,8 @@ fn test_fq_add_assign() {
                 0x5df407ccca403f0c,
                 0xef8fc932df51be4d,
                 0x188f263e1b224,
-            ])));
+            ]))
+        );
         // Add another random number that exercises the reduction.
         tmp.add_assign(&Fq::new(BigInteger768([
             0xe95e2d43caa35471,
@@ -352,7 +345,8 @@ fn test_fq_add_assign() {
                 0x1d536424d047c937,
                 0x772950ac6c05ce47,
                 0xdb52480f61,
-            ])));
+            ]))
+        );
         // Add one to (q - 1) and test for the result.
         tmp = Fq::new(BigInteger768([
             0x5E9063DE245E8000,
@@ -414,7 +408,7 @@ fn test_fq_add_assign() {
                 0xB7F997505B8FAFED,
                 0x10229022EEE2CDAD,
                 0x01C4C62D92C411,
-        ]))
+            ]))
         );
         // Add one to the result and test for it.
         tmp.add_assign(&Fq::new(BigInteger768::from(1)));
@@ -444,7 +438,6 @@ fn test_fq_add_assign() {
         assert_eq!(tmp1, tmp2);
     }
 }
-
 
 #[test]
 fn test_fq_sub_assign() {
@@ -493,7 +486,7 @@ fn test_fq_sub_assign() {
                 0xaf79e317e786e3d6,
                 0xb9699fb7fe1dea84,
                 0x1c4f40b8caed,
-        ]))
+            ]))
         );
 
         // Test the opposite subtraction which doesn't test reduction.
@@ -540,7 +533,7 @@ fn test_fq_sub_assign() {
                 0x87fb4387408cc16,
                 0x56b8f06af0c4e329,
                 0x1a876ecd9f923,
-        ]))
+            ]))
         );
 
         // Test for sensible results with zero
@@ -578,7 +571,7 @@ fn test_fq_sub_assign() {
                 0x648728f79da906ef,
                 0xa59d876a69cd2af8,
                 0x554c1f5e7873,
-        ]))
+            ]))
         );
     }
 
@@ -600,37 +593,36 @@ fn test_fq_sub_assign() {
     }
 }
 
-
 #[test]
 fn test_fq_mul_assign() {
     let mut tmp = Fq::new(BigInteger768([
-            0xf90599b5974382d2,
-            0xe7581c1924d6b303,
-            0x55d7d7228dd30eb2,
-            0xa47c9f5d998f2b51,
-            0x411c00a50673af12,
-            0x181d1518a9c7b25f,
-            0x3c64f5fd46039bcf,
-            0xf2e55ae09dbc1241,
-            0xb7f12d1fb9d5c945,
-            0x967c968236916e02,
-            0x717e420231853795,
-            0x636d6103f527,
-        ]));
+        0xf90599b5974382d2,
+        0xe7581c1924d6b303,
+        0x55d7d7228dd30eb2,
+        0xa47c9f5d998f2b51,
+        0x411c00a50673af12,
+        0x181d1518a9c7b25f,
+        0x3c64f5fd46039bcf,
+        0xf2e55ae09dbc1241,
+        0xb7f12d1fb9d5c945,
+        0x967c968236916e02,
+        0x717e420231853795,
+        0x636d6103f527,
+    ]));
     tmp.mul_assign(&Fq::new(BigInteger768([
-            0x43ea1602974be9df,
-            0x9d89a1653778ac89,
-            0x3d241871d23271cd,
-            0x423a8c8dc1ec87fd,
-            0xbd1b39df736ddb58,
-            0x1d797c82d55bfa7e,
-            0x37e34ae333d830a,
-            0x86c6146b1b283b29,
-            0x83834e34a16c2ac4,
-            0x3ab52e777269366b,
-            0xab8bf157064f27ed,
-            0x1292685293a9a,
-        ])));
+        0x43ea1602974be9df,
+        0x9d89a1653778ac89,
+        0x3d241871d23271cd,
+        0x423a8c8dc1ec87fd,
+        0xbd1b39df736ddb58,
+        0x1d797c82d55bfa7e,
+        0x37e34ae333d830a,
+        0x86c6146b1b283b29,
+        0x83834e34a16c2ac4,
+        0x3ab52e777269366b,
+        0xab8bf157064f27ed,
+        0x1292685293a9a,
+    ])));
     assert_eq!(
         tmp,
         Fq::new(BigInteger768([
@@ -692,7 +684,6 @@ fn test_fq_mul_assign() {
     }
 }
 
-
 #[test]
 fn test_fq_squaring() {
     let mut a = Fq::new(BigInteger768([
@@ -708,7 +699,7 @@ fn test_fq_squaring() {
         0xc08807443d74051f,
         0xe49806cdd5773372,
         0x1c3d520d338be,
-        ]));
+    ]));
     assert!(a.is_valid());
     a.square_in_place();
     assert_eq!(
@@ -762,7 +753,6 @@ fn test_fq_inverse() {
     }
 }
 
-
 #[test]
 fn test_fq_double_in_place() {
     let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
@@ -776,7 +766,6 @@ fn test_fq_double_in_place() {
         assert_eq!(a, b);
     }
 }
-
 
 #[test]
 fn test_fq_negate() {
@@ -797,7 +786,6 @@ fn test_fq_negate() {
         assert!(a.is_zero());
     }
 }
-
 
 #[test]
 fn test_fq_pow() {
@@ -823,10 +811,8 @@ fn test_fq_pow() {
     }
 }
 
-
 #[test]
 fn test_fq_sqrt() {
-
     let a_squared = Fq::new(BigInteger768([
         0xd9ddf9cba96cc287,
         0xd4a37d9a7f28d94c,
@@ -842,21 +828,23 @@ fn test_fq_sqrt() {
         0x186a7dede838e,
     ]));
     let a = a_squared.sqrt().unwrap();
-    assert_eq!(a, Fq::new(BigInteger768([
-        0x2246981b0859aa51,
-        0x2c27b2a6d58c0be4,
-        0xd12541e352f9bff1,
-        0x70401d9ca2890cde,
-        0xfe3a5678bfaeb0f7,
-        0x7c1f5e5cfd935e01,
-        0x4f7f6b949a430333,
-        0x31a49135470aeee2,
-        0xffff8d5b9eab0d02,
-        0x989ffec98fb0ed77,
-        0xccfebe585ad372c8,
-        0x13dc68aa6edec,
-    ])));
-
+    assert_eq!(
+        a,
+        Fq::new(BigInteger768([
+            0x2246981b0859aa51,
+            0x2c27b2a6d58c0be4,
+            0xd12541e352f9bff1,
+            0x70401d9ca2890cde,
+            0xfe3a5678bfaeb0f7,
+            0x7c1f5e5cfd935e01,
+            0x4f7f6b949a430333,
+            0x31a49135470aeee2,
+            0xffff8d5b9eab0d02,
+            0x989ffec98fb0ed77,
+            0xccfebe585ad372c8,
+            0x13dc68aa6edec,
+        ]))
+    );
 
     let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
 
@@ -885,7 +873,6 @@ fn test_fq_sqrt() {
         }
     }
 }
-
 
 #[test]
 fn test_fq_num_bits() {
@@ -919,15 +906,13 @@ fn test_fq_bytes() {
 #[test]
 fn test_convert_fq_fr() {
     use crate::fields::{
-        convert, mnt4753::{
-            Fr, FrParameters,
-        },
+        convert,
+        mnt4753::{Fr, FrParameters},
     };
 
     let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
 
     for _ in 0..1000 {
-
         // Safely convert a random Fq into a Fr
         let q: Fq = UniformRand::rand(&mut rng);
         let q_bits = &q.write_bits()[1..]; //Skip 1 bit, in order to perform a safe conversion
@@ -977,7 +962,6 @@ fn test_fq_root_of_unity() {
     assert!(Fq::multiplicative_generator().sqrt().is_none());
 }
 
-
 #[test]
 fn test_fq_ordering() {
     // BigInteger768's ordering is well-tested, but we still need to make sure the
@@ -986,7 +970,6 @@ fn test_fq_ordering() {
         assert!(Fq::from_repr(BigInteger768::from(i + 1)) > Fq::from_repr(BigInteger768::from(i)));
     }
 }
-
 
 #[test]
 fn test_fq_legendre() {
@@ -1017,7 +1000,7 @@ fn test_fq_legendre() {
         0x78ce9be361f75af2,
         0x72442a1e6ff0a47f,
         0xa813136f81ec,
-        ]);
+    ]);
     assert_eq!(QuadraticNonResidue, Fq::from_repr(e).legendre());
     let e = BigInteger768([
         0xc467a286665a3a01,
@@ -1032,10 +1015,9 @@ fn test_fq_legendre() {
         0x567eadc74aa00b15,
         0x4412e4c5b9ce9aae,
         0x17580790e3633,
-        ]);
+    ]);
     assert_eq!(QuadraticResidue, Fq::from_repr(e).legendre());
 }
-
 
 #[test]
 fn test_fq2_ordering() {
@@ -1058,7 +1040,6 @@ fn test_fq2_ordering() {
     assert!(a.cmp(&b) == Ordering::Equal);
 }
 
-
 #[test]
 fn test_fq2_basics() {
     assert_eq!(Fq2::new(Fq::zero(), Fq::zero(),), Fq2::zero());
@@ -1076,13 +1057,17 @@ fn test_fq2_squaring() {
     let a = Fq2::new(Fq::from_repr(BigInteger768::from(8)), Fq::one()).square();
     assert_eq!(
         a,
-        Fq2::new(Fq::from_repr(BigInteger768::from(77)), Fq::from_repr(BigInteger768::from(16)))
+        Fq2::new(
+            Fq::from_repr(BigInteger768::from(77)),
+            Fq::from_repr(BigInteger768::from(16))
+        )
     );
 
     //i^2 = 13
     let a = Fq2::new(Fq::zero(), Fq::one()).square();
-    assert_eq!(a,
-               Fq2::new(Fq::from_repr(BigInteger768::from(13)), Fq::zero())
+    assert_eq!(
+        a,
+        Fq2::new(Fq::from_repr(BigInteger768::from(13)), Fq::zero())
     );
 
     let mut a = Fq2::new(
@@ -1229,7 +1214,7 @@ fn test_fq2_mul() {
                 0x545103503e23eb1,
                 0xa66dfe734b1c7559,
                 0x18aa7cd804a0,
-        ])),
+            ])),
             Fq::from_repr(BigInteger768([
                 0xaad2909b79f04c49,
                 0x1a0985bb1bb7df0b,
@@ -1243,7 +1228,7 @@ fn test_fq2_mul() {
                 0xd9732b87dd87e2f2,
                 0x89fd7bc4b1e0d206,
                 0x8ad6da1cadf6,
-        ])),
+            ])),
         )
     );
 }
@@ -1299,7 +1284,7 @@ fn test_fq2_inverse() {
                 0x299d388979feb63a,
                 0x9e33166d1029311d,
                 0x15c016a382d93,
-        ])),
+            ])),
             Fq::from_repr(BigInteger768([
                 0x54cb5db3c0e0dfd,
                 0xcc69f7964588fe33,
@@ -1313,7 +1298,7 @@ fn test_fq2_inverse() {
                 0x658da3ee4426f138,
                 0x2ff3cf1bc2054fbb,
                 0x10913f2d35c0b,
-        ])),
+            ])),
         )
     );
 }
@@ -1818,7 +1803,6 @@ fn test_fq2_frobenius_map() {
     );
 }
 
-
 #[test]
 fn test_fq2_legendre() {
     use crate::fields::LegendreSymbol::*;
@@ -1834,15 +1818,11 @@ fn test_fq2_legendre() {
     assert_eq!(QuadraticNonResidue, m1.legendre());
 }
 
-
 #[test]
 fn test_fq2_mul_nonresidue() {
     let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
 
-    let nqr = Fq2::new(
-        Fq::zero(),
-        Fq::one()
-    );
+    let nqr = Fq2::new(Fq::zero(), Fq::one());
 
     for _ in 0..1000 {
         let mut a = Fq2::rand(&mut rng);
@@ -1862,10 +1842,7 @@ fn test_fq4_mul_by_023() {
         let c0 = Fq::rand(&mut rng);
         let c2 = Fq::rand(&mut rng);
         let c3 = Fq::rand(&mut rng);
-        let to_mul = Fq4::new(
-            Fq2::new(c0, Fq::zero()),
-            Fq2::new(c2, c3),
-        );
+        let to_mul = Fq4::new(Fq2::new(c0, Fq::zero()), Fq2::new(c2, c3));
         let a = Fq4::rand(&mut rng);
         let mut b = a;
 

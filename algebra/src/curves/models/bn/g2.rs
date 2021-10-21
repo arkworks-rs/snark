@@ -1,7 +1,5 @@
 use crate::{
-    bytes::{
-        ToBytes, FromBytes,
-    },
+    bytes::{FromBytes, ToBytes},
     curves::{
         bn::{BnParameters, TwistType},
         models::SWModelParameters,
@@ -10,9 +8,12 @@ use crate::{
     },
     fields::{Field, Fp2},
 };
-use std::{io::{Result as IoResult, Write, Read, Error, ErrorKind}, ops::Neg};
 use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
+use std::{
+    io::{Error, ErrorKind, Read, Result as IoResult, Write},
+    ops::Neg,
+};
 
 pub type G2Affine<P> = GroupAffine<<P as BnParameters>::G2Parameters>;
 pub type G2Projective<P> = GroupProjective<<P as BnParameters>::G2Parameters>;
@@ -77,9 +78,12 @@ impl<P: BnParameters> FromBytes for G2Prepared<P> {
                 .map_err(|e| Error::new(ErrorKind::InvalidData, e))?;
             ell_coeffs.push((c0, c1, c2));
         }
-        let infinity = bool::read(&mut reader)
-            .map_err(|e| Error::new(ErrorKind::InvalidData, e))?;
-        Ok(G2Prepared{ell_coeffs, infinity})
+        let infinity =
+            bool::read(&mut reader).map_err(|e| Error::new(ErrorKind::InvalidData, e))?;
+        Ok(G2Prepared {
+            ell_coeffs,
+            infinity,
+        })
     }
 }
 

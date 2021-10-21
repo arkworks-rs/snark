@@ -1,8 +1,8 @@
+use algebra::{to_bytes, Group, ToBytes};
 use primitives::{
     commitment::pedersen::{PedersenCommitment, PedersenParameters, PedersenRandomness},
     crh::pedersen::PedersenWindow,
 };
-use algebra::{to_bytes, Group, ToBytes};
 use r1cs_core::{ConstraintSystem, SynthesisError};
 
 use crate::commitment::CommitmentGadget;
@@ -50,10 +50,9 @@ where
         r: &Self::RandomnessGadget,
     ) -> Result<Self::OutputGadget, SynthesisError> {
         if (input.len() * 8) > (W::WINDOW_SIZE * W::NUM_WINDOWS) {
-            Err(SynthesisError::Other(format!(
-                "incorrect input length: {:?}",
-                input.len()
-            ).to_owned()))?
+            Err(SynthesisError::Other(
+                format!("incorrect input length: {:?}", input.len()).to_owned(),
+            ))?
         }
 
         let mut padded_input = input.to_vec();
@@ -66,14 +65,19 @@ where
         }
 
         if padded_input.len() * 8 != W::WINDOW_SIZE * W::NUM_WINDOWS {
-            Err(SynthesisError::Other("padded input length verification failed".to_owned()))?
+            Err(SynthesisError::Other(
+                "padded input length verification failed".to_owned(),
+            ))?
         }
         if parameters.params.generators.len() != W::NUM_WINDOWS {
-            Err(SynthesisError::Other(format!(
-                "Number of generators: {} not enough for the selected num_windows: {}",
-                parameters.params.generators.len(),
-                W::NUM_WINDOWS
-            ).to_owned()))?
+            Err(SynthesisError::Other(
+                format!(
+                    "Number of generators: {} not enough for the selected num_windows: {}",
+                    parameters.params.generators.len(),
+                    W::NUM_WINDOWS
+                )
+                .to_owned(),
+            ))?
         }
 
         // Allocate new variable for commitment output.
@@ -120,8 +124,8 @@ where
         let parameters = temp.borrow().clone();
 
         Ok(PedersenCommitmentGadgetParameters {
-            params:  parameters,
-            _group:  PhantomData,
+            params: parameters,
+            _group: PhantomData,
             _engine: PhantomData,
             _window: PhantomData,
         })
@@ -139,8 +143,8 @@ where
         let parameters = temp.borrow().clone();
 
         Ok(PedersenCommitmentGadgetParameters {
-            params:  parameters,
-            _group:  PhantomData,
+            params: parameters,
+            _group: PhantomData,
             _engine: PhantomData,
             _window: PhantomData,
         })
@@ -184,27 +188,25 @@ where
 
 #[cfg(test)]
 mod test {
+    use crate::commitment::{pedersen::PedersenCommitmentGadget, CommitmentGadget};
+    use algebra::curves::{jubjub::JubJubProjective as JubJub, ProjectiveCurve};
     use algebra::{
         fields::jubjub::{fq::Fq, fr::Fr},
         UniformRand,
     };
-    use rand::thread_rng;
     use primitives::{
         commitment::{
             pedersen::{PedersenCommitment, PedersenRandomness},
-            CommitmentScheme
+            CommitmentScheme,
         },
         crh::pedersen::PedersenWindow,
     };
-    use crate::commitment::{
-            pedersen::PedersenCommitmentGadget,
-            CommitmentGadget,
-    };
-    use algebra::curves::{jubjub::JubJubProjective as JubJub, ProjectiveCurve};
     use r1cs_core::ConstraintSystem;
     use r1cs_std::{
-        instantiated::jubjub::JubJubGadget, prelude::*, test_constraint_system::TestConstraintSystem,
+        instantiated::jubjub::JubJubGadget, prelude::*,
+        test_constraint_system::TestConstraintSystem,
     };
+    use rand::thread_rng;
 
     #[test]
     fn commitment_gadget_test() {
@@ -231,10 +233,8 @@ mod test {
         let primitive_result =
             PedersenCommitment::<JubJub, Window>::commit(&parameters, &input, &randomness).unwrap();
 
-        let input_bytes = UInt8::alloc_input_vec(
-            cs.ns(|| "alloc input bytes as public input"),
-            &input
-        ).unwrap();
+        let input_bytes =
+            UInt8::alloc_input_vec(cs.ns(|| "alloc input bytes as public input"), &input).unwrap();
 
         let randomness =
             <TestCOMMGadget as CommitmentGadget<TestCOMM, Fq>>::RandomnessGadget::alloc_input(

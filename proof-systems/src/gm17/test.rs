@@ -21,7 +21,7 @@ impl<ConstraintF: Field> ConstraintSynthesizer<ConstraintF> for MySillyCircuit<C
                 a.mul_assign(&b);
                 Ok(a)
             },
-            )?;
+        )?;
 
         cs.enforce(|| "a*b=c", |lc| lc + a, |lc| lc + b, |lc| lc + c);
 
@@ -29,15 +29,15 @@ impl<ConstraintF: Field> ConstraintSynthesizer<ConstraintF> for MySillyCircuit<C
     }
 }
 
-mod test{
+mod test {
     use super::*;
     use crate::gm17::{
         create_random_proof, generate_random_parameters, prepare_verifying_key, verify_proof,
     };
 
     use algebra::{
-        curves::{bls12_377::Bls12_377, sw6::SW6, mnt4753::MNT4, mnt6753::MNT6},
-        UniformRand, PairingEngine
+        curves::{bls12_377::Bls12_377, mnt4753::MNT4, mnt6753::MNT6, sw6::SW6},
+        PairingEngine, UniformRand,
     };
     use rand::thread_rng;
     use std::ops::MulAssign;
@@ -65,7 +65,7 @@ mod test{
                 &params,
                 rng,
             )
-                .unwrap();
+            .unwrap();
 
             assert!(verify_proof(&pvk, &proof, &[c]).unwrap());
             assert!(!verify_proof(&pvk, &proof, &[a]).unwrap());

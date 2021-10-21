@@ -1,7 +1,5 @@
 use super::quadratic_extension::*;
-use crate::fields::{
-    PrimeField, SquareRootField
-};
+use crate::fields::{PrimeField, SquareRootField};
 use std::marker::PhantomData;
 
 pub trait Fp2Parameters: 'static + Send + Sync {

@@ -1,16 +1,22 @@
-use crate::{biginteger::BigInteger384, curves::{
-    bls12_381::{
-        g1::{Bls12_381G1Parameters, G1Affine, G1Projective},
-        g2::{Bls12_381G2Parameters, G2Affine, G2Projective},
-        Bls12_381,
+use crate::{
+    biginteger::BigInteger384,
+    curves::{
+        bls12_381::{
+            g1::{Bls12_381G1Parameters, G1Affine, G1Projective},
+            g2::{Bls12_381G2Parameters, G2Affine, G2Projective},
+            Bls12_381,
+        },
+        models::SWModelParameters,
+        tests::{curve_tests, sw_jacobian_tests},
+        AffineCurve, PairingEngine, ProjectiveCurve,
     },
-    models::SWModelParameters,
-    tests::{curve_tests, sw_jacobian_tests},
-    AffineCurve, PairingEngine, ProjectiveCurve,
-}, fields::{
-    bls12_381::{Fq, Fq12, Fq2, Fr},
-    Field, PrimeField, SquareRootField,
-}, groups::tests::group_test, SemanticallyValid};
+    fields::{
+        bls12_381::{Fq, Fq12, Fq2, Fr},
+        Field, PrimeField, SquareRootField,
+    },
+    groups::tests::group_test,
+    SemanticallyValid,
+};
 use rand;
 use std::ops::{AddAssign, MulAssign};
 
@@ -111,7 +117,6 @@ fn test_g1_generator_raw() {
 
 #[test]
 fn test_g1_is_valid() {
-
     // Reject point with invalid x coordinate
     let p = G1Affine::new(
         Fq::new(BigInteger384([
@@ -157,7 +162,6 @@ fn test_g1_is_valid() {
     );
     assert!(!p.is_valid());
     assert!(!p.y.is_valid());
-
 
     // Accept valid point
     let p: G1Projective = rand::random();
@@ -477,7 +481,6 @@ fn test_g2_generator_raw() {
 
 #[test]
 fn test_g2_is_valid() {
-
     // Reject point with invalid x coordinate
     let p = G2Affine::new(
         Fq2::new(

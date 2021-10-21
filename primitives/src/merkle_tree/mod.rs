@@ -1,8 +1,8 @@
 use crate::{crh::FixedLengthCRH, Error};
 use algebra::bytes::ToBytes;
 
+use serde::{Deserialize, Serialize};
 use std::{fmt, rc::Rc};
-use serde::{Serialize, Deserialize};
 
 pub mod field_based_mht;
 pub use self::field_based_mht::*;
@@ -21,10 +21,7 @@ pub trait MerkleTreeConfig {
 )]
 #[derive(Serialize, Deserialize)]
 pub struct MerkleTreePath<P: MerkleTreeConfig> {
-    pub path: Vec<(
-        <P::H as FixedLengthCRH>::Output,
-        bool,
-    )>,
+    pub path: Vec<(<P::H as FixedLengthCRH>::Output, bool)>,
 }
 
 pub type MerkleTreeParams<P> = <<P as MerkleTreeConfig>::H as FixedLengthCRH>::Parameters;
@@ -34,10 +31,7 @@ impl<P: MerkleTreeConfig> Default for MerkleTreePath<P> {
     fn default() -> Self {
         let mut path = Vec::with_capacity(P::HEIGHT as usize);
         for _i in 1..P::HEIGHT as usize {
-            path.push((
-                <P::H as FixedLengthCRH>::Output::default(),
-                false,
-            ));
+            path.push((<P::H as FixedLengthCRH>::Output::default(), false));
         }
         Self { path }
     }
@@ -51,11 +45,17 @@ impl<P: MerkleTreeConfig> MerkleTreePath<P> {
         leaf: &L,
     ) -> Result<bool, Error> {
         if P::HEIGHT == 0 {
-            Err(MerkleTreeError::Other("Unable to verify: no existence proof defined for Merkle Tree of trivial height".to_owned()))?
+            Err(MerkleTreeError::Other(
+                "Unable to verify: no existence proof defined for Merkle Tree of trivial height"
+                    .to_owned(),
+            ))?
         }
 
         if self.path.len() != P::HEIGHT as usize {
-            return Err(MerkleTreeError::IncorrectPathLength(self.path.len(), P::HEIGHT as usize))?
+            return Err(MerkleTreeError::IncorrectPathLength(
+                self.path.len(),
+                P::HEIGHT as usize,
+            ))?;
         }
 
         // Check that the given leaf matches the leaf in the membership proof.
@@ -63,9 +63,8 @@ impl<P: MerkleTreeConfig> MerkleTreePath<P> {
 
         // Check levels between leaf level and root.
         for &(ref sibling_hash, direction) in &self.path {
-
-        // Check if the previous hash matches the correct current hash.
-        prev = {
+            // Check if the previous hash matches the correct current hash.
+            prev = {
                 if direction {
                     hash_inner_node::<P::H>(parameters, sibling_hash, &prev)
                 } else {
@@ -89,13 +88,13 @@ impl<P: MerkleTreeConfig> MerkleTreePath<P> {
 ///    while this is ok for use cases where the Merkle Trees have always the
 ///    same height, it's not for all the others.
 pub struct MerkleHashTree<P: MerkleTreeConfig> {
-    tree:         Vec<<P::H as FixedLengthCRH>::Output>,
+    tree: Vec<<P::H as FixedLengthCRH>::Output>,
     padding_tree: Vec<(
         <P::H as FixedLengthCRH>::Output,
         <P::H as FixedLengthCRH>::Output,
     )>,
-    parameters:   Rc<<P::H as FixedLengthCRH>::Parameters>,
-    root:         Option<<P::H as FixedLengthCRH>::Output>,
+    parameters: Rc<<P::H as FixedLengthCRH>::Parameters>,
+    root: Option<<P::H as FixedLengthCRH>::Output>,
 }
 
 impl<P: MerkleTreeConfig> MerkleHashTree<P> {
@@ -114,7 +113,6 @@ impl<P: MerkleTreeConfig> MerkleHashTree<P> {
         parameters: Rc<<P::H as FixedLengthCRH>::Parameters>,
         leaves: &[L],
     ) -> Result<Self, Error> {
-
         // Deal with edge cases
         if Self::HEIGHT == 0 {
             // If height = 0, return tree with only the root
@@ -133,7 +131,7 @@ impl<P: MerkleTreeConfig> MerkleHashTree<P> {
                 tree: vec![root.clone()],
                 padding_tree: vec![],
                 parameters,
-                root: Some(root)
+                root: Some(root),
             })
         } else {
             // Otherwise, compute root normally
@@ -223,10 +221,12 @@ impl<P: MerkleTreeConfig> MerkleHashTree<P> {
         index: usize,
         leaf: &L,
     ) -> Result<MerkleTreePath<P>, Error> {
-
         // Check that height is bigger than zero
         if P::HEIGHT == 0 {
-            Err(MerkleTreeError::Other("Unable to prove: no existence proof defined for Merkle Tree of trivial height".to_owned()))?
+            Err(MerkleTreeError::Other(
+                "Unable to prove: no existence proof defined for Merkle Tree of trivial height"
+                    .to_owned(),
+            ))?
         }
 
         // Check that index is not bigger than num_leaves
@@ -260,7 +260,10 @@ impl<P: MerkleTreeConfig> MerkleHashTree<P> {
         }
 
         if path.len() > Self::HEIGHT as usize {
-            Err(MerkleTreeError::IncorrectPathLength(path.len(), Self::HEIGHT as usize))?
+            Err(MerkleTreeError::IncorrectPathLength(
+                path.len(),
+                Self::HEIGHT as usize,
+            ))?
         }
 
         //Push the other elements of the padding tree
@@ -270,7 +273,10 @@ impl<P: MerkleTreeConfig> MerkleHashTree<P> {
 
         end_timer!(prove_time);
         if path.len() != Self::HEIGHT as usize {
-            Err(MerkleTreeError::IncorrectPathLength(path.len(), Self::HEIGHT as usize))?
+            Err(MerkleTreeError::IncorrectPathLength(
+                path.len(),
+                Self::HEIGHT as usize,
+            ))?
         } else {
             Ok(MerkleTreePath { path })
         }
@@ -288,13 +294,19 @@ pub enum MerkleTreeError {
 impl std::fmt::Display for MerkleTreeError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let msg = match self {
-            MerkleTreeError::TooManyLeaves(height) => format!("Reached maximum number of leaves for a tree of height {}", height),
+            MerkleTreeError::TooManyLeaves(height) => format!(
+                "Reached maximum number of leaves for a tree of height {}",
+                height
+            ),
             MerkleTreeError::IncorrectLeafIndex(index) => {
                 format!("incorrect leaf index: {}", index)
-            },
+            }
             MerkleTreeError::IncorrectPathLength(actual_len, expected_len) => {
-                format!("Incorrect path length. Expected {}, found {}", expected_len, actual_len)
-            },
+                format!(
+                    "Incorrect path length. Expected {}, found {}",
+                    expected_len, actual_len
+                )
+            }
             MerkleTreeError::Other(err_str) => format!("{}", err_str),
         };
         write!(f, "{}", msg)
@@ -377,7 +389,7 @@ pub(crate) fn hash_inner_node<H: FixedLengthCRH>(
 ) -> Result<H::Output, Error> {
     use std::io::Cursor;
 
-    let buffer = vec![0u8; H::INPUT_SIZE_BITS/8];
+    let buffer = vec![0u8; H::INPUT_SIZE_BITS / 8];
     let mut writer = Cursor::new(buffer);
     // Construct left input.
     left.write(&mut writer)?;
@@ -395,7 +407,7 @@ pub(crate) fn hash_leaf<H: FixedLengthCRH, L: ToBytes>(
     leaf: &L,
 ) -> Result<H::Output, Error> {
     use std::io::Cursor;
-    let buffer = vec![0u8; H::INPUT_SIZE_BITS/8];
+    let buffer = vec![0u8; H::INPUT_SIZE_BITS / 8];
 
     let mut writer = Cursor::new(buffer);
     leaf.write(&mut writer)?;
@@ -437,9 +449,15 @@ mod test {
         type H = H;
     }
 
-    fn generate_merkle_tree<L: ToBytes + Clone + Eq, H: FixedLengthCRH, P: MerkleTreeConfig<H = H>>(leaves: &[L]) -> ()
+    fn generate_merkle_tree<
+        L: ToBytes + Clone + Eq,
+        H: FixedLengthCRH,
+        P: MerkleTreeConfig<H = H>,
+    >(
+        leaves: &[L],
+    ) -> ()
     where
-        H::Output: std::fmt::Debug
+        H::Output: std::fmt::Debug,
     {
         let mut rng = XorShiftRng::seed_from_u64(9174123u64);
 
@@ -465,14 +483,16 @@ mod test {
             if leaves.len() == 0 {
                 assert_eq!(root, hash_empty::<H>(&crh_parameters).unwrap());
             } else {
-                assert_eq!(root, hash_leaf::<H, L>(&crh_parameters, &leaves[0]).unwrap());
+                assert_eq!(
+                    root,
+                    hash_leaf::<H, L>(&crh_parameters, &leaves[0]).unwrap()
+                );
             }
         }
     }
 
     #[test]
     fn good_root_test() {
-
         //Test #leaves << 2^HEIGHT
         let mut leaves = Vec::new();
         for i in 0..4u8 {
@@ -495,7 +515,13 @@ mod test {
         generate_merkle_tree::<_, _, JubJubMerkleTreeParams>(&leaves);
     }
 
-    fn bad_merkle_tree_verify<L: ToBytes + Clone + Eq, H: FixedLengthCRH, P: MerkleTreeConfig<H = H>>(leaves: &[L]) -> () {
+    fn bad_merkle_tree_verify<
+        L: ToBytes + Clone + Eq,
+        H: FixedLengthCRH,
+        P: MerkleTreeConfig<H = H>,
+    >(
+        leaves: &[L],
+    ) -> () {
         let mut rng = XorShiftRng::seed_from_u64(13423423u64);
 
         let crh_parameters = Rc::new(H::setup(&mut rng).unwrap());
@@ -528,7 +554,7 @@ mod test {
         for i in 0..32u8 {
             leaves.push([i, i, i, i, i, i, i, i]);
         }
-        bad_merkle_tree_verify::<_,_, JubJubMerkleTreeParams>(&leaves);
+        bad_merkle_tree_verify::<_, _, JubJubMerkleTreeParams>(&leaves);
     }
 
     // Params for Merkle Tree of height 0
@@ -563,7 +589,12 @@ mod test {
             for i in 0..32u8 {
                 leaves.push(vec![i, i, i, i, i, i, i, i]);
             }
-            assert!(std::panic::catch_unwind(|| generate_merkle_tree::<_, _, JubJubMerkleTreeParams>(&leaves)).is_err());
+            assert!(std::panic::catch_unwind(|| generate_merkle_tree::<
+                _,
+                _,
+                JubJubMerkleTreeParams,
+            >(&leaves))
+            .is_err());
         }
 
         // HEIGHT == 1
@@ -580,7 +611,12 @@ mod test {
             for i in 0..2u8 {
                 leaves.push(vec![i, i, i, i, i, i, i, i]);
             }
-            assert!(std::panic::catch_unwind(|| generate_merkle_tree::<_, _, JubJubHeightOneMerkleTreeParams>(&leaves)).is_err());
+            assert!(std::panic::catch_unwind(|| generate_merkle_tree::<
+                _,
+                _,
+                JubJubHeightOneMerkleTreeParams,
+            >(&leaves))
+            .is_err());
         }
 
         // HEIGHT == 0
@@ -596,7 +632,12 @@ mod test {
 
             // Generate Merkle Tree with only the root, passing more than one leaf. Assert error
             leaves.push(vec![2u8; 8]);
-            assert!(std::panic::catch_unwind(|| generate_merkle_tree::<_, _, JubJubOnlyRootMerkleTreeParams>(&leaves)).is_err());
+            assert!(std::panic::catch_unwind(|| generate_merkle_tree::<
+                _,
+                _,
+                JubJubOnlyRootMerkleTreeParams,
+            >(&leaves))
+            .is_err());
         }
     }
 }

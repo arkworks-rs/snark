@@ -1,6 +1,6 @@
+use crate::darlin::pcd::error::PCDError;
 use marlin::Error as MarlinError;
 use poly_commit::Error as PCError;
-use crate::darlin::pcd::error::PCDError;
 
 #[derive(Debug)]
 pub enum FinalDarlinError {
@@ -14,7 +14,7 @@ impl std::fmt::Display for FinalDarlinError {
         match self {
             FinalDarlinError::MarlinError(err) => write!(f, "{}", err),
             FinalDarlinError::PCDError(err) => write!(f, "{}", err),
-            FinalDarlinError::Other(err) =>write!(f, "{}", err)
+            FinalDarlinError::Other(err) => write!(f, "{}", err),
         }
     }
 }

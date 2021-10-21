@@ -1,19 +1,12 @@
 use algebra::curves::mnt6753::G1Projective as MNT6G1Projective;
 use algebra::fields::mnt4753::Fr as MNT4Fr;
 use algebra::UniformRand;
-use primitives::{
-    crh::{
-        MNT4PoseidonHash,
-        bowe_hopwood::BoweHopwoodPedersenCRH,
-        pedersen::PedersenWindow,
-    },
-    vrf::{
-        FieldBasedVrf,
-        ecvrf::FieldBasedEcVrf,
-    },
-    FixedLengthCRH
-};
 use criterion::Criterion;
+use primitives::{
+    crh::{bowe_hopwood::BoweHopwoodPedersenCRH, pedersen::PedersenWindow, MNT4PoseidonHash},
+    vrf::{ecvrf::FieldBasedEcVrf, FieldBasedVrf},
+    FixedLengthCRH,
+};
 
 #[macro_use]
 extern crate criterion;
@@ -29,7 +22,6 @@ type BHMNT6 = BoweHopwoodPedersenCRH<MNT6G1Projective, TestWindow>;
 type EcVrfMNT4 = FieldBasedEcVrf<MNT4Fr, MNT6G1Projective, MNT4PoseidonHash, BHMNT6>;
 
 fn ecvrf_keygen(c: &mut Criterion) {
-
     c.bench_function("FieldSchnorrMNT4: KeyGen", move |b| {
         b.iter(|| {
             let mut rng = &mut rand::thread_rng();

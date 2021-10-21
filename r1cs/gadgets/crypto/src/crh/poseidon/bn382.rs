@@ -1,16 +1,7 @@
-use algebra::fields::bn_382::{
-    Fq as BN382Fq,
-    Fr as BN382Fr,
-};
+use crate::crh::{poseidon::PoseidonHashGadget, sbox::QuinticSBoxGadget};
+use algebra::fields::bn_382::{Fq as BN382Fq, Fr as BN382Fr};
 use primitives::crh::parameters::{
-    BN382FqPoseidonParameters,
-    BN382FrPoseidonParameters,
-    BN382FqQuinticSbox,
-    BN382FrQuinticSbox
-};
-use crate::crh::{
-    sbox::QuinticSBoxGadget,
-    poseidon::PoseidonHashGadget,
+    BN382FqPoseidonParameters, BN382FqQuinticSbox, BN382FrPoseidonParameters, BN382FrQuinticSbox,
 };
 
 type BN382FqQuinticSBoxGadget = QuinticSBoxGadget<BN382Fq, BN382FqQuinticSbox>;

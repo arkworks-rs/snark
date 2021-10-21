@@ -10,7 +10,7 @@ use std::borrow::Borrow;
 #[derive(Clone, Debug)]
 pub struct UInt8 {
     // Least significant bit_gadget first
-    pub(crate) bits:  Vec<Boolean>,
+    pub(crate) bits: Vec<Boolean>,
     pub(crate) value: Option<u8>,
 }
 
@@ -92,10 +92,9 @@ impl UInt8 {
             .zip(values.chunks(max_size))
             .enumerate()
         {
-            let fe = FpGadget::alloc_input(
-                &mut cs.ns(|| format!("Field element {}", i)),
-                || { Ok(field_element) }
-            )?;
+            let fe = FpGadget::alloc_input(&mut cs.ns(|| format!("Field element {}", i)), || {
+                Ok(field_element)
+            })?;
 
             // Let's use the length-restricted variant of the ToBitsGadget to remove the
             // padding: the padding bits are not constrained to be zero, so any field element
@@ -103,10 +102,11 @@ impl UInt8 {
             // satisfy the constraints. This kind of freedom might not be desiderable in
             // recursive SNARK circuits, where the public inputs of the inner circuit are
             // usually involved in other kind of constraints inside the wrap circuit.
-            let to_skip: usize = <ConstraintF as PrimeField>::Params::MODULUS_BITS as usize - (byte_chunk.len() * 8);
+            let to_skip: usize =
+                <ConstraintF as PrimeField>::Params::MODULUS_BITS as usize - (byte_chunk.len() * 8);
             let mut fe_bits = fe.to_bits_with_length_restriction(
                 cs.ns(|| format!("Convert fe to bits {}", i)),
-                to_skip
+                to_skip,
             )?;
 
             // FpGadget::to_bits outputs a big-endian binary representation of
@@ -147,19 +147,19 @@ impl UInt8 {
                     if b {
                         value.as_mut().map(|v| *v |= 1);
                     }
-                },
+                }
                 Boolean::Is(ref b) => match b.get_value() {
                     Some(true) => {
                         value.as_mut().map(|v| *v |= 1);
-                    },
-                    Some(false) => {},
+                    }
+                    Some(false) => {}
                     None => value = None,
                 },
                 Boolean::Not(ref b) => match b.get_value() {
                     Some(false) => {
                         value.as_mut().map(|v| *v |= 1);
-                    },
-                    Some(true) => {},
+                    }
+                    Some(true) => {}
                     None => value = None,
                 },
             }
@@ -195,9 +195,9 @@ impl UInt8 {
 
     /// OR this `UInt8` with another `UInt8`
     pub fn or<ConstraintF, CS>(&self, mut cs: CS, other: &Self) -> Result<Self, SynthesisError>
-        where
-            ConstraintF: Field,
-            CS: ConstraintSystem<ConstraintF>,
+    where
+        ConstraintF: Field,
+        CS: ConstraintSystem<ConstraintF>,
     {
         let new_value = match (self.value, other.value) {
             (Some(a), Some(b)) => Some(a | b),
@@ -228,7 +228,11 @@ impl PartialEq for UInt8 {
 impl Eq for UInt8 {}
 
 impl<ConstraintF: Field> EqGadget<ConstraintF> for UInt8 {
-    fn is_eq<CS: ConstraintSystem<ConstraintF>>(&self, cs: CS, other: &Self) -> Result<Boolean, SynthesisError> {
+    fn is_eq<CS: ConstraintSystem<ConstraintF>>(
+        &self,
+        cs: CS,
+        other: &Self,
+    ) -> Result<Boolean, SynthesisError> {
         self.bits.as_slice().is_eq(cs, &other.bits)
     }
 
@@ -238,7 +242,8 @@ impl<ConstraintF: Field> EqGadget<ConstraintF> for UInt8 {
         other: &Self,
         condition: &Boolean,
     ) -> Result<(), SynthesisError> {
-        self.bits.conditional_enforce_equal(cs, &other.bits, condition)
+        self.bits
+            .conditional_enforce_equal(cs, &other.bits, condition)
     }
 
     fn conditional_enforce_not_equal<CS: ConstraintSystem<ConstraintF>>(
@@ -272,7 +277,7 @@ impl<ConstraintF: Field> AllocGadget<u8, ConstraintF> for UInt8 {
                 }
 
                 v
-            },
+            }
             _ => vec![None; 8],
         };
 
@@ -311,7 +316,7 @@ impl<ConstraintF: Field> AllocGadget<u8, ConstraintF> for UInt8 {
                 }
 
                 v
-            },
+            }
             _ => vec![None; 8],
         };
 
@@ -339,7 +344,7 @@ mod test {
     use crate::{prelude::*, test_constraint_system::TestConstraintSystem};
     use algebra::fields::bls12_381::Fr;
     use r1cs_core::ConstraintSystem;
-    use rand::{Rng, SeedableRng, RngCore};
+    use rand::{Rng, RngCore, SeedableRng};
     use rand_xorshift::XorShiftRng;
 
     #[test]
@@ -355,7 +360,7 @@ mod test {
 
     #[test]
     fn test_uint8_alloc_input_vec() {
-        use algebra::{to_bytes, ToBytes, Field, PrimeField, FpParameters, UniformRand};
+        use algebra::{to_bytes, Field, FpParameters, PrimeField, ToBytes, UniformRand};
         use rand::thread_rng;
 
         let mut cs = TestConstraintSystem::<Fr>::new();
@@ -364,10 +369,10 @@ mod test {
         //Random test
         let samples = 100;
         for i in 0..samples {
-
             // Test with random field
             let byte_vals = to_bytes!(Fr::rand(rng)).unwrap();
-            let bytes = UInt8::alloc_input_vec(cs.ns(|| format!("alloc value {}", i)), &byte_vals).unwrap();
+            let bytes =
+                UInt8::alloc_input_vec(cs.ns(|| format!("alloc value {}", i)), &byte_vals).unwrap();
             assert_eq!(byte_vals.len(), bytes.len());
             for (native_byte, gadget_byte) in byte_vals.into_iter().zip(bytes) {
                 assert_eq!(gadget_byte.get_value().unwrap(), native_byte);
@@ -376,7 +381,8 @@ mod test {
             // Test with random bytes
             let mut byte_vals = vec![0u8; rng.gen_range(1..200)];
             rng.fill_bytes(byte_vals.as_mut_slice());
-            let bytes = UInt8::alloc_input_vec(cs.ns(|| format!("alloc random {}", i)), &byte_vals).unwrap();
+            let bytes = UInt8::alloc_input_vec(cs.ns(|| format!("alloc random {}", i)), &byte_vals)
+                .unwrap();
             assert_eq!(byte_vals.len(), bytes.len());
             for (native_byte, gadget_byte) in byte_vals.into_iter().zip(bytes) {
                 assert_eq!(gadget_byte.get_value().unwrap(), native_byte);
@@ -400,7 +406,12 @@ mod test {
         }
 
         //Test over the modulus byte vec
-        let byte_vals = vec![std::u8::MAX; ((<Fr as PrimeField>::Params::MODULUS_BITS + <Fr as PrimeField>::Params::REPR_SHAVE_BITS)/8) as usize];
+        let byte_vals = vec![
+            std::u8::MAX;
+            ((<Fr as PrimeField>::Params::MODULUS_BITS
+                + <Fr as PrimeField>::Params::REPR_SHAVE_BITS)
+                / 8) as usize
+        ];
         let bytes = UInt8::alloc_input_vec(cs.ns(|| "alloc all 1s byte vec"), &byte_vals).unwrap();
         assert_eq!(byte_vals.len(), bytes.len());
         for (native_byte, gadget_byte) in byte_vals.into_iter().zip(bytes) {
@@ -423,7 +434,7 @@ mod test {
                 match bit_gadget {
                     &Boolean::Constant(bit_gadget) => {
                         assert!(bit_gadget == ((b.value.unwrap() >> i) & 1 == 1));
-                    },
+                    }
                     _ => unreachable!(),
                 }
             }
@@ -432,8 +443,8 @@ mod test {
 
             for x in v.iter().zip(expected_to_be_same.iter()) {
                 match x {
-                    (&Boolean::Constant(true), &Boolean::Constant(true)) => {},
-                    (&Boolean::Constant(false), &Boolean::Constant(false)) => {},
+                    (&Boolean::Constant(true), &Boolean::Constant(true)) => {}
+                    (&Boolean::Constant(false), &Boolean::Constant(false)) => {}
                     _ => unreachable!(),
                 }
             }
@@ -468,13 +479,13 @@ mod test {
                 match b {
                     &Boolean::Is(ref b) => {
                         assert!(b.get_value().unwrap() == (expected & 1 == 1));
-                    },
+                    }
                     &Boolean::Not(ref b) => {
                         assert!(!b.get_value().unwrap() == (expected & 1 == 1));
-                    },
+                    }
                     &Boolean::Constant(b) => {
                         assert!(b == (expected & 1 == 1));
-                    },
+                    }
                 }
 
                 expected >>= 1;

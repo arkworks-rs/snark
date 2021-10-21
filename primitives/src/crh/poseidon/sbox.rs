@@ -1,5 +1,5 @@
+use crate::{BatchSBox, PoseidonParameters, SBox};
 use algebra::PrimeField;
-use crate::{PoseidonParameters, SBox, BatchSBox};
 use std::marker::PhantomData;
 
 /// S-Box: S(x) = x^-1
@@ -54,14 +54,13 @@ impl<F: PrimeField, P: PoseidonParameters<Fr = F>> SBox for PoseidonInverseSBox<
 
     #[inline]
     fn apply_partial(state: &mut Vec<F>) {
-        if state[0]!= F::zero() {
+        if state[0] != F::zero() {
             state[0] = state[0].inverse().unwrap();
         }
     }
 }
 
 impl<F: PrimeField, P: PoseidonParameters<Fr = F>> BatchSBox for PoseidonInverseSBox<F, P> {
-
     // Uses batch inversion across all instances in the batch.
     fn apply_full_batch(vec_state: &mut [Vec<F>]) {
         // Apply the S-BOX to each of the elements of the state vector

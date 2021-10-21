@@ -1,17 +1,20 @@
-use crate::{curves::{
-    mnt4753::{
-        G1Affine, G1Projective, G2Affine, G2Projective,
-        MNT4,
-        g1::MNT4G1Parameters, g2::MNT4G2Parameters,
+use crate::curves::tests::sw_projective_tests;
+use crate::{
+    biginteger::BigInteger768,
+    curves::{
+        mnt4753::{
+            g1::MNT4G1Parameters, g2::MNT4G2Parameters, G1Affine, G1Projective, G2Affine,
+            G2Projective, MNT4,
+        },
+        tests::curve_tests,
+        AffineCurve, PairingEngine,
     },
-    tests::curve_tests,
-    AffineCurve, PairingEngine,
-}, biginteger::BigInteger768, fields::mnt4753::{fq::Fq, fq2::Fq2, fq4::Fq4, fr::Fr}, groups::tests::{
-    group_test, compression_test, gt_compression_test
-}, ProjectiveCurve, Field, PrimeField, ToBits, FromCompressedBits, SemanticallyValid};
+    fields::mnt4753::{fq::Fq, fq2::Fq2, fq4::Fq4, fr::Fr},
+    groups::tests::{compression_test, group_test, gt_compression_test},
+    Field, FromCompressedBits, PrimeField, ProjectiveCurve, SemanticallyValid, ToBits,
+};
 use rand;
 use std::ops::AddAssign;
-use crate::curves::tests::sw_projective_tests;
 
 #[test]
 fn test_g1_projective_curve() {
@@ -33,8 +36,7 @@ fn test_g1_generator() {
 }
 
 #[test]
-fn test_g1_is_valid(){
-
+fn test_g1_is_valid() {
     // Reject point with invalid x coordinate
     let p = G1Affine::new(
         Fq::new(BigInteger768([
@@ -106,11 +108,7 @@ fn test_g1_is_valid(){
     assert!(!p.y.is_valid());
 
     //Reject point not belonging to curve
-    let p = G1Affine::new(
-        Fq::zero(),
-        Fq::zero(),
-        false,
-    );
+    let p = G1Affine::new(Fq::zero(), Fq::zero(), false);
     assert!(!p.is_valid());
     assert!(!p.is_on_curve());
 
@@ -122,7 +120,6 @@ fn test_g1_is_valid(){
 
 #[test]
 fn test_g1_compression_decompression() {
-
     let even = G1Affine::new(
         Fq::from_repr(BigInteger768([
             0xf99bff3c256c04f0,
@@ -156,34 +153,34 @@ fn test_g1_compression_decompression() {
     );
 
     let odd = G1Affine::new(
-      Fq::from_repr(BigInteger768([
-          0x298807222674fefc,
-          0x1242813cb96b8094,
-          0x126d5a0db1b30eb,
-          0xd8a19d8ffbf363c0,
-          0x57e7610c00fb5761,
-          0xabd86702edb9d1c8,
-          0xd6539f3f7eb86f31,
-          0x69fab29265443f1,
-          0x2aec1c11b3d3c762,
-          0x7f631cf6705e788f,
-          0x575c4dc43a5a94ab,
-          0x9ee12ac4d254,
-      ])),
-      Fq::from_repr(BigInteger768([
-          0xf6ef0806b16c5e35,
-          0xf895037990d4a025,
-          0xad848aeca8a1b8,
-          0x7aad4408b6befc89,
-          0xd444a6fd3d7c8b1b,
-          0x4b2be1c3b85792a9,
-          0x2241ee1ddda9f812,
-          0x6b9795fa6e987d16,
-          0xe8e90d3fef6b271b,
-          0x177df03c3274af1c,
-          0xe71c5eac354f659e,
-          0xdeca535c5f2f,
-      ])),
+        Fq::from_repr(BigInteger768([
+            0x298807222674fefc,
+            0x1242813cb96b8094,
+            0x126d5a0db1b30eb,
+            0xd8a19d8ffbf363c0,
+            0x57e7610c00fb5761,
+            0xabd86702edb9d1c8,
+            0xd6539f3f7eb86f31,
+            0x69fab29265443f1,
+            0x2aec1c11b3d3c762,
+            0x7f631cf6705e788f,
+            0x575c4dc43a5a94ab,
+            0x9ee12ac4d254,
+        ])),
+        Fq::from_repr(BigInteger768([
+            0xf6ef0806b16c5e35,
+            0xf895037990d4a025,
+            0xad848aeca8a1b8,
+            0x7aad4408b6befc89,
+            0xd444a6fd3d7c8b1b,
+            0x4b2be1c3b85792a9,
+            0x2241ee1ddda9f812,
+            0x6b9795fa6e987d16,
+            0xe8e90d3fef6b271b,
+            0x177df03c3274af1c,
+            0xe71c5eac354f659e,
+            0xdeca535c5f2f,
+        ])),
         false,
     );
 
@@ -220,8 +217,7 @@ fn test_g2_generator() {
 }
 
 #[test]
-fn test_g2_is_valid(){
-
+fn test_g2_is_valid() {
     // Reject point with invalid x coordinate
     let p = G2Affine::new(
         Fq2::new(
@@ -357,11 +353,7 @@ fn test_g2_is_valid(){
     assert!(!p.y.is_valid());
 
     //Reject point not belonging to curve
-    let p = G2Affine::new(
-        Fq2::zero(),
-        Fq2::zero(),
-        false,
-    );
+    let p = G2Affine::new(Fq2::zero(), Fq2::zero(), false);
     assert!(!p.is_valid());
     assert!(!p.is_on_curve());
 
@@ -369,7 +361,6 @@ fn test_g2_is_valid(){
     let p: G2Projective = rand::random();
     let p_affine = p.into_affine();
     assert!(p_affine.is_valid());
-
 }
 
 #[test]
@@ -507,7 +498,6 @@ fn test_g2_compression_decompression() {
 
 #[test]
 fn test_bilinearity() {
-
     let a = G1Projective::new(
         Fq::from_repr(BigInteger768([
             0x73aa4fa8b4cf832e,
@@ -646,68 +636,71 @@ fn test_bilinearity() {
         ),
     );
 
-    assert_eq!(MNT4::pairing(a, b).unwrap(), Fq4::new(
-        Fq2::new(
-            Fq::from_repr(BigInteger768([
-                0x402c1cfcda2faf66,
-                0xf6c7304f2122f8aa,
-                0xd4b9967cb518343c,
-                0x9e53b3e7641ef2f1,
-                0x19a50acd733e1d2a,
-                0xd6379b98506bfec0,
-                0x8c62f80413fb292d,
-                0x2abbeaf72d4d0ae3,
-                0x4371afba748f7323,
-                0xfb1dc6fe5f878bd9,
-                0xecba1152795ccec9,
-                0x17a073784408e,
-            ])),
-            Fq::from_repr(BigInteger768([
-                0xc8f0d77ac269818d,
-                0x16159718aaddf6b4,
-                0x836adebc2c3dca80,
-                0x9e62cb6d0ea92d11,
-                0xe3c1623bfe8be7d3,
-                0x93effa98bfdcd840,
-                0x924f8243ccd9777,
-                0xc01752ae12a2226b,
-                0xa0c91443314f26ba,
-                0x4b86b7727bfeb5cf,
-                0xbe176e053bb5f896,
-                0x18ea90d330e30,
-            ])),
-        ),
-        Fq2::new(
-            Fq::from_repr(BigInteger768([
-                0xe6eb9d8b79c51b25,
-                0x315aa673f71bdbdd,
-                0xddf71960cc943d17,
-                0xbe9b960873b6ec40,
-                0x344eb4c7b642a2cc,
-                0x5e15749faf046966,
-                0xf2f068f5c06bf7bd,
-                0xeb244db2d00ca3d,
-                0xf24560453af9e6b0,
-                0x7313e48f2b23e781,
-                0xdee9567a39adb3b6,
-                0x5c91032a5add,
-            ])),
-            Fq::from_repr(BigInteger768([
-                0x7ef5c16eb20441d4,
-                0xc360b3e98c43be1c,
-                0xabe5ab03d478dc53,
-                0x18354f21b0af5d09,
-                0xabec396659da3195,
-                0xb8a4594f91bf03b2,
-                0x3619f92f87324038,
-                0xe725218241105863,
-                0xcc03bdd0d8f636c4,
-                0x6db6695c012d9c5e,
-                0x5c14cdb35a6edd8f,
-                0x1406d4fd7fcd0,
-            ])),
-        ),
-    ));
+    assert_eq!(
+        MNT4::pairing(a, b).unwrap(),
+        Fq4::new(
+            Fq2::new(
+                Fq::from_repr(BigInteger768([
+                    0x402c1cfcda2faf66,
+                    0xf6c7304f2122f8aa,
+                    0xd4b9967cb518343c,
+                    0x9e53b3e7641ef2f1,
+                    0x19a50acd733e1d2a,
+                    0xd6379b98506bfec0,
+                    0x8c62f80413fb292d,
+                    0x2abbeaf72d4d0ae3,
+                    0x4371afba748f7323,
+                    0xfb1dc6fe5f878bd9,
+                    0xecba1152795ccec9,
+                    0x17a073784408e,
+                ])),
+                Fq::from_repr(BigInteger768([
+                    0xc8f0d77ac269818d,
+                    0x16159718aaddf6b4,
+                    0x836adebc2c3dca80,
+                    0x9e62cb6d0ea92d11,
+                    0xe3c1623bfe8be7d3,
+                    0x93effa98bfdcd840,
+                    0x924f8243ccd9777,
+                    0xc01752ae12a2226b,
+                    0xa0c91443314f26ba,
+                    0x4b86b7727bfeb5cf,
+                    0xbe176e053bb5f896,
+                    0x18ea90d330e30,
+                ])),
+            ),
+            Fq2::new(
+                Fq::from_repr(BigInteger768([
+                    0xe6eb9d8b79c51b25,
+                    0x315aa673f71bdbdd,
+                    0xddf71960cc943d17,
+                    0xbe9b960873b6ec40,
+                    0x344eb4c7b642a2cc,
+                    0x5e15749faf046966,
+                    0xf2f068f5c06bf7bd,
+                    0xeb244db2d00ca3d,
+                    0xf24560453af9e6b0,
+                    0x7313e48f2b23e781,
+                    0xdee9567a39adb3b6,
+                    0x5c91032a5add,
+                ])),
+                Fq::from_repr(BigInteger768([
+                    0x7ef5c16eb20441d4,
+                    0xc360b3e98c43be1c,
+                    0xabe5ab03d478dc53,
+                    0x18354f21b0af5d09,
+                    0xabec396659da3195,
+                    0xb8a4594f91bf03b2,
+                    0x3619f92f87324038,
+                    0xe725218241105863,
+                    0xcc03bdd0d8f636c4,
+                    0x6db6695c012d9c5e,
+                    0x5c14cdb35a6edd8f,
+                    0x1406d4fd7fcd0,
+                ])),
+            ),
+        )
+    );
 
     let a: G1Projective = rand::random();
     let b: G2Projective = rand::random();
@@ -733,37 +726,37 @@ fn test_bilinearity() {
 }
 
 #[test]
-fn test_gt_compression(){
+fn test_gt_compression() {
     let even = Fq4::new(
         Fq2::new(
-           Fq::from_repr(BigInteger768([
-               0xd96a230bc7704e70,
-               0xa72f0322390e389a,
-               0xa21eaf1d7b0bd422,
-               0xdafa420c44e8fc7f,
-               0xa86860e419cf404,
-               0x90b13c03cd5adc5d,
-               0x5de378e3fa270986,
-               0x9f61f6d2c77e51eb,
-               0x4b66e983144a9cd7,
-               0x5636ef040a8f76f2,
-               0x9ce9f6d852eb88d4,
-               0x1b370b90e36dc,
-           ])),
-           Fq::from_repr(BigInteger768([
-               0xff11ebd7b4b68af2,
-               0x821c77749ea7d163,
-               0x66d9f563048ccd41,
-               0x896ffff75e0497c6,
-               0xbb79afca8f854a5d,
-               0x2454181dd568edde,
-               0x4e99f7708b4609ac,
-               0xed0d14da98b5a6fb,
-               0x9a9e76fd9ba121e,
-               0xd0995d3c899c6720,
-               0xeb1206daf656d48f,
-               0x159e65acb07ab,
-           ])),
+            Fq::from_repr(BigInteger768([
+                0xd96a230bc7704e70,
+                0xa72f0322390e389a,
+                0xa21eaf1d7b0bd422,
+                0xdafa420c44e8fc7f,
+                0xa86860e419cf404,
+                0x90b13c03cd5adc5d,
+                0x5de378e3fa270986,
+                0x9f61f6d2c77e51eb,
+                0x4b66e983144a9cd7,
+                0x5636ef040a8f76f2,
+                0x9ce9f6d852eb88d4,
+                0x1b370b90e36dc,
+            ])),
+            Fq::from_repr(BigInteger768([
+                0xff11ebd7b4b68af2,
+                0x821c77749ea7d163,
+                0x66d9f563048ccd41,
+                0x896ffff75e0497c6,
+                0xbb79afca8f854a5d,
+                0x2454181dd568edde,
+                0x4e99f7708b4609ac,
+                0xed0d14da98b5a6fb,
+                0x9a9e76fd9ba121e,
+                0xd0995d3c899c6720,
+                0xeb1206daf656d48f,
+                0x159e65acb07ab,
+            ])),
         ),
         Fq2::new(
             Fq::from_repr(BigInteger768([
@@ -1081,8 +1074,7 @@ fn test_g1_doubling_correctness() {
 }
 
 #[test]
-fn test_g1_scalar_multiplication(){
-
+fn test_g1_scalar_multiplication() {
     let a = G1Affine::new(
         Fq::from_repr(BigInteger768([
             0x925c1f040aed511c,
@@ -1112,7 +1104,7 @@ fn test_g1_scalar_multiplication(){
             0xc190214c5f7852d2,
             0xfa70dc17467,
         ])),
-        false
+        false,
     );
 
     let scalar = Fr::from_repr(BigInteger768([
@@ -1130,45 +1122,44 @@ fn test_g1_scalar_multiplication(){
         0x1ae02b26d23fc,
     ]));
 
-
-    assert_eq!((a.mul(scalar)).into_affine(),
-       G1Affine::new(
-           Fq::from_repr(BigInteger768([
-               0xa3d0ff067624b1d0,
-               0x72664096e2577c12,
-               0xa5c0016be5fb83df,
-               0x5588f243586b074c,
-               0x396f6f744d0f68c8,
-               0xdaee682fe15fee44,
-               0xacd54a6087292adf,
-               0x5332945f07fe151e,
-               0x1bebf1a88348a53f,
-               0x7587d62f9ac2bf4f,
-               0x71d34fed05742694,
-               0xc20022e36488,
-           ])),
-           Fq::from_repr(BigInteger768([
-               0x672f790a2f76b3c,
-               0x7cb36ead4c6fc730,
-               0x2d61577762e758c8,
-               0xe7750a8d982c291a,
-               0x9fa3e61e2f101365,
-               0x861251642d4c395e,
-               0x84a9c031a9904727,
-               0x18b5e27eb7de60e8,
-               0x26c981935aa683db,
-               0x3b9efd259ef81353,
-               0x17f763c20d5ac84b,
-               0x127cf79606e7c,
-           ])),
-           false
-       )
+    assert_eq!(
+        (a.mul(scalar)).into_affine(),
+        G1Affine::new(
+            Fq::from_repr(BigInteger768([
+                0xa3d0ff067624b1d0,
+                0x72664096e2577c12,
+                0xa5c0016be5fb83df,
+                0x5588f243586b074c,
+                0x396f6f744d0f68c8,
+                0xdaee682fe15fee44,
+                0xacd54a6087292adf,
+                0x5332945f07fe151e,
+                0x1bebf1a88348a53f,
+                0x7587d62f9ac2bf4f,
+                0x71d34fed05742694,
+                0xc20022e36488,
+            ])),
+            Fq::from_repr(BigInteger768([
+                0x672f790a2f76b3c,
+                0x7cb36ead4c6fc730,
+                0x2d61577762e758c8,
+                0xe7750a8d982c291a,
+                0x9fa3e61e2f101365,
+                0x861251642d4c395e,
+                0x84a9c031a9904727,
+                0x18b5e27eb7de60e8,
+                0x26c981935aa683db,
+                0x3b9efd259ef81353,
+                0x17f763c20d5ac84b,
+                0x127cf79606e7c,
+            ])),
+            false
+        )
     );
 }
 
 #[test]
 fn test_g1_affine_projective_conversion() {
-
     let a = G1Projective::new(
         Fq::from_repr(BigInteger768([
             0xb0ed63c4d24e8a1c,
@@ -1215,37 +1206,40 @@ fn test_g1_affine_projective_conversion() {
     );
 
     let a_a = a.into_affine();
-    assert_eq!(a_a, G1Affine::new(
-        Fq::from_repr(BigInteger768([
-            0x39dd21ca6cbfad4e,
-            0x64377a8f5a31e9f8,
-            0xe6e7270485da014e,
-            0x1a6f5a1fbe80813a,
-            0x60a9a80a0e3a087,
-            0x7b3c779f982b8c98,
-            0x6179fcdf7893edd4,
-            0x605b3e41f254b925,
-            0x4d1e2d030ab467e3,
-            0xa9283d87bf549304,
-            0xe34151514840f804,
-            0x1436619e846e,
-        ])),
-        Fq::from_repr(BigInteger768([
-            0xf06f708098de8eea,
-            0xfdb4381ac7c97df,
-            0x3275b4aed28fc16,
-            0x3dae26a63f5f2fc0,
-            0xf88932458695b60b,
-            0x5406864079c3a5b3,
-            0x757d70bd6d0d4ee,
-            0xa3b5eb573b241e0e,
-            0x9874335300ece9bd,
-            0xe1dd8f781c582459,
-            0xe981c3e4590b9847,
-            0x1bdf789b4fc48,
-        ])),
-        false,
-    ));
+    assert_eq!(
+        a_a,
+        G1Affine::new(
+            Fq::from_repr(BigInteger768([
+                0x39dd21ca6cbfad4e,
+                0x64377a8f5a31e9f8,
+                0xe6e7270485da014e,
+                0x1a6f5a1fbe80813a,
+                0x60a9a80a0e3a087,
+                0x7b3c779f982b8c98,
+                0x6179fcdf7893edd4,
+                0x605b3e41f254b925,
+                0x4d1e2d030ab467e3,
+                0xa9283d87bf549304,
+                0xe34151514840f804,
+                0x1436619e846e,
+            ])),
+            Fq::from_repr(BigInteger768([
+                0xf06f708098de8eea,
+                0xfdb4381ac7c97df,
+                0x3275b4aed28fc16,
+                0x3dae26a63f5f2fc0,
+                0xf88932458695b60b,
+                0x5406864079c3a5b3,
+                0x757d70bd6d0d4ee,
+                0xa3b5eb573b241e0e,
+                0x9874335300ece9bd,
+                0xe1dd8f781c582459,
+                0xe981c3e4590b9847,
+                0x1bdf789b4fc48,
+            ])),
+            false,
+        )
+    );
 
     assert_eq!(a_a.into_projective(), a);
 }
@@ -1677,7 +1671,6 @@ fn test_g2_doubling_correctness() {
 
 #[test]
 fn test_g2_affine_projective_conversion() {
-
     let a = G2Projective::new(
         Fq2::new(
             Fq::from_repr(BigInteger768([
@@ -1772,69 +1765,72 @@ fn test_g2_affine_projective_conversion() {
     );
 
     let a_a = a.into_affine();
-    assert_eq!(a_a, G2Affine::new(
-        Fq2::new(
-            Fq::from_repr(BigInteger768([
-                0xd04d1b2e84cfcb48,
-                0xa4b0b52c7f856e71,
-                0x99add11528f69820,
-                0x4f6bf1a726e1f2d3,
-                0x28c510ea93c63174,
-                0x5bb4ad702d20871b,
-                0xc2c1f4140d92e3d8,
-                0xac9942226f48234b,
-                0xa2a1c4acdb3a9b4c,
-                0x6d4a504ee9c8b817,
-                0x9cf836fd234056a9,
-                0x1701959f3f8df,
-            ])),
-            Fq::from_repr(BigInteger768([
-                0xc5e4764c1e8d6b74,
-                0x2ad093258e415ddf,
-                0xda887f4bb02ec9cb,
-                0x980eb36f879aecb0,
-                0xfa49fc664df35b69,
-                0xfe883323415d099c,
-                0x82e3ac700ed10768,
-                0x53aee549d42c7f6f,
-                0xaf89293052476fbd,
-                0xf8bd3561759d5edc,
-                0x7d2b808b4d7796c5,
-                0xfbad1bbe2f75,
-            ])),
-        ),
-        Fq2::new(
-            Fq::from_repr(BigInteger768([
-                0x82499dc3a36723b,
-                0x4e50d135b7f54d4e,
-                0xdc5f9d26b1632dba,
-                0x9cc203059dadfae6,
-                0xbad176ed8ce683,
-                0x2f13b62bf9447515,
-                0x51a60d8f9878ee38,
-                0xd0da6a9c191e9932,
-                0x7771fda59ea50910,
-                0xebb8ee07d88f2a4c,
-                0x30a30d31e8371130,
-                0x1bc18c8417eb,
-            ])),
-            Fq::from_repr(BigInteger768([
-                0xd00b7ab48a75abe1,
-                0x83ff0033936859cd,
-                0xab0f91ffc2138a10,
-                0x2316611e3c365b00,
-                0xe8a21b050527b787,
-                0xd30f4581baa3bea0,
-                0x59dbf53e112a427b,
-                0xe688fc5ea40e5708,
-                0xdfbde864b9df0b91,
-                0x98b7d79934e7c524,
-                0xdca7e75740c36f0e,
-                0x1bc31e18981b,
-            ])),
-        ),
-        false
-    ));
+    assert_eq!(
+        a_a,
+        G2Affine::new(
+            Fq2::new(
+                Fq::from_repr(BigInteger768([
+                    0xd04d1b2e84cfcb48,
+                    0xa4b0b52c7f856e71,
+                    0x99add11528f69820,
+                    0x4f6bf1a726e1f2d3,
+                    0x28c510ea93c63174,
+                    0x5bb4ad702d20871b,
+                    0xc2c1f4140d92e3d8,
+                    0xac9942226f48234b,
+                    0xa2a1c4acdb3a9b4c,
+                    0x6d4a504ee9c8b817,
+                    0x9cf836fd234056a9,
+                    0x1701959f3f8df,
+                ])),
+                Fq::from_repr(BigInteger768([
+                    0xc5e4764c1e8d6b74,
+                    0x2ad093258e415ddf,
+                    0xda887f4bb02ec9cb,
+                    0x980eb36f879aecb0,
+                    0xfa49fc664df35b69,
+                    0xfe883323415d099c,
+                    0x82e3ac700ed10768,
+                    0x53aee549d42c7f6f,
+                    0xaf89293052476fbd,
+                    0xf8bd3561759d5edc,
+                    0x7d2b808b4d7796c5,
+                    0xfbad1bbe2f75,
+                ])),
+            ),
+            Fq2::new(
+                Fq::from_repr(BigInteger768([
+                    0x82499dc3a36723b,
+                    0x4e50d135b7f54d4e,
+                    0xdc5f9d26b1632dba,
+                    0x9cc203059dadfae6,
+                    0xbad176ed8ce683,
+                    0x2f13b62bf9447515,
+                    0x51a60d8f9878ee38,
+                    0xd0da6a9c191e9932,
+                    0x7771fda59ea50910,
+                    0xebb8ee07d88f2a4c,
+                    0x30a30d31e8371130,
+                    0x1bc18c8417eb,
+                ])),
+                Fq::from_repr(BigInteger768([
+                    0xd00b7ab48a75abe1,
+                    0x83ff0033936859cd,
+                    0xab0f91ffc2138a10,
+                    0x2316611e3c365b00,
+                    0xe8a21b050527b787,
+                    0xd30f4581baa3bea0,
+                    0x59dbf53e112a427b,
+                    0xe688fc5ea40e5708,
+                    0xdfbde864b9df0b91,
+                    0x98b7d79934e7c524,
+                    0xdca7e75740c36f0e,
+                    0x1bc31e18981b,
+                ])),
+            ),
+            false
+        )
+    );
 
     assert_eq!(a_a.into_projective(), a);
 }

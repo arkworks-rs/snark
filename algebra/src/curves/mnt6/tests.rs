@@ -1,10 +1,18 @@
-use crate::{curves::{
-    mnt6::{G1Affine, G1Projective, G2Affine, G2Projective, MNT6, g1::MNT6G1Parameters, g2::MNT6G2Parameters},
-    tests::curve_tests,
-    AffineCurve, PairingEngine,
-}, fields::mnt6::fr::Fr, groups::tests::group_test, SemanticallyValid};
-use rand;
 use crate::curves::tests::sw_projective_tests;
+use crate::{
+    curves::{
+        mnt6::{
+            g1::MNT6G1Parameters, g2::MNT6G2Parameters, G1Affine, G1Projective, G2Affine,
+            G2Projective, MNT6,
+        },
+        tests::curve_tests,
+        AffineCurve, PairingEngine,
+    },
+    fields::mnt6::fr::Fr,
+    groups::tests::group_test,
+    SemanticallyValid,
+};
+use rand;
 
 #[test]
 fn test_g1_projective_curve() {
@@ -73,9 +81,7 @@ fn test_bilinearity() {
 
 #[test]
 fn test_product_of_pairings() {
-    use crate::{
-        ProjectiveCurve, UniformRand
-    };
+    use crate::{ProjectiveCurve, UniformRand};
     let rng = &mut rand::thread_rng();
 
     let a = G1Projective::rand(rng).into_affine();

@@ -1,11 +1,11 @@
+use crate::UniformRand;
 use crate::{
     curves::{AffineCurve, ProjectiveCurve},
     fields::{Field, PrimeField},
     serialize::{CanonicalDeserialize, CanonicalSerialize},
-    SWModelParameters, TEModelParameters
+    SWModelParameters, TEModelParameters,
 };
-use crate::UniformRand;
-use rand::{SeedableRng, thread_rng};
+use rand::{thread_rng, SeedableRng};
 use rand_xorshift::XorShiftRng;
 use std::io::Cursor;
 
@@ -531,16 +531,16 @@ pub fn sw_projective_curve_serialization_test<P: SWModelParameters>() {
 }
 
 pub fn edwards_tests<P: TEModelParameters>()
-    where
-        P::BaseField: PrimeField,
+where
+    P::BaseField: PrimeField,
 {
     edwards_curve_serialization_test::<P>();
     edwards_from_random_bytes::<P>();
 }
 
 pub fn edwards_from_random_bytes<P: TEModelParameters>()
-    where
-        P::BaseField: PrimeField,
+where
+    P::BaseField: PrimeField,
 {
     use crate::curves::models::twisted_edwards_extended::{GroupAffine, GroupProjective};
     use crate::ToBytes;

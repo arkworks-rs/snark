@@ -11,9 +11,9 @@ pub use crate::crh::injective_map::InjectiveMap;
 use algebra::groups::Group;
 
 pub struct PedersenCommCompressor<G: Group, I: InjectiveMap<G>, W: PedersenWindow> {
-    _group:      PhantomData<G>,
+    _group: PhantomData<G>,
     _compressor: PhantomData<I>,
-    _comm:       PedersenCommitment<G, W>,
+    _comm: PedersenCommitment<G, W>,
 }
 
 impl<G: Group, I: InjectiveMap<G>, W: PedersenWindow> CommitmentScheme

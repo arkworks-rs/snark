@@ -1,16 +1,17 @@
 use crate::{
-    BigInteger, BigInteger768,
+    bytes::ToBytes,
+    fields::mnt6753::{Fq, Fq3, Fq3Parameters, Fq6, Fq6Parameters, FqParameters},
+    fields::models::{Fp3Parameters, Fp6Parameters},
     fields::tests::{field_test, frobenius_test, primefield_test, sqrt_field_test},
-    fields::mnt6753::{Fq, Fq3, Fq6, FqParameters, Fq3Parameters, Fq6Parameters},
-    fields::FpParameters, fields::models::{Fp3Parameters, Fp6Parameters},
-    Field, PrimeField, SquareRootField, UniformRand, bytes::ToBytes, to_bytes, ToBits,
-    SemanticallyValid,
+    fields::FpParameters,
+    to_bytes, BigInteger, BigInteger768, Field, PrimeField, SemanticallyValid, SquareRootField,
+    ToBits, UniformRand,
 };
 use rand::SeedableRng;
 use rand_xorshift::XorShiftRng;
 use std::{
-    ops::{AddAssign, MulAssign, SubAssign},
     cmp::Ordering,
+    ops::{AddAssign, MulAssign, SubAssign},
 };
 
 pub(crate) const ITERATIONS: usize = 5;
@@ -45,7 +46,7 @@ fn test_mnt6753_fq() {
 
 #[test]
 fn test_mnt6753_fq3() {
-    use crate::fields::mnt6753::{Fq3, Fq};
+    use crate::fields::mnt6753::{Fq, Fq3};
 
     let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
     for _ in 0..ITERATIONS {
@@ -59,7 +60,7 @@ fn test_mnt6753_fq3() {
 
 #[test]
 fn test_mnt6753_fq6() {
-    use crate::fields::mnt6753::{Fq6, Fq};
+    use crate::fields::mnt6753::{Fq, Fq6};
 
     let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
     for _ in 0..ITERATIONS {
@@ -70,10 +71,8 @@ fn test_mnt6753_fq6() {
     frobenius_test::<Fq6, _>(Fq::characteristic(), 13);
 }
 
-
 #[test]
 fn test_frob_coeffs() {
-
     //Fq3 coefficients tests
     let nqr = Fq::new(BigInteger768([
         0x4768931cfff9c7d4,
@@ -238,8 +237,7 @@ fn test_frob_coeffs() {
         ])
     );
 
-    let t: Vec<u64> = vec!
-    [
+    let t: Vec<u64> = vec![
         0x7483bb7120000000,
         0x8d062427d1db0aa2,
         0x3b826fe19509943c,
@@ -278,13 +276,9 @@ fn test_frob_coeffs() {
         0xec0e,
     ];
 
-    assert_eq!(
-        Fq6Parameters::FROBENIUS_COEFF_FP6_C1[3],
-        nqr.pow(t)
-    );
+    assert_eq!(Fq6Parameters::FROBENIUS_COEFF_FP6_C1[3], nqr.pow(t));
 
-    let t: Vec<u64> = vec!
-    [
+    let t: Vec<u64> = vec![
         0x4b5a4f4180000000,
         0x783662c46a80572a,
         0x31a642537380b8be,
@@ -335,13 +329,9 @@ fn test_frob_coeffs() {
         0x1,
     ];
 
-    assert_eq!(
-        Fq6Parameters::FROBENIUS_COEFF_FP6_C1[4],
-        nqr.pow(t)
-    );
+    assert_eq!(Fq6Parameters::FROBENIUS_COEFF_FP6_C1[4], nqr.pow(t));
 
-    let t: Vec<u64> = vec!
-    [
+    let t: Vec<u64> = vec![
         0xfa30e311e0000000,
         0x6ef817acd67e72da,
         0x45338206ce5c9133,
@@ -403,12 +393,8 @@ fn test_frob_coeffs() {
         0x2e268ae0dcd5d,
     ];
 
-    assert_eq!(
-        Fq6Parameters::FROBENIUS_COEFF_FP6_C1[5],
-        nqr.pow(t)
-    );
+    assert_eq!(Fq6Parameters::FROBENIUS_COEFF_FP6_C1[5], nqr.pow(t));
 }
-
 
 #[test]
 fn test_neg_one() {
@@ -428,7 +414,6 @@ fn test_neg_one() {
     ]));
     assert_eq!(neg_one, -Fq::one());
 }
-
 
 #[test]
 fn test_fq_is_valid() {
@@ -451,7 +436,7 @@ fn test_fq_is_valid() {
         4774597994323744797,
         467097584308943,
     ]))
-        .is_valid());
+    .is_valid());
 
     assert!(!Fq::new(BigInteger768([
         0xffffffffffffffff,
@@ -467,7 +452,7 @@ fn test_fq_is_valid() {
         0xffffffffffffffff,
         0xffffffffffffffff,
     ]))
-        .is_valid());
+    .is_valid());
 
     let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
 
@@ -476,7 +461,6 @@ fn test_fq_is_valid() {
         assert!(a.is_valid());
     }
 }
-
 
 #[test]
 fn test_fq_add_assign() {
@@ -659,7 +643,6 @@ fn test_fq_add_assign() {
     }
 }
 
-
 #[test]
 fn test_fq_sub_assign() {
     {
@@ -814,7 +797,6 @@ fn test_fq_sub_assign() {
     }
 }
 
-
 #[test]
 fn test_fq_mul_assign() {
     let mut tmp = Fq::new(BigInteger768([
@@ -906,7 +888,6 @@ fn test_fq_mul_assign() {
     }
 }
 
-
 #[test]
 fn test_fq_squaring() {
     let mut a = Fq::new(BigInteger768([
@@ -959,7 +940,6 @@ fn test_fq_squaring() {
     }
 }
 
-
 #[test]
 fn test_fq_inverse() {
     assert!(Fq::zero().inverse().is_none());
@@ -977,7 +957,6 @@ fn test_fq_inverse() {
     }
 }
 
-
 #[test]
 fn test_fq_double_in_place() {
     let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
@@ -991,7 +970,6 @@ fn test_fq_double_in_place() {
         assert_eq!(a, b);
     }
 }
-
 
 #[test]
 fn test_fq_negate() {
@@ -1012,7 +990,6 @@ fn test_fq_negate() {
         assert!(a.is_zero());
     }
 }
-
 
 #[test]
 fn test_fq_pow() {
@@ -1038,10 +1015,8 @@ fn test_fq_pow() {
     }
 }
 
-
 #[test]
 fn test_fq_sqrt() {
-
     let a_squared = Fq::new(BigInteger768([
         0x815f0a0b6846238c,
         0x5949c2aef4191aac,
@@ -1057,20 +1032,23 @@ fn test_fq_sqrt() {
         0x18cd3d7d0d32c,
     ]));
     let a = a_squared.sqrt().unwrap();
-    assert_eq!(a, Fq::new(BigInteger768([
-        0x9696cbd70f683946,
-        0x2fbe984a7f99fb5e,
-        0x4152df84cdbbce30,
-        0x5ebe5c628d5a355e,
-        0xd448a5598db83394,
-        0x5c8ba2124ebab55b,
-        0xe8ef67a51612340,
-        0x3c7382380f2f323f,
-        0x93e740b12eec5af3,
-        0x89a625f9546373f2,
-        0xb2c2be3f0e9c1b51,
-        0xafc892d9432f,
-    ])));
+    assert_eq!(
+        a,
+        Fq::new(BigInteger768([
+            0x9696cbd70f683946,
+            0x2fbe984a7f99fb5e,
+            0x4152df84cdbbce30,
+            0x5ebe5c628d5a355e,
+            0xd448a5598db83394,
+            0x5c8ba2124ebab55b,
+            0xe8ef67a51612340,
+            0x3c7382380f2f323f,
+            0x93e740b12eec5af3,
+            0x89a625f9546373f2,
+            0xb2c2be3f0e9c1b51,
+            0xafc892d9432f,
+        ]))
+    );
 
     let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
 
@@ -1100,13 +1078,11 @@ fn test_fq_sqrt() {
     }
 }
 
-
 #[test]
 fn test_fq_num_bits() {
     assert_eq!(FqParameters::MODULUS_BITS, 753);
     assert_eq!(FqParameters::CAPACITY, 752);
 }
-
 
 #[test]
 fn test_fq_root_of_unity() {
@@ -1139,7 +1115,6 @@ fn test_fq_root_of_unity() {
     assert!(Fq::multiplicative_generator().sqrt().is_none());
 }
 
-
 #[test]
 fn test_fq_ordering() {
     // BigInteger768's ordering is well-tested, but we still need to make sure the
@@ -1148,7 +1123,6 @@ fn test_fq_ordering() {
         assert!(Fq::from_repr(BigInteger768::from(i + 1)) > Fq::from_repr(BigInteger768::from(i)));
     }
 }
-
 
 #[test]
 fn test_fq_legendre() {
@@ -1222,15 +1196,13 @@ fn test_fq_bytes() {
 #[test]
 fn test_convert_fq_fr() {
     use crate::fields::{
-        convert, mnt6753::{
-            FqParameters, Fr
-        },
+        convert,
+        mnt6753::{FqParameters, Fr},
     };
 
     let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
 
     for _ in 0..1000 {
-
         // Safely convert a random Fq into a Fr
         let q: Fq = UniformRand::rand(&mut rng);
         let q_bits = &q.write_bits()[1..]; //Skip 1 bit, in order to perform a safe conversion
@@ -1270,7 +1242,6 @@ fn test_fq3_ordering() {
     assert!(a.cmp(&b) == Ordering::Equal);
 }
 
-
 #[test]
 fn test_fq3_basics() {
     assert_eq!(Fq3::new(Fq::zero(), Fq::zero(), Fq::zero()), Fq3::zero());
@@ -1280,16 +1251,24 @@ fn test_fq3_basics() {
     assert!(!Fq3::new(Fq::zero(), Fq::one(), Fq::zero()).is_zero());
 }
 
-
 #[test]
 fn test_fq3_squaring() {
     // i = sqrt(11) in mnt6_753 fq3
 
     //(11 + 0i + 0j)^2 = 121 + 0i + 0j = 121
-    let a = Fq3::new(Fq::from_repr(BigInteger768::from(11)), Fq::zero(), Fq::zero()).square();
+    let a = Fq3::new(
+        Fq::from_repr(BigInteger768::from(11)),
+        Fq::zero(),
+        Fq::zero(),
+    )
+    .square();
     assert_eq!(
         a,
-        Fq3::new(Fq::from_repr(BigInteger768::from(121)), Fq::zero(), Fq::zero())
+        Fq3::new(
+            Fq::from_repr(BigInteger768::from(121)),
+            Fq::zero(),
+            Fq::zero()
+        )
     );
 
     let mut a = Fq3::new(
@@ -1388,7 +1367,6 @@ fn test_fq3_squaring() {
 
 #[test]
 fn test_fq3_mul() {
-
     let mut a = Fq3::new(
         Fq::from_repr(BigInteger768([
             0x3246ad9d5f2e162,
@@ -2334,7 +2312,6 @@ fn test_fq3_frobenius_map() {
     );
 }
 
-
 #[test]
 fn test_fq3_legendre() {
     use crate::fields::LegendreSymbol::*;
@@ -2354,11 +2331,7 @@ fn test_fq3_legendre() {
 fn test_fq3_mul_nonresidue() {
     let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
 
-    let nqr = Fq3::new(
-        Fq::zero(),
-        Fq::one(),
-        Fq::zero()
-    );
+    let nqr = Fq3::new(Fq::zero(), Fq::one(), Fq::zero());
 
     for _ in 0..1000 {
         let mut a = Fq3::rand(&mut rng);
@@ -2370,7 +2343,6 @@ fn test_fq3_mul_nonresidue() {
     }
 }
 
-
 #[test]
 fn test_fq6_mul_by_2345() {
     let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
@@ -2380,10 +2352,7 @@ fn test_fq6_mul_by_2345() {
         let c3 = Fq::rand(&mut rng);
         let c4 = Fq::rand(&mut rng);
         let c5 = Fq::rand(&mut rng);
-        let to_mul = Fq6::new(
-            Fq3::new(Fq::zero(), Fq::zero(), c2),
-            Fq3::new(c3, c4, c5),
-        );
+        let to_mul = Fq6::new(Fq3::new(Fq::zero(), Fq::zero(), c2), Fq3::new(c3, c4, c5));
         let a = Fq6::rand(&mut rng);
         let mut b = a;
 

@@ -1,12 +1,17 @@
-use crate::{bytes::ToBytes, curves::{
-    bls12::{Bls12Parameters, TwistType},
-    models::SWModelParameters,
-    short_weierstrass_jacobian::{GroupAffine, GroupProjective},
-    AffineCurve,
-}, fields::{BitIterator, Field, Fp2}, FromBytes};
-use std::io::{Result as IoResult, Write, Read, Error, ErrorKind};
+use crate::{
+    bytes::ToBytes,
+    curves::{
+        bls12::{Bls12Parameters, TwistType},
+        models::SWModelParameters,
+        short_weierstrass_jacobian::{GroupAffine, GroupProjective},
+        AffineCurve,
+    },
+    fields::{BitIterator, Field, Fp2},
+    FromBytes,
+};
 use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
+use std::io::{Error, ErrorKind, Read, Result as IoResult, Write};
 
 pub type G2Affine<P> = GroupAffine<<P as Bls12Parameters>::G2Parameters>;
 pub type G2Projective<P> = GroupProjective<<P as Bls12Parameters>::G2Parameters>;
@@ -25,7 +30,7 @@ pub struct G2Prepared<P: Bls12Parameters> {
     // Stores the coefficients of the line evaluations as calculated in
     // https://eprint.iacr.org/2013/722.pdf
     pub ell_coeffs: Vec<(Fp2<P::Fp2Params>, Fp2<P::Fp2Params>, Fp2<P::Fp2Params>)>,
-    pub infinity:   bool,
+    pub infinity: bool,
 }
 
 #[derive(Derivative)]
@@ -71,9 +76,12 @@ impl<P: Bls12Parameters> FromBytes for G2Prepared<P> {
                 .map_err(|e| Error::new(ErrorKind::InvalidData, e))?;
             ell_coeffs.push((c0, c1, c2));
         }
-        let infinity = bool::read(&mut reader)
-            .map_err(|e| Error::new(ErrorKind::InvalidData, e))?;
-        Ok(G2Prepared{ell_coeffs, infinity})
+        let infinity =
+            bool::read(&mut reader).map_err(|e| Error::new(ErrorKind::InvalidData, e))?;
+        Ok(G2Prepared {
+            ell_coeffs,
+            infinity,
+        })
     }
 }
 

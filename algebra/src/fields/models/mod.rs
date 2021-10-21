@@ -14,20 +14,17 @@ use crate::{
     },
     bytes::{FromBytes, ToBytes},
     fields::{
-        Field, FpParameters, LegendreSymbol, PrimeField, SquareRootField,
-        MulShort, MulShortAssign
+        Field, FpParameters, LegendreSymbol, MulShort, MulShortAssign, PrimeField, SquareRootField,
+    },
+    serialize::{
+        buffer_byte_size, CanonicalDeserialize, CanonicalDeserializeWithFlags, CanonicalSerialize,
+        CanonicalSerializeWithFlags, EmptyFlags, Flags, SerializationError,
     },
     SemanticallyValid,
-    serialize:: {
-        CanonicalSerialize, CanonicalDeserialize,
-        CanonicalSerializeWithFlags, CanonicalDeserializeWithFlags,
-        Flags, EmptyFlags, SerializationError, buffer_byte_size
-    }
 };
 
-use std::io::{Read, Result as IoResult, Write, ErrorKind, Error as IoError};
-use serde::{Serialize, Deserialize};
-
+use serde::{Deserialize, Serialize};
+use std::io::{Error as IoError, ErrorKind, Read, Result as IoResult, Write};
 
 #[cfg(use_asm)]
 use std::mem::MaybeUninit;

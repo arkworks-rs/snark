@@ -8,20 +8,20 @@ use algebra::{
 };
 use r1cs_core::{ConstraintSystem, SynthesisError};
 
-use crate::{prelude::*, fields::fp2::Fp2Gadget};
+use crate::{fields::fp2::Fp2Gadget, prelude::*};
 
-impl<P, ConstraintF: PrimeField + SquareRootField> CubicExtParametersGadget<ConstraintF> for Fp6ParamsWrapper<P>
-    where
-        P: Fp6Parameters,
-        P::Fp2Params: Fp2Parameters<Fp = ConstraintF>,
+impl<P, ConstraintF: PrimeField + SquareRootField> CubicExtParametersGadget<ConstraintF>
+    for Fp6ParamsWrapper<P>
+where
+    P: Fp6Parameters,
+    P::Fp2Params: Fp2Parameters<Fp = ConstraintF>,
 {
     type BaseFieldGadget = Fp2Gadget<P::Fp2Params, ConstraintF>;
 
     fn mul_base_field_gadget_by_nonresidue<CS: ConstraintSystem<ConstraintF>>(
         cs: CS,
-        fe: &Self::BaseFieldGadget
-    ) -> Result<Self::BaseFieldGadget, SynthesisError>
-    {
+        fe: &Self::BaseFieldGadget,
+    ) -> Result<Self::BaseFieldGadget, SynthesisError> {
         fe.mul_by_constant(cs, &P::NONRESIDUE)
     }
 
@@ -29,17 +29,10 @@ impl<P, ConstraintF: PrimeField + SquareRootField> CubicExtParametersGadget<Cons
         mut cs: CS,
         c1: &mut Self::BaseFieldGadget,
         c2: &mut Self::BaseFieldGadget,
-        power: usize
-    ) -> Result<(), SynthesisError>
-    {
-        c1.mul_by_constant_in_place(
-            cs.ns(|| "c1_power"),
-            &P::FROBENIUS_COEFF_FP6_C1[power % 6],
-        )?;
-        c2.mul_by_constant_in_place(
-            cs.ns(|| "c2_power"),
-            &P::FROBENIUS_COEFF_FP6_C2[power % 6],
-        )?;
+        power: usize,
+    ) -> Result<(), SynthesisError> {
+        c1.mul_by_constant_in_place(cs.ns(|| "c1_power"), &P::FROBENIUS_COEFF_FP6_C1[power % 6])?;
+        c2.mul_by_constant_in_place(cs.ns(|| "c2_power"), &P::FROBENIUS_COEFF_FP6_C2[power % 6])?;
 
         Ok(())
     }
@@ -48,9 +41,9 @@ impl<P, ConstraintF: PrimeField + SquareRootField> CubicExtParametersGadget<Cons
 pub type Fp6Gadget<P, ConstraintF> = CubicExtFieldGadget<Fp6ParamsWrapper<P>, ConstraintF>;
 
 impl<P, ConstraintF: PrimeField + SquareRootField> Fp6Gadget<P, ConstraintF>
-    where
-        P: Fp6Parameters,
-        P::Fp2Params: Fp2Parameters<Fp = ConstraintF>,
+where
+    P: Fp6Parameters,
+    P::Fp2Params: Fp2Parameters<Fp = ConstraintF>,
 {
     #[inline]
     pub fn mul_by_0_c1_0<CS: ConstraintSystem<ConstraintF>>(

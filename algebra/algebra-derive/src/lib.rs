@@ -154,7 +154,8 @@ fn impl_deserialize_field(ty: &Type) -> (TokenStream, TokenStream, TokenStream, 
             let mut uncompressed_fields = Vec::new();
             let mut uncompressed_unchecked_fields = Vec::new();
             for elem_ty in tuple.elems.iter() {
-                let (compressed, unchecked, uncompressed, uncompressed_unchecked) = impl_deserialize_field(elem_ty);
+                let (compressed, unchecked, uncompressed, uncompressed_unchecked) =
+                    impl_deserialize_field(elem_ty);
                 compressed_fields.push(compressed);
                 unchecked_fields.push(unchecked);
                 uncompressed_fields.push(uncompressed);
@@ -206,12 +207,17 @@ fn impl_canonical_deserialize(ast: &syn::DeriveInput) -> TokenStream {
                     }
                     // struct field without len_type
                     Some(ident) => {
-                        let (compressed_field, unchecked_field, uncompressed_field, uncompressed_unchecked_field) =
-                            impl_deserialize_field(&field.ty);
+                        let (
+                            compressed_field,
+                            unchecked_field,
+                            uncompressed_field,
+                            uncompressed_unchecked_field,
+                        ) = impl_deserialize_field(&field.ty);
                         compressed_field_cases.push(quote! { #ident: #compressed_field });
                         unchecked_field_cases.push(quote! { #ident: #unchecked_field });
                         uncompressed_field_cases.push(quote! { #ident: #uncompressed_field });
-                        uncompressed_unchecked_field_cases.push(quote! { #ident: #uncompressed_unchecked_field });
+                        uncompressed_unchecked_field_cases
+                            .push(quote! { #ident: #uncompressed_unchecked_field });
                     }
                 }
             }

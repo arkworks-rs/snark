@@ -389,7 +389,7 @@ impl<ConstraintF: PrimeField> EqGadget<ConstraintF> for Blake2sOutputGadget {
     fn is_eq<CS: ConstraintSystem<ConstraintF>>(
         &self,
         cs: CS,
-        other: &Self
+        other: &Self,
     ) -> Result<Boolean, SynthesisError> {
         self.0.is_eq(cs, &other.0)
     }
@@ -507,14 +507,14 @@ impl<ConstraintF: PrimeField> PRFGadget<Blake2s, ConstraintF> for Blake2sGadget 
 
 #[cfg(test)]
 mod test {
+    use crate::prf::blake2s::blake2s_gadget;
     use algebra::fields::bls12_377::fr::Fr;
+    use blake2::Blake2s;
     use digest::{Digest, FixedOutput};
+    use primitives::prf::blake2s::Blake2s as B2SPRF;
+    use r1cs_core::ConstraintSystem;
     use rand::{Rng, SeedableRng};
     use rand_xorshift::XorShiftRng;
-    use primitives::prf::blake2s::Blake2s as B2SPRF;
-    use crate::prf::blake2s::blake2s_gadget;
-    use blake2::Blake2s;
-    use r1cs_core::ConstraintSystem;
 
     use super::Blake2sGadget;
     use r1cs_std::{
@@ -538,8 +538,8 @@ mod test {
 
     #[test]
     fn test_blake2s_prf() {
-        use primitives::prf::PRF;
         use crate::prf::PRFGadget;
+        use primitives::prf::PRF;
         use rand::Rng;
 
         let mut rng = XorShiftRng::seed_from_u64(1231275789u64);
@@ -652,14 +652,14 @@ mod test {
                     match b {
                         Boolean::Is(b) => {
                             assert!(s.next().unwrap() == b.get_value().unwrap());
-                        },
+                        }
                         Boolean::Not(b) => {
                             assert!(s.next().unwrap() != b.get_value().unwrap());
-                        },
+                        }
                         Boolean::Constant(b) => {
                             assert!(input_len == 0);
                             assert!(s.next().unwrap() == b);
-                        },
+                        }
                     }
                 }
             }

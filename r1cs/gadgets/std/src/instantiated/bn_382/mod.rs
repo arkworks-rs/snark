@@ -1,7 +1,7 @@
 mod curves;
 mod fields;
-mod pairing;
 pub mod g;
+mod pairing;
 
 pub use curves::*;
 pub use fields::*;

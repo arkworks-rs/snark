@@ -1,7 +1,16 @@
-use crate::{bytes::{FromBytes, ToBytes}, curves::{jubjub::*, tests::curve_tests, AffineCurve, ProjectiveCurve, models::twisted_edwards_extended::tests::montgomery_conversion_test}, fields::jubjub::fr::Fr, groups::tests::group_test, SemanticallyValid};
+use crate::curves::tests::edwards_tests;
+use crate::{
+    bytes::{FromBytes, ToBytes},
+    curves::{
+        jubjub::*, models::twisted_edwards_extended::tests::montgomery_conversion_test,
+        tests::curve_tests, AffineCurve, ProjectiveCurve,
+    },
+    fields::jubjub::fr::Fr,
+    groups::tests::group_test,
+    SemanticallyValid,
+};
 use rand;
 use std::str::FromStr;
-use crate::curves::tests::edwards_tests;
 
 #[test]
 fn test_projective_curve() {

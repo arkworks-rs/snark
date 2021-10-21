@@ -1,37 +1,40 @@
-use algebra::{fields::{
-    fp6_2over3::{Fp6Parameters, Fp6ParamsWrapper},
-    fp3::{Fp3Parameters, Fp3ParamsWrapper},
-}, PrimeField, SquareRootField};
+use algebra::{
+    fields::{
+        fp3::{Fp3Parameters, Fp3ParamsWrapper},
+        fp6_2over3::{Fp6Parameters, Fp6ParamsWrapper},
+    },
+    PrimeField, SquareRootField,
+};
 use r1cs_core::{ConstraintSystem, SynthesisError};
 
-use crate::{
-    prelude::*, fields::fp3::Fp3Gadget,
-};
+use crate::{fields::fp3::Fp3Gadget, prelude::*};
 
-impl<P, ConstraintF: PrimeField + SquareRootField> QuadExtParametersGadget<ConstraintF> for Fp6ParamsWrapper<P>
-    where
-        P: Fp6Parameters,
-        P::Fp3Params: Fp3Parameters<Fp = ConstraintF>,
+impl<P, ConstraintF: PrimeField + SquareRootField> QuadExtParametersGadget<ConstraintF>
+    for Fp6ParamsWrapper<P>
+where
+    P: Fp6Parameters,
+    P::Fp3Params: Fp3Parameters<Fp = ConstraintF>,
 {
     type BaseFieldGadget = Fp3Gadget<P::Fp3Params, ConstraintF>;
 
     fn mul_base_field_gadget_by_nonresidue<CS: ConstraintSystem<ConstraintF>>(
         cs: CS,
-        fe: &Self::BaseFieldGadget
-    ) -> Result<Self::BaseFieldGadget, SynthesisError>
-    {
-        let new_c0 = Fp3ParamsWrapper::<P::Fp3Params>::mul_base_field_gadget_by_nonresidue(cs, &fe.c2)?;
+        fe: &Self::BaseFieldGadget,
+    ) -> Result<Self::BaseFieldGadget, SynthesisError> {
+        let new_c0 =
+            Fp3ParamsWrapper::<P::Fp3Params>::mul_base_field_gadget_by_nonresidue(cs, &fe.c2)?;
         let new_c1 = fe.c0.clone();
         let new_c2 = fe.c1.clone();
-        Ok(Fp3Gadget::<P::Fp3Params, ConstraintF>::new(new_c0, new_c1, new_c2))
+        Ok(Fp3Gadget::<P::Fp3Params, ConstraintF>::new(
+            new_c0, new_c1, new_c2,
+        ))
     }
 
     fn mul_base_field_gadget_by_frobenius_coeff<CS: ConstraintSystem<ConstraintF>>(
         mut cs: CS,
         c1: &mut Self::BaseFieldGadget,
-        power: usize
-    ) -> Result<(), SynthesisError>
-    {
+        power: usize,
+    ) -> Result<(), SynthesisError> {
         c1.c0
             .mul_by_constant_in_place(cs.ns(|| "mul1"), &P::FROBENIUS_COEFF_FP6_C1[power % 6])?;
         c1.c1
@@ -43,9 +46,8 @@ impl<P, ConstraintF: PrimeField + SquareRootField> QuadExtParametersGadget<Const
 
     fn cyclotomic_square_gadget<CS: ConstraintSystem<ConstraintF>>(
         mut cs: CS,
-        fe: &QuadExtFieldGadget<Self, ConstraintF>
-    ) -> Result<QuadExtFieldGadget<Self, ConstraintF>, SynthesisError>
-    {
+        fe: &QuadExtFieldGadget<Self, ConstraintF>,
+    ) -> Result<QuadExtFieldGadget<Self, ConstraintF>, SynthesisError> {
         let mut result = QuadExtFieldGadget::<Self, ConstraintF>::zero(cs.ns(|| "alloc result"))?;
         let fp2_nr = <P::Fp3Params as Fp3Parameters>::NONRESIDUE;
 
@@ -169,35 +171,47 @@ impl<P, ConstraintF: PrimeField + SquareRootField> QuadExtParametersGadget<Const
 pub type Fp6Gadget<P, ConstraintF> = QuadExtFieldGadget<Fp6ParamsWrapper<P>, ConstraintF>;
 
 impl<P, ConstraintF: PrimeField + SquareRootField> Fp6Gadget<P, ConstraintF>
-    where
-        P: Fp6Parameters,
-        P::Fp3Params: Fp3Parameters<Fp = ConstraintF>,
+where
+    P: Fp6Parameters,
+    P::Fp3Params: Fp3Parameters<Fp = ConstraintF>,
 {
     #[inline]
     pub fn mul_by_2345<CS: ConstraintSystem<ConstraintF>>(
         &self,
         mut cs: CS,
         other: &Self,
-    ) -> Result<Self, SynthesisError>
-    {
+    ) -> Result<Self, SynthesisError> {
         let v0 = {
-            let t = Fp3ParamsWrapper::<P::Fp3Params>::mul_base_field_gadget_by_nonresidue(cs.ns(|| "other.c0.c2 * nr"), &other.c0.c2)?;
+            let t = Fp3ParamsWrapper::<P::Fp3Params>::mul_base_field_gadget_by_nonresidue(
+                cs.ns(|| "other.c0.c2 * nr"),
+                &other.c0.c2,
+            )?;
             let c0 = self.c0.c1.mul(cs.ns(|| "compute v0_c0"), &t)?;
             let c1 = self.c0.c2.mul(cs.ns(|| "compute v0_c1"), &t)?;
             let c2 = self.c0.c0.mul(cs.ns(|| "compute v0_c2"), &other.c0.c2)?;
             Fp3Gadget::<P::Fp3Params, ConstraintF>::new(c0, c1, c2)
         };
         let v1 = self.c1.mul(cs.ns(|| "compute v1"), &other.c1)?;
-        let beta_v1 = Fp6ParamsWrapper::<P>::mul_base_field_gadget_by_nonresidue(cs.ns(|| "v1*nr"), &v1)?;
+        let beta_v1 =
+            Fp6ParamsWrapper::<P>::mul_base_field_gadget_by_nonresidue(cs.ns(|| "v1*nr"), &v1)?;
 
         let c0 = v0.add(cs.ns(|| "compute result c0"), &beta_v1)?;
         let c1 = {
             let self_c0_plus_c1 = self.c0.add(cs.ns(|| "self.c0 + self.c1"), &self.c1)?;
             let other_c0_plus_c1 = other.c0.add(cs.ns(|| "other.c0 + other.c1"), &other.c1)?;
             self_c0_plus_c1
-                .mul(cs.ns(|| "(self.c0 + self.c1)*(other.c0 + other.c1)"), &other_c0_plus_c1)?
-                .sub(cs.ns(|| "(self.c0 + self.c1)*(other.c0 + other.c1) - v0"), &v0)?
-                .sub(cs.ns(|| "(self.c0 + self.c1)*(other.c0 + other.c1) - v0 - v1"), &v1)?
+                .mul(
+                    cs.ns(|| "(self.c0 + self.c1)*(other.c0 + other.c1)"),
+                    &other_c0_plus_c1,
+                )?
+                .sub(
+                    cs.ns(|| "(self.c0 + self.c1)*(other.c0 + other.c1) - v0"),
+                    &v0,
+                )?
+                .sub(
+                    cs.ns(|| "(self.c0 + self.c1)*(other.c0 + other.c1) - v0 - v1"),
+                    &v1,
+                )?
         };
         Ok(Self::new(c0, c1))
     }

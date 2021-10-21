@@ -9,10 +9,6 @@ pub type G2PreparedGadget = bn::G2PreparedGadget<Bn382Parameters>;
 
 #[test]
 fn test() {
-    crate::groups::test::group_test_with_unsafe_add::<
-        _, _, G1Gadget,
-    >();
-    crate::groups::test::group_test_with_unsafe_add::<
-        _, _, G2Gadget,
-    >();
+    crate::groups::test::group_test_with_unsafe_add::<_, _, G1Gadget>();
+    crate::groups::test::group_test_with_unsafe_add::<_, _, G2Gadget>();
 }

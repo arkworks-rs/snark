@@ -1,20 +1,14 @@
 use algebra::{AffineCurve, ToConstraintField};
-use poly_commit::{
-    PolynomialCommitment,
-    ipa_pc::InnerProductArgPC
-};
-use proof_systems::darlin::{
-    tests::{
-        get_keys,
-        final_darlin::generate_test_data as generate_final_darlin_test_data
-    },
-    proof_aggregator::batch_verify_proofs,
-};
-use digest::Digest;
-use criterion::*;
-use rand::{thread_rng, SeedableRng};
 use blake2::Blake2s;
+use criterion::*;
+use digest::Digest;
+use poly_commit::{ipa_pc::InnerProductArgPC, PolynomialCommitment};
 use proof_systems::darlin::pcd::GeneralPCD;
+use proof_systems::darlin::{
+    proof_aggregator::batch_verify_proofs,
+    tests::{final_darlin::generate_test_data as generate_final_darlin_test_data, get_keys},
+};
+use rand::{thread_rng, SeedableRng};
 use rand_xorshift::XorShiftRng;
 
 fn bench_batch_verification<G1: AffineCurve, G2: AffineCurve, D: Digest>(
@@ -22,10 +16,11 @@ fn bench_batch_verification<G1: AffineCurve, G2: AffineCurve, D: Digest>(
     bench_name: &str,
     segment_size: usize,
     max_proofs: Vec<usize>,
-)
-    where
-        G1: AffineCurve<BaseField = <G2 as AffineCurve>::ScalarField> + ToConstraintField<<G2 as AffineCurve>::ScalarField>,
-        G2: AffineCurve<BaseField = <G1 as AffineCurve>::ScalarField> + ToConstraintField<<G1 as AffineCurve>::ScalarField>,
+) where
+    G1: AffineCurve<BaseField = <G2 as AffineCurve>::ScalarField>
+        + ToConstraintField<<G2 as AffineCurve>::ScalarField>,
+    G2: AffineCurve<BaseField = <G1 as AffineCurve>::ScalarField>
+        + ToConstraintField<<G1 as AffineCurve>::ScalarField>,
 {
     let rng = &mut XorShiftRng::seed_from_u64(1234567890u64);
     let mut group = c.benchmark_group(bench_name);
@@ -35,10 +30,7 @@ fn bench_batch_verification<G1: AffineCurve, G2: AffineCurve, D: Digest>(
     let params_g1 = InnerProductArgPC::<G1, D>::setup(segment_size - 1).unwrap();
     let params_g2 = InnerProductArgPC::<G2, D>::setup(segment_size - 1).unwrap();
 
-    let (
-        _, verifier_key_g1,
-        _, verifier_key_g2
-    ) = get_keys::<_, _, D>(&params_g1, &params_g2);
+    let (_, verifier_key_g1, _, verifier_key_g2) = get_keys::<_, _, D>(&params_g1, &params_g2);
 
     let (final_darlin_pcd, index_vk) = generate_final_darlin_test_data::<G1, G2, D, _>(
         num_constraints,
@@ -46,27 +38,31 @@ fn bench_batch_verification<G1: AffineCurve, G2: AffineCurve, D: Digest>(
         &params_g1,
         &params_g2,
         1,
-        rng
+        rng,
     );
 
     // Generate proofs and bench
     for num_proofs in max_proofs.into_iter() {
-
         // Collect PCDs and vks
         let pcds = vec![GeneralPCD::FinalDarlin(final_darlin_pcd[0].clone()); num_proofs];
         let vks = vec![index_vk[0].clone(); num_proofs];
 
-        group.bench_with_input(BenchmarkId::from_parameter(num_proofs), &num_proofs, |bn, _num_proofs| {
-            bn.iter(|| {
-                assert!(batch_verify_proofs::<G1, G2, D, _>(
-                    pcds.as_slice(),
-                    vks.as_slice(),
-                    &verifier_key_g1,
-                    &verifier_key_g2,
-                    &mut thread_rng()
-                ).unwrap());
-            });
-        });
+        group.bench_with_input(
+            BenchmarkId::from_parameter(num_proofs),
+            &num_proofs,
+            |bn, _num_proofs| {
+                bn.iter(|| {
+                    assert!(batch_verify_proofs::<G1, G2, D, _>(
+                        pcds.as_slice(),
+                        vks.as_slice(),
+                        &verifier_key_g1,
+                        &verifier_key_g2,
+                        &mut thread_rng()
+                    )
+                    .unwrap());
+                });
+            },
+        );
     }
     group.finish();
 }
@@ -75,11 +71,7 @@ fn bench_batch_verification<G1: AffineCurve, G2: AffineCurve, D: Digest>(
 // Segment size |H| => 42, segment size |H|/2 => 84
 
 fn bench_batch_verification_tweedle(c: &mut Criterion) {
-
-    use algebra::curves::tweedle::{
-        dee::Affine as TweedleDee,
-        dum::Affine as TweedleDum,
-    };
+    use algebra::curves::tweedle::{dee::Affine as TweedleDee, dum::Affine as TweedleDum};
 
     bench_batch_verification::<TweedleDee, TweedleDum, Blake2s>(
         c,

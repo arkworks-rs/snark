@@ -9,10 +9,6 @@ pub type G2PreparedGadget = mnt6::G2PreparedGadget<Parameters>;
 
 #[test]
 fn test() {
-    crate::groups::test::group_test_with_unsafe_add::<
-        _, _, G2Gadget,
-    >();
-    crate::groups::test::group_test_with_unsafe_add::<
-        _, _, G2Gadget,
-    >();
+    crate::groups::test::group_test_with_unsafe_add::<_, _, G2Gadget>();
+    crate::groups::test::group_test_with_unsafe_add::<_, _, G2Gadget>();
 }

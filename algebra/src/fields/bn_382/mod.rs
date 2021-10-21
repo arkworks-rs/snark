@@ -15,4 +15,3 @@ pub use self::fq12::*;
 
 #[cfg(test)]
 mod tests;
-

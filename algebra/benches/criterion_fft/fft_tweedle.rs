@@ -4,11 +4,10 @@ extern crate criterion;
 #[macro_use]
 extern crate bench_utils;
 
-use algebra::{
-    fields::tweedle::Fr,
-    PrimeField, UniformRand,
+use algebra::fft::{
+    get_best_evaluation_domain, BasicRadix2Domain, DensePolynomial, EvaluationDomain,
 };
-use algebra::fft::{DensePolynomial, EvaluationDomain, BasicRadix2Domain, get_best_evaluation_domain};
+use algebra::{fields::tweedle::Fr, PrimeField, UniformRand};
 use rand;
 
 use std::{
@@ -21,25 +20,25 @@ use criterion::{BatchSize, BenchmarkId, Criterion};
 const DATA_PATH: &'static str = "./coeffs_tweedle";
 
 fn save_data<F: PrimeField>(num_coeffs: usize) {
-
     let mut fs = File::create(DATA_PATH).unwrap();
     let rng = &mut rand::thread_rng();
 
     for _ in 0..num_coeffs {
-        let elem:F = UniformRand::rand(rng);
+        let elem: F = UniformRand::rand(rng);
         match elem.write(&mut fs) {
-            Ok(_) => {},
-            Err(msg) => { panic!("Cannot save coeffs to file: {}", msg)}
+            Ok(_) => {}
+            Err(msg) => {
+                panic!("Cannot save coeffs to file: {}", msg)
+            }
         }
     }
 }
 
 fn load_data<F: PrimeField>(samples: usize) -> Vec<F> {
-    
     if !Path::new(DATA_PATH).exists() {
         save_data::<F>(1 << 23);
     }
-    
+
     let mut fs = File::open(DATA_PATH).unwrap();
     let mut a: Vec<F> = Vec::with_capacity(samples);
 
@@ -83,9 +82,7 @@ fn bench_ffts<F: PrimeField, D: EvaluationDomain<F>>(
                         )
                     );
 
-                    domain.fft(
-                        &mut a.as_slice(),
-                    );
+                    domain.fft(&mut a.as_slice());
 
                     add_to_trace!(
                         || format!("****************{}*******************", domain_size),
@@ -150,9 +147,7 @@ fn bench_iffts<F: PrimeField, D: EvaluationDomain<F>>(
                         )
                     );
 
-                    domain.ifft(
-                        &mut a,
-                    );
+                    domain.ifft(&mut a);
 
                     add_to_trace!(
                         || format!("****************{}*******************", domain_size),
@@ -305,9 +300,7 @@ fn bench_dense_poly_div_by_vanishing_poly<F: PrimeField, D: EvaluationDomain<F>>
                 )
             );
 
-            let _ans1 = p.divide_by_vanishing_poly(
-                &domain.clone(),
-            );
+            let _ans1 = p.divide_by_vanishing_poly(&domain.clone());
 
             add_to_trace!(
                 || format!("****************{}*******************", num_coeffs),

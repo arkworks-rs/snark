@@ -28,18 +28,22 @@ pub mod bn382_dual;
 #[cfg(feature = "bn_382")]
 pub use self::bn382_dual::*;
 
-use algebra::{PrimeField, ToConstraintField};
 use crate::FieldBasedHash;
+use algebra::{PrimeField, ToConstraintField};
 
 #[allow(dead_code)]
-pub(crate) fn generate_phantom_merkle_root_from_magic_string<F: PrimeField, H: FieldBasedHash<Data = F>>(
-    magic_string: &str
-) -> F
-{
+pub(crate) fn generate_phantom_merkle_root_from_magic_string<
+    F: PrimeField,
+    H: FieldBasedHash<Data = F>,
+>(
+    magic_string: &str,
+) -> F {
     let magic_string_as_fes = magic_string.as_bytes().to_field_elements().unwrap();
 
     let mut digest = H::init_constant_length(magic_string_as_fes.len(), None);
-    magic_string_as_fes.into_iter().for_each(|fe| { digest.update(fe); });
+    magic_string_as_fes.into_iter().for_each(|fe| {
+        digest.update(fe);
+    });
     digest.finalize().unwrap()
 }
 
@@ -48,8 +52,7 @@ pub(crate) fn generate_mht_empty_nodes<F: PrimeField, H: FieldBasedHash<Data = F
     arity: usize,
     max_height: usize,
     empty_leaf: F,
-) -> Vec<F>
-{
+) -> Vec<F> {
     let mut empty_nodes = Vec::with_capacity(max_height);
     empty_nodes.push(empty_leaf.clone());
 

@@ -1,7 +1,7 @@
-use algebra::Field;
 use crate::crh::FieldBasedHash;
 use crate::merkle_tree::*;
 use crate::Error;
+use algebra::Field;
 
 /// Merkle Tree whose leaves are field elements, best with hash functions
 /// that works with field elements, such as Poseidon. This implementation
@@ -16,17 +16,16 @@ use crate::Error;
 ///    while this is ok for use cases where the Merkle Trees have always the
 ///    same height, it's not for all the others.
 pub struct NaiveMerkleTree<P: FieldBasedMerkleTreeParameters> {
-    height:       usize,
-    tree:         Vec<<P::H as FieldBasedHash>::Data>,
+    height: usize,
+    tree: Vec<<P::H as FieldBasedHash>::Data>,
     padding_tree: Vec<(
         <P::H as FieldBasedHash>::Data,
         <P::H as FieldBasedHash>::Data,
     )>,
-    root:         Option<<P::H as FieldBasedHash>::Data>,
+    root: Option<<P::H as FieldBasedHash>::Data>,
 }
 
 impl<P: FieldBasedMerkleTreeParameters> NaiveMerkleTree<P> {
-    
     pub fn new(height: usize) -> Self {
         NaiveMerkleTree {
             height,
@@ -34,13 +33,9 @@ impl<P: FieldBasedMerkleTreeParameters> NaiveMerkleTree<P> {
             padding_tree: Vec::new(),
             root: None,
         }
-    } 
+    }
 
-    pub fn append(
-        &mut self,
-        leaves: &[<P::H as FieldBasedHash>::Data],
-    ) -> Result<(), Error>
-    {
+    pub fn append(&mut self, leaves: &[<P::H as FieldBasedHash>::Data]) -> Result<(), Error> {
         // Deal with edge cases
         if self.height == 0 {
             // If height = 0, return tree with only the root
@@ -57,7 +52,6 @@ impl<P: FieldBasedMerkleTreeParameters> NaiveMerkleTree<P> {
 
             (*self).tree = vec![root.clone()];
             (*self).root = Some(root);
-
         } else {
             let new_time = start_timer!(|| "MerkleTree::New");
             let num_leaves = leaves.len();
@@ -103,10 +97,8 @@ impl<P: FieldBasedMerkleTreeParameters> NaiveMerkleTree<P> {
                     let right_index = right_child(current_index);
 
                     // Compute Hash(left || right).
-                    tree[current_index] = hash_inner_node::<P::H>(
-                        tree[left_index],
-                        tree[right_index],
-                    )?;
+                    tree[current_index] =
+                        hash_inner_node::<P::H>(tree[left_index], tree[right_index])?;
                 }
                 upper_bound = start_index;
             }
@@ -152,17 +144,21 @@ impl<P: FieldBasedMerkleTreeParameters> NaiveMerkleTree<P> {
     }
 
     #[inline]
-    pub fn height(&self) -> usize { self.height }
+    pub fn height(&self) -> usize {
+        self.height
+    }
 
     pub fn generate_proof(
         &self,
         index: usize,
         leaf: &<P::H as FieldBasedHash>::Data,
-    ) -> Result<FieldBasedBinaryMHTPath<P>, Error>
-    {
+    ) -> Result<FieldBasedBinaryMHTPath<P>, Error> {
         // Check that height is bigger than one
         if self.height == 0 {
-            Err(MerkleTreeError::Other("Unable to prove: no existence proof defined for Merkle Tree of trivial height".to_owned()))?
+            Err(MerkleTreeError::Other(
+                "Unable to prove: no existence proof defined for Merkle Tree of trivial height"
+                    .to_owned(),
+            ))?
         }
 
         // Check that index is not bigger than num_leaves
@@ -195,7 +191,10 @@ impl<P: FieldBasedMerkleTreeParameters> NaiveMerkleTree<P> {
         }
 
         if path.len() > self.height {
-            Err(MerkleTreeError::IncorrectPathLength(path.len(), self.height))?
+            Err(MerkleTreeError::IncorrectPathLength(
+                path.len(),
+                self.height,
+            ))?
         }
 
         //Push the other elements of the padding tree
@@ -205,7 +204,10 @@ impl<P: FieldBasedMerkleTreeParameters> NaiveMerkleTree<P> {
 
         end_timer!(prove_time);
         if path.len() != self.height as usize {
-            Err(MerkleTreeError::IncorrectPathLength(path.len(), self.height))?
+            Err(MerkleTreeError::IncorrectPathLength(
+                path.len(),
+                self.height,
+            ))?
         } else {
             Ok(FieldBasedBinaryMHTPath::<P>::new(path))
         }
@@ -230,12 +232,12 @@ pub(crate) fn hash_empty<H: FieldBasedHash>() -> Result<H::Data, Error> {
 #[cfg(test)]
 mod test {
     use crate::{
-        crh::parameters::{MNT4PoseidonHash, MNT4BatchPoseidonHash},
-        merkle_tree::field_based_mht::*, FieldBasedHash
+        crh::parameters::{MNT4BatchPoseidonHash, MNT4PoseidonHash},
+        merkle_tree::field_based_mht::*,
+        FieldBasedHash,
     };
     use algebra::{
-        fields::mnt4753::Fr as MNT4753Fr, Field,
-        UniformRand, ToBytes, to_bytes, FromBytes,
+        fields::mnt4753::Fr as MNT4753Fr, to_bytes, Field, FromBytes, ToBytes, UniformRand,
     };
     use rand::SeedableRng;
     use rand_xorshift::XorShiftRng;
@@ -248,8 +250,9 @@ mod test {
         type Data = MNT4753Fr;
         type H = MNT4PoseidonHash;
         const MERKLE_ARITY: usize = 2;
-        const ZERO_NODE_CST: Option<FieldBasedMerkleTreePrecomputedZeroConstants<'static, Self::H>> =
-            Some(MNT4753_MHT_POSEIDON_PARAMETERS);
+        const ZERO_NODE_CST: Option<
+            FieldBasedMerkleTreePrecomputedZeroConstants<'static, Self::H>,
+        > = Some(MNT4753_MHT_POSEIDON_PARAMETERS);
     }
 
     impl BatchFieldBasedMerkleTreeParameters for MNT4753FieldBasedMerkleTreeParams {
@@ -259,8 +262,7 @@ mod test {
     type MNT4753FieldBasedMerkleTree = NaiveMerkleTree<MNT4753FieldBasedMerkleTreeParams>;
     type MNT4PoseidonMHT = FieldBasedOptimizedMHT<MNT4753FieldBasedMerkleTreeParams>;
 
-    fn generate_merkle_tree<P: FieldBasedMerkleTreeParameters>(leaves: &[P::Data], height: usize)
-    {
+    fn generate_merkle_tree<P: FieldBasedMerkleTreeParameters>(leaves: &[P::Data], height: usize) {
         let mut tree = NaiveMerkleTree::<P>::new(height);
         tree.append(&leaves).unwrap();
         let root = tree.root().unwrap();
@@ -275,13 +277,23 @@ mod test {
                 // Check leaf index is the correct one
                 assert_eq!(i, proof.leaf_index());
 
-                if i == 0 { assert!(proof.is_leftmost()); } // leftmost check
-                else if i == 2usize.pow(height as u32) - 1 { assert!(proof.is_rightmost()) }  //rightmost check
-                else { assert!(!proof.is_leftmost()); assert!(!proof.is_rightmost()); } // other cases check
+                if i == 0 {
+                    assert!(proof.is_leftmost());
+                }
+                // leftmost check
+                else if i == 2usize.pow(height as u32) - 1 {
+                    assert!(proof.is_rightmost())
+                }
+                //rightmost check
+                else {
+                    assert!(!proof.is_leftmost());
+                    assert!(!proof.is_rightmost());
+                } // other cases check
 
                 // Serialization/deserialization test
                 let proof_serialized = to_bytes!(proof).unwrap();
-                let proof_deserialized = FieldBasedBinaryMHTPath::<P>::read(proof_serialized.as_slice()).unwrap();
+                let proof_deserialized =
+                    FieldBasedBinaryMHTPath::<P>::read(proof_serialized.as_slice()).unwrap();
                 assert_eq!(proof, proof_deserialized);
             }
         } else {
@@ -307,13 +319,10 @@ mod test {
         let mut leaves = Vec::new();
         for _ in 0..4 {
             leaves.push(
-                MNT4PoseidonHash::init_constant_length(
-                    1,
-                    None
-                )
-                .update(MNT4753Fr::rand(&mut rng))
-                .finalize()
-                .unwrap()
+                MNT4PoseidonHash::init_constant_length(1, None)
+                    .update(MNT4753Fr::rand(&mut rng))
+                    .finalize()
+                    .unwrap(),
             );
         }
         generate_merkle_tree::<MNT4753FieldBasedMerkleTreeParams>(&leaves, TEST_HEIGHT);
@@ -335,8 +344,10 @@ mod test {
         generate_merkle_tree::<MNT4753FieldBasedMerkleTreeParams>(&leaves, TEST_HEIGHT);
     }
 
-    fn bad_merkle_tree_verify<P: FieldBasedMerkleTreeParameters>(leaves: &[P::Data], height: usize)
-    {
+    fn bad_merkle_tree_verify<P: FieldBasedMerkleTreeParameters>(
+        leaves: &[P::Data],
+        height: usize,
+    ) {
         let mut tree = NaiveMerkleTree::<P>::new(height);
         tree.append(&leaves).unwrap();
         let root = <P::Data as Field>::zero();
@@ -347,13 +358,23 @@ mod test {
             // Check leaf index is the correct one
             assert_eq!(i, proof.leaf_index());
 
-            if i == 0 { assert!(proof.is_leftmost()); } // leftmost check
-            else if i == 2usize.pow(height as u32) - 1 { assert!(proof.is_rightmost()) }  //rightmost check
-            else { assert!(!proof.is_leftmost()); assert!(!proof.is_rightmost()); } // other cases check
+            if i == 0 {
+                assert!(proof.is_leftmost());
+            }
+            // leftmost check
+            else if i == 2usize.pow(height as u32) - 1 {
+                assert!(proof.is_rightmost())
+            }
+            //rightmost check
+            else {
+                assert!(!proof.is_leftmost());
+                assert!(!proof.is_rightmost());
+            } // other cases check
 
             // Serialization/deserialization test
             let proof_serialized = to_bytes!(proof).unwrap();
-            let proof_deserialized = FieldBasedBinaryMHTPath::<P>::read(proof_serialized.as_slice()).unwrap();
+            let proof_deserialized =
+                FieldBasedBinaryMHTPath::<P>::read(proof_serialized.as_slice()).unwrap();
             assert_eq!(proof, proof_deserialized);
         }
     }
@@ -366,13 +387,10 @@ mod test {
         let mut leaves = Vec::new();
         for _ in 0..4 {
             leaves.push(
-                MNT4PoseidonHash::init_constant_length(
-                    1,
-                    None
-                )
+                MNT4PoseidonHash::init_constant_length(1, None)
                     .update(MNT4753Fr::rand(&mut rng))
                     .finalize()
-                    .unwrap()
+                    .unwrap(),
             );
         }
         bad_merkle_tree_verify::<MNT4753FieldBasedMerkleTreeParams>(&leaves, TEST_HEIGHT);
@@ -415,7 +433,11 @@ mod test {
             tree.append(MNT4753Fr::rand(&mut rng)).unwrap();
         }
         tree.finalize_in_place().unwrap();
-        assert_eq!(tree.root().unwrap(), root1, "Outputs of the Merkle trees for MNT4 do not match.");
+        assert_eq!(
+            tree.root().unwrap(),
+            root1,
+            "Outputs of the Merkle trees for MNT4 do not match."
+        );
     }
 
     #[test]
@@ -436,7 +458,10 @@ mod test {
             for _ in 0..1 << TEST_HEIGHT {
                 leaves.push(MNT4753Fr::rand(&mut rng));
             }
-            assert!(std::panic::catch_unwind(|| generate_merkle_tree::<MNT4753FieldBasedMerkleTreeParams>(&leaves, TEST_HEIGHT)).is_err());
+            assert!(std::panic::catch_unwind(|| generate_merkle_tree::<
+                MNT4753FieldBasedMerkleTreeParams,
+            >(&leaves, TEST_HEIGHT))
+            .is_err());
         }
 
         // HEIGHT == 1
@@ -453,7 +478,10 @@ mod test {
             for _ in 0..1 << TEST_HEIGHT {
                 leaves.push(MNT4753Fr::rand(&mut rng));
             }
-            assert!(std::panic::catch_unwind(|| generate_merkle_tree::<MNT4753FieldBasedMerkleTreeParams>(&leaves, 1)).is_err());
+            assert!(std::panic::catch_unwind(|| generate_merkle_tree::<
+                MNT4753FieldBasedMerkleTreeParams,
+            >(&leaves, 1))
+            .is_err());
         }
 
         // HEIGHT == 0
@@ -469,7 +497,10 @@ mod test {
 
             // Generate Merkle Tree with only the root, passing more than one leaf. Assert error
             leaves.push(MNT4753Fr::rand(&mut rng));
-            assert!(std::panic::catch_unwind(|| generate_merkle_tree::<MNT4753FieldBasedMerkleTreeParams>(&leaves, 0)).is_err());
+            assert!(std::panic::catch_unwind(|| generate_merkle_tree::<
+                MNT4753FieldBasedMerkleTreeParams,
+            >(&leaves, 0))
+            .is_err());
         }
     }
 }

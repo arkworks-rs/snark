@@ -1,17 +1,18 @@
+pub mod g;
 pub mod g1;
 pub mod g2;
-pub mod g;
 #[cfg(test)]
 mod tests;
 
 use crate::{
     biginteger::BigInteger384 as BigInteger,
-    fields::bn_382::*,
-    curves::bn::{Bn, BnParameters, TwistType,
-                 g1::{G1Affine as BnG1Affine, G1Projective as BnG1Projective},
-                 g2::{G2Affine as BnG2Affine, G2Projective as BnG2Projective},
+    curves::bn::{
+        g1::{G1Affine as BnG1Affine, G1Projective as BnG1Projective},
+        g2::{G2Affine as BnG2Affine, G2Projective as BnG2Projective},
+        Bn, BnParameters, TwistType,
     },
     field_new,
+    fields::bn_382::*,
 };
 
 pub type Bn382 = Bn<Bn382Parameters>;
@@ -25,13 +26,12 @@ pub struct Bn382Parameters;
 impl BnParameters for Bn382Parameters {
     const X: &'static [u64] = &[0, 1073873924];
     const X_IS_NEGATIVE: bool = false;
-    const ATE_LOOP_COUNT: &'static [i8] =
-        &[
-            0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-            0, 0, 0, 0, 0, 0, 0, -1, 0, 1, 0, 0, 0, 0, 0, -1, 0, 1, 0, 0, 0, 0, -1, 0, 1, 0, 0, 0, 0,
-            0, 0, 0, 0, 0, 0, -1, 0, 1,
-        ];
+    const ATE_LOOP_COUNT: &'static [i8] = &[
+        0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        0, 0, 0, 0, 0, 0, 0, -1, 0, 1, 0, 0, 0, 0, 0, -1, 0, 1, 0, 0, 0, 0, -1, 0, 1, 0, 0, 0, 0,
+        0, 0, 0, 0, 0, 0, -1, 0, 1,
+    ];
     const ATE_LOOP_COUNT_IS_NEGATIVE: bool = false;
     const TWIST_TYPE: TwistType = TwistType::D;
     const TWIST_MUL_BY_Q_X: Fq2 = field_new!(

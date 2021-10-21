@@ -6,7 +6,7 @@ pub type FqGadget = FpGadget<Fq>;
 #[test]
 fn test() {
     use crate::fields::tests::*;
-    
+
     field_test::<_, Fq, FqGadget>();
     frobenius_tests::<Fq, Fq, FqGadget>(13);
     equ_verdict_fp_gadget_test::<Fq>();

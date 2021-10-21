@@ -1,7 +1,9 @@
-use crate::{Error, Fp3, BigInteger768 as BigInteger, PrimeField, SquareRootField, Fp3Parameters, Fp6Parameters, SWModelParameters, ModelParameters, PairingEngine, Fp6, Field};
+use crate::{
+    BigInteger768 as BigInteger, Error, Field, Fp3, Fp3Parameters, Fp6, Fp6Parameters,
+    ModelParameters, PairingEngine, PrimeField, SWModelParameters, SquareRootField,
+};
 use std::marker::PhantomData;
 use std::ops::{Add, Mul, Sub};
-
 
 // Ate pairing e: G_1 x G_2 -> G_T for MNT6 curves over prime fields
 //
@@ -18,8 +20,8 @@ use std::ops::{Add, Mul, Sub};
 //
 //     E': y^2 = x^3 + (a*twist^2) x + b*twist^3
 //
-// over F3, with twist = X = Y^2, the Frobenius operator is applied to reduce the cost of the 
-// final exponentiation, and we do pre-computations of (essentially) the line coefficients 
+// over F3, with twist = X = Y^2, the Frobenius operator is applied to reduce the cost of the
+// final exponentiation, and we do pre-computations of (essentially) the line coefficients
 // of the Miller loop.
 // The loop count allows signed bit representation, so this variant supports curves with Frobenius
 // trace having low Hamming weight NAF..
@@ -82,14 +84,16 @@ use crate::curves::models::mnt6::g2::G2PreparedCoefficients;
 pub struct MNT6p<P: MNT6Parameters>(PhantomData<fn() -> P>);
 
 impl<P: MNT6Parameters> MNT6p<P> {
-
     // Takes as input a point in G1 in affine coordinates, and outputs a
     // precomputed version of it for pairing purposes.
     fn ate_precompute_g1(value: &G1Affine<P>) -> G1Prepared<P> {
         let mut py_twist_squared = P::TWIST.square();
         py_twist_squared.mul_assign_by_fp(&value.y);
 
-        G1Prepared {p: *value, py_twist_squared}
+        G1Prepared {
+            p: *value,
+            py_twist_squared,
+        }
     }
 
     // Takes as input a (non-zero) point Q from G2 in affine coordinates, and outputs the
@@ -99,7 +103,6 @@ impl<P: MNT6Parameters> MNT6p<P> {
     //     gamma = the F3-slope of the tangent/P-chord at S,
     //     gamma_x = the F3-slope times the x-coordinate s.x of S.
     fn ate_precompute_g2(value: &G2Affine<P>) -> Result<G2Prepared<P>, Error> {
-
         let mut g2p = G2Prepared {
             q: *value,
             coeffs: vec![],
@@ -109,11 +112,11 @@ impl<P: MNT6Parameters> MNT6p<P> {
 
         // signed binary representation of the Ate loop count in big endian order
         for &n in P::WNAF.iter().rev() {
-
             //Doubling step
             let gamma = {
                 let sx_squared = s.x.square();
-                let three_sx_squared_plus_a = sx_squared.double().add(&sx_squared).add(&P::TWIST_COEFF_A);
+                let three_sx_squared_plus_a =
+                    sx_squared.double().add(&sx_squared).add(&P::TWIST_COEFF_A);
                 if value.y.is_zero() {
                     Err(format!("Invalid Q-point value"))?
                 }
@@ -129,7 +132,11 @@ impl<P: MNT6Parameters> MNT6p<P> {
                 let sx_minus_new_sx = s.x.sub(&new_sx);
                 gamma.mul(&sx_minus_new_sx).sub(&s.y) //y-coordinate after doubling
             };
-            let c = G2PreparedCoefficients{r_y: s.y, gamma, gamma_x};
+            let c = G2PreparedCoefficients {
+                r_y: s.y,
+                gamma,
+                gamma_x,
+            };
             g2p.coeffs.push(c);
             s.x = new_sx;
             s.y = new_sy;
@@ -140,7 +147,11 @@ impl<P: MNT6Parameters> MNT6p<P> {
                     Err(format!("Invalid Q-point value"))?
                 }
                 let sx_minus_x_inv = s.x.sub(&value.x).inverse().unwrap();
-                let numerator = if n > 0  { s.y.sub(&value.y) } else { s.y.add(&value.y) };
+                let numerator = if n > 0 {
+                    s.y.sub(&value.y)
+                } else {
+                    s.y.add(&value.y)
+                };
                 let gamma = numerator.mul(&sx_minus_x_inv); //the F3 slope of the chord Q'R'
                 let gamma_x = gamma.mul(&value.x);
                 let new_sx = {
@@ -151,7 +162,11 @@ impl<P: MNT6Parameters> MNT6p<P> {
                     let sx_minus_new_sx = s.x.sub(&new_sx);
                     gamma.mul(&sx_minus_new_sx).sub(&s.y)
                 };
-                let c = G2PreparedCoefficients{r_y: s.y, gamma, gamma_x};
+                let c = G2PreparedCoefficients {
+                    r_y: s.y,
+                    gamma,
+                    gamma_x,
+                };
                 g2p.coeffs.push(c);
                 s.x = new_sx;
                 s.y = new_sy;
@@ -161,9 +176,7 @@ impl<P: MNT6Parameters> MNT6p<P> {
         Ok(g2p)
     }
 
-
     pub fn ate_miller_loop(p: &G1Prepared<P>, q: &G2Prepared<P>) -> Fp6<P::Fp6Params> {
-
         let mut f = Fp6::<P::Fp6Params>::one();
 
         let mut idx: usize = 0;
@@ -192,7 +205,7 @@ impl<P: MNT6Parameters> MNT6p<P> {
             gamma_twist_times_x.mul_assign_by_fp(&p.p.x);
             let g_rr_at_p = Fp6::<P::Fp6Params>::new(
                 p.py_twist_squared,
-                c.gamma_x - &gamma_twist_times_x  -&c.r_y,
+                c.gamma_x - &gamma_twist_times_x - &c.r_y,
             );
             //and cumulate it to f
             f = f.mul_by_2345(&g_rr_at_p);
@@ -212,10 +225,7 @@ impl<P: MNT6Parameters> MNT6p<P> {
                 } else {
                     c.gamma_x - &gamma_twist_times_x + &q.q.y
                 };
-                let g_rq_at_p = Fp6::<P::Fp6Params>::new(
-                    p.py_twist_squared,
-                    g_rq_at_p_c1,
-                );
+                let g_rq_at_p = Fp6::<P::Fp6Params>::new(p.py_twist_squared, g_rq_at_p_c1);
                 //and cumulate it to f
                 f = f.mul_by_2345(&g_rq_at_p);
             }
@@ -237,10 +247,16 @@ impl<P: MNT6Parameters> MNT6p<P> {
         let value_to_first_chunk = Self::final_exponentiation_first_chunk(value, &value_inv);
         let value_inv_to_first_chunk = Self::final_exponentiation_first_chunk(&value_inv, value);
         // "hard part"
-        Ok(Self::final_exponentiation_last_chunk(&value_to_first_chunk, &value_inv_to_first_chunk))
+        Ok(Self::final_exponentiation_last_chunk(
+            &value_to_first_chunk,
+            &value_inv_to_first_chunk,
+        ))
     }
 
-    fn final_exponentiation_first_chunk(elt: &Fp6<P::Fp6Params>, elt_inv: &Fp6<P::Fp6Params>) -> Fp6<P::Fp6Params> {
+    fn final_exponentiation_first_chunk(
+        elt: &Fp6<P::Fp6Params>,
+        elt_inv: &Fp6<P::Fp6Params>,
+    ) -> Fp6<P::Fp6Params> {
         // use the Frobenius map and elt^{-1} to compute the "easy part"
         // elt^{(q^3-1)*(q+1)}
 
@@ -258,7 +274,10 @@ impl<P: MNT6Parameters> MNT6p<P> {
         elt_q3_over_elt
     }
 
-    fn final_exponentiation_last_chunk(elt: &Fp6<P::Fp6Params>, elt_inv: &Fp6<P::Fp6Params>) -> Fp6<P::Fp6Params> {
+    fn final_exponentiation_last_chunk(
+        elt: &Fp6<P::Fp6Params>,
+        elt_inv: &Fp6<P::Fp6Params>,
+    ) -> Fp6<P::Fp6Params> {
         // remaining exponentiaton by m_1*q + m_0, m_0 can be signed.
         let elt_clone = elt.clone();
         let elt_inv_clone = elt_inv.clone();
@@ -282,8 +301,7 @@ impl<P: MNT6Parameters> MNT6p<P> {
     }
 }
 
-impl<P: MNT6Parameters> PairingEngine for MNT6p<P>
-{
+impl<P: MNT6Parameters> PairingEngine for MNT6p<P> {
     type Fr = <P::G1Parameters as ModelParameters>::ScalarField;
     type G1Projective = G1Projective<P>;
     type G1Affine = G1Affine<P>;
@@ -296,8 +314,8 @@ impl<P: MNT6Parameters> PairingEngine for MNT6p<P>
     type Fqk = Fp6<P::Fp6Params>;
 
     fn miller_loop<'a, I>(i: I) -> Result<Self::Fqk, Error>
-        where
-            I: IntoIterator<Item = &'a (Self::G1Prepared, Self::G2Prepared)>,
+    where
+        I: IntoIterator<Item = &'a (Self::G1Prepared, Self::G2Prepared)>,
     {
         let mut result = Self::Fqk::one();
         for &(ref p, ref q) in i {
@@ -310,4 +328,3 @@ impl<P: MNT6Parameters> PairingEngine for MNT6p<P>
         Self::final_exponentiation(r)
     }
 }
-

@@ -1,4 +1,4 @@
-use crate::{Error, SignatureScheme, bytes_to_bits};
+use crate::{bytes_to_bits, Error, SignatureScheme};
 use algebra::{
     bytes::ToBytes,
     fields::{Field, PrimeField},
@@ -7,19 +7,18 @@ use algebra::{
 };
 use digest::Digest;
 use rand::Rng;
+use serde::{Deserialize, Serialize};
 use std::{
     hash::Hash,
     io::{Result as IoResult, Write},
     marker::PhantomData,
 };
-use serde::{Serialize, Deserialize};
 
 pub mod field_based_schnorr;
 
-
 pub struct SchnorrSignature<G: Group, D: Digest> {
     _group: PhantomData<G>,
-    _hash:  PhantomData<D>,
+    _hash: PhantomData<D>,
 }
 
 #[derive(Derivative)]
@@ -29,9 +28,9 @@ pub struct SchnorrSignature<G: Group, D: Digest> {
 #[serde(bound(deserialize = "G: Group, H: Digest"))]
 pub struct SchnorrSigParameters<G: Group, H: Digest> {
     #[serde(skip)]
-    _hash:         PhantomData<H>,
+    _hash: PhantomData<H>,
     pub generator: G,
-    pub salt:      [u8; 32],
+    pub salt: [u8; 32],
 }
 
 pub type SchnorrPublicKey<G> = G;
@@ -57,13 +56,13 @@ impl<G: Group> ToBytes for SchnorrSecretKey<G> {
 #[serde(bound(serialize = "G: Group"))]
 #[serde(bound(deserialize = "G: Group"))]
 pub struct SchnorrSig<G: Group> {
-    pub prover_response:    G::ScalarField,
+    pub prover_response: G::ScalarField,
     pub verifier_challenge: G::ScalarField,
 }
 
 impl<G: Group + Hash, D: Digest + Send + Sync> SignatureScheme for SchnorrSignature<G, D>
-    where
-        G::ScalarField: PrimeField,
+where
+    G::ScalarField: PrimeField,
 {
     type Parameters = SchnorrSigParameters<G, D>;
     type PublicKey = G;
@@ -121,7 +120,7 @@ impl<G: Group + Hash, D: Digest + Send + Sync> SignatureScheme for SchnorrSignat
 
             // Compute the supposed verifier response: e := H(salt || r || msg);
             if let Some(verifier_challenge) =
-            <G::ScalarField as Field>::from_random_bytes(&D::digest(&hash_input))
+                <G::ScalarField as Field>::from_random_bytes(&D::digest(&hash_input))
             {
                 break (random_scalar, verifier_challenge);
             };
@@ -160,7 +159,7 @@ impl<G: Group + Hash, D: Digest + Send + Sync> SignatureScheme for SchnorrSignat
         hash_input.extend_from_slice(&message);
 
         let obtained_verifier_challenge = if let Some(obtained_verifier_challenge) =
-        <G::ScalarField as Field>::from_random_bytes(&D::digest(&hash_input))
+            <G::ScalarField as Field>::from_random_bytes(&D::digest(&hash_input))
         {
             obtained_verifier_challenge
         } else {
@@ -213,7 +212,7 @@ impl<G: Group + Hash, D: Digest + Send + Sync> SignatureScheme for SchnorrSignat
         }
 
         let new_sig = SchnorrSig {
-            prover_response:    *prover_response - &(*verifier_challenge * &multiplier),
+            prover_response: *prover_response - &(*verifier_challenge * &multiplier),
             verifier_challenge: *verifier_challenge,
         };
         end_timer!(rand_signature_time);
@@ -222,7 +221,7 @@ impl<G: Group + Hash, D: Digest + Send + Sync> SignatureScheme for SchnorrSignat
 }
 
 impl<ConstraintF: Field, G: Group + ToConstraintField<ConstraintF>, D: Digest>
-ToConstraintField<ConstraintF> for SchnorrSigParameters<G, D>
+    ToConstraintField<ConstraintF> for SchnorrSigParameters<G, D>
 {
     #[inline]
     fn to_field_elements(&self) -> Result<Vec<ConstraintF>, Error> {

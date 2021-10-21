@@ -1,7 +1,10 @@
-use rand::{Rng, distributions::{Standard, Distribution}};
+use rand::{
+    distributions::{Distribution, Standard},
+    Rng,
+};
 use std::{
     fmt::{Display, Formatter, Result as FmtResult},
-    io::{Read, Result as IoResult, Error as IoError, Write, ErrorKind},
+    io::{Error as IoError, ErrorKind, Read, Result as IoResult, Write},
     marker::PhantomData,
     ops::{Add, AddAssign, Mul, MulAssign, Neg, Sub, SubAssign},
 };
@@ -9,14 +12,15 @@ use std::{
 use crate::{
     bytes::{FromBytes, ToBytes},
     curves::{
-        models::TEModelParameters as Parameters, models::MontgomeryModelParameters as MontgomeryParameters,
-        AffineCurve, ProjectiveCurve
-    }, fields::{BitIterator, Field, PrimeField, SquareRootField}, UniformRand, SemanticallyValid,
-    Error, FromBytesChecked, ToCompressedBits, FromCompressedBits, BitSerializationError,
-    CanonicalSerialize, SerializationError, CanonicalSerializeWithFlags, CanonicalDeserialize,
-    CanonicalDeserializeWithFlags, EdwardsFlags
+        models::MontgomeryModelParameters as MontgomeryParameters,
+        models::TEModelParameters as Parameters, AffineCurve, ProjectiveCurve,
+    },
+    fields::{BitIterator, Field, PrimeField, SquareRootField},
+    BitSerializationError, CanonicalDeserialize, CanonicalDeserializeWithFlags, CanonicalSerialize,
+    CanonicalSerializeWithFlags, EdwardsFlags, Error, FromBytesChecked, FromCompressedBits,
+    SemanticallyValid, SerializationError, ToCompressedBits, UniformRand,
 };
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
 #[cfg(test)]
 pub mod tests;
@@ -176,11 +180,12 @@ impl<P: Parameters> AffineCurve for GroupAffine<P> {
     }
 
     fn group_membership_test(&self) -> bool {
-        self.is_on_curve() && if !self.is_zero() {
-            self.is_in_correct_subgroup_assuming_on_curve()
-        } else {
-            true
-        }
+        self.is_on_curve()
+            && if !self.is_zero() {
+                self.is_in_correct_subgroup_assuming_on_curve()
+            } else {
+                true
+            }
     }
 
     fn add_points(_: &mut [Vec<Self>]) {
@@ -204,13 +209,9 @@ impl<P: Parameters> AffineCurve for GroupAffine<P> {
     }
 }
 
-impl<P: Parameters> SemanticallyValid for GroupAffine<P>
-{
+impl<P: Parameters> SemanticallyValid for GroupAffine<P> {
     fn is_valid(&self) -> bool {
-
-        self.x.is_valid() &&
-        self.y.is_valid() &&
-        self.group_membership_test()
+        self.x.is_valid() && self.y.is_valid() && self.group_membership_test()
     }
 }
 
@@ -302,18 +303,19 @@ impl<P: Parameters> FromBytesChecked for GroupAffine<P> {
         let y = P::BaseField::read_checked(reader)?;
         let p = Self::new(x, y);
         if !p.group_membership_test() {
-            return Err(IoError::new(ErrorKind::InvalidData, "invalid point: group membership test failed"));
+            return Err(IoError::new(
+                ErrorKind::InvalidData,
+                "invalid point: group membership test failed",
+            ));
         }
         Ok(p)
     }
 }
 
-use crate::{ToBits, FromBits};
-impl<P: Parameters> ToCompressedBits for GroupAffine<P>
-{
+use crate::{FromBits, ToBits};
+impl<P: Parameters> ToCompressedBits for GroupAffine<P> {
     #[inline]
     fn compress(&self) -> Vec<bool> {
-
         let mut res = self.x.write_bits();
 
         // Is the y-coordinate the odd one of the two associated with the
@@ -324,8 +326,7 @@ impl<P: Parameters> ToCompressedBits for GroupAffine<P>
     }
 }
 
-impl<P: Parameters> FromCompressedBits for GroupAffine<P>
-{
+impl<P: Parameters> FromCompressedBits for GroupAffine<P> {
     #[inline]
     fn decompress(compressed: Vec<bool>) -> Result<Self, Error> {
         let len = compressed.len() - 1;
@@ -336,13 +337,11 @@ impl<P: Parameters> FromCompressedBits for GroupAffine<P>
 
         //Attempt to get the y coordinate from its parity and x
         match Self::get_point_from_x_and_parity(x, parity_flag_set) {
-
             //Check p belongs to the subgroup we expect
             Some(p) => {
                 if p.is_zero() || p.is_in_correct_subgroup_assuming_on_curve() {
                     Ok(p)
-                }
-                else {
+                } else {
                     let e = BitSerializationError::NotPrimeOrder;
                     Err(Box::new(e))
                 }
@@ -491,7 +490,10 @@ impl<P: Parameters> FromBytesChecked for GroupProjective<P> {
         let z = P::BaseField::read_checked(reader)?;
         let p = Self::new(x, y, t, z);
         if !p.group_membership_test() {
-            return Err(IoError::new(ErrorKind::InvalidData, "invalid point: group membership test failed"));
+            return Err(IoError::new(
+                ErrorKind::InvalidData,
+                "invalid point: group membership test failed",
+            ));
         }
         Ok(p)
     }
@@ -555,7 +557,8 @@ impl<P: Parameters> ProjectiveCurve for GroupProjective<P> {
         // First pass: compute [a, ab, abc, ...]
         let mut prod = Vec::with_capacity(v.len());
         let mut tmp = P::BaseField::one();
-        for g in v.iter_mut()
+        for g in v
+            .iter_mut()
             // Ignore normalized elements
             .filter(|g| !g.is_normalized())
         {
@@ -567,13 +570,19 @@ impl<P: Parameters> ProjectiveCurve for GroupProjective<P> {
         tmp = tmp.inverse().unwrap(); // Guaranteed to be nonzero.
 
         // Second pass: iterate backwards to compute inverses
-        for (g, s) in v.iter_mut()
+        for (g, s) in v
+            .iter_mut()
             // Backwards
             .rev()
-                // Ignore normalized elements
-                .filter(|g| !g.is_normalized())
-                // Backwards, skip last element, fill in one for last term.
-                .zip(prod.into_iter().rev().skip(1).chain(Some(P::BaseField::one())))
+            // Ignore normalized elements
+            .filter(|g| !g.is_normalized())
+            // Backwards, skip last element, fill in one for last term.
+            .zip(
+                prod.into_iter()
+                    .rev()
+                    .skip(1)
+                    .chain(Some(P::BaseField::one())),
+            )
         {
             // tmp := tmp * g.z; g.z := tmp * s = 1/z
             let newtmp = tmp * &g.z;
@@ -661,15 +670,13 @@ impl<P: Parameters> ProjectiveCurve for GroupProjective<P> {
     }
 }
 
-impl<P: Parameters> SemanticallyValid for GroupProjective<P>
-{
+impl<P: Parameters> SemanticallyValid for GroupProjective<P> {
     fn is_valid(&self) -> bool {
-
-        self.x.is_valid() &&
-        self.y.is_valid() &&
-        self.z.is_valid() &&
-        self.t.is_valid() &&
-        self.group_membership_test()
+        self.x.is_valid()
+            && self.y.is_valid()
+            && self.z.is_valid()
+            && self.t.is_valid()
+            && self.group_membership_test()
     }
 }
 
@@ -888,7 +895,9 @@ impl<P: Parameters> CanonicalDeserialize for GroupAffine<P> {
     }
 
     #[allow(unused_qualifications)]
-    fn deserialize_uncompressed_unchecked<R: Read>(mut reader: R) -> Result<Self, SerializationError> {
+    fn deserialize_uncompressed_unchecked<R: Read>(
+        mut reader: R,
+    ) -> Result<Self, SerializationError> {
         let x: P::BaseField = CanonicalDeserialize::deserialize(&mut reader)?;
         let y: P::BaseField = CanonicalDeserialize::deserialize(&mut reader)?;
 
@@ -918,19 +927,20 @@ impl<P: Parameters> CanonicalDeserialize for GroupProjective<P> {
 
     #[allow(unused_qualifications)]
     fn deserialize_uncompressed_unchecked<R: Read>(reader: R) -> Result<Self, SerializationError> {
-        let aff = <GroupAffine<P> as CanonicalDeserialize>::deserialize_uncompressed_unchecked(reader)?;
+        let aff =
+            <GroupAffine<P> as CanonicalDeserialize>::deserialize_uncompressed_unchecked(reader)?;
         Ok(aff.into())
     }
 }
 
 #[derive(Derivative)]
 #[derivative(
-Copy(bound = "P: MontgomeryParameters"),
-Clone(bound = "P: MontgomeryParameters"),
-PartialEq(bound = "P: MontgomeryParameters"),
-Eq(bound = "P: MontgomeryParameters"),
-Debug(bound = "P: MontgomeryParameters"),
-Hash(bound = "P: MontgomeryParameters")
+    Copy(bound = "P: MontgomeryParameters"),
+    Clone(bound = "P: MontgomeryParameters"),
+    PartialEq(bound = "P: MontgomeryParameters"),
+    Eq(bound = "P: MontgomeryParameters"),
+    Debug(bound = "P: MontgomeryParameters"),
+    Hash(bound = "P: MontgomeryParameters")
 )]
 pub struct MontgomeryGroupAffine<P: MontgomeryParameters> {
     pub x: P::BaseField,
@@ -954,4 +964,3 @@ impl<P: MontgomeryParameters> MontgomeryGroupAffine<P> {
         }
     }
 }
-

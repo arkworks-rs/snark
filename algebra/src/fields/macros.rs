@@ -41,10 +41,7 @@ macro_rules! impl_prime_field_serializer {
 
         impl<P: $params> CanonicalSerialize for $field<P> {
             #[inline]
-            fn serialize<W: Write>(
-                &self,
-                writer: W,
-            ) -> Result<(), SerializationError> {
+            fn serialize<W: Write>(&self, writer: W) -> Result<(), SerializationError> {
                 self.serialize_with_flags(writer, EmptyFlags)
             }
 

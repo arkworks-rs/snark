@@ -1,10 +1,10 @@
-use r1cs_core::{ConstraintSystem, SynthesisError};
-use primitives::{commitment::blake2s::Blake2sCommitment};
 use crate::{
     prf::blake2s::{blake2s_gadget, Blake2sOutputGadget},
     CommitmentGadget,
 };
 use algebra::{Field, PrimeField};
+use primitives::commitment::blake2s::Blake2sCommitment;
+use r1cs_core::{ConstraintSystem, SynthesisError};
 use r1cs_std::prelude::*;
 
 use std::borrow::Borrow;
@@ -109,20 +109,15 @@ impl<ConstraintF: PrimeField> AllocGadget<[u8; 32], ConstraintF> for Blake2sRand
 
 #[cfg(test)]
 mod test {
-    use algebra::fields::bls12_381::Fr;
-    use rand::{thread_rng, Rng};
-    use primitives::commitment::{
-        blake2s::Blake2sCommitment,
-        CommitmentScheme,
-    };
     use crate::{
-        commitment::blake2s::{
-            Blake2sCommitmentGadget, Blake2sRandomnessGadget,
-        },
+        commitment::blake2s::{Blake2sCommitmentGadget, Blake2sRandomnessGadget},
         *,
     };
+    use algebra::fields::bls12_381::Fr;
+    use primitives::commitment::{blake2s::Blake2sCommitment, CommitmentScheme};
     use r1cs_core::ConstraintSystem;
     use r1cs_std::{prelude::*, test_constraint_system::TestConstraintSystem};
+    use rand::{thread_rng, Rng};
 
     #[test]
     fn commitment_gadget_test() {
@@ -141,15 +136,14 @@ mod test {
         let parameters = ();
         let primitive_result = Blake2sCommitment::commit(&parameters, &input, &randomness).unwrap();
 
-        let input_bytes = UInt8::alloc_input_vec(
-            cs.ns(|| "alloc input bytes as public input"),
-            &input
-        ).unwrap();
+        let input_bytes =
+            UInt8::alloc_input_vec(cs.ns(|| "alloc input bytes as public input"), &input).unwrap();
 
         let randomness_bytes = UInt8::alloc_input_vec(
             cs.ns(|| "alloc randomness bytes as public input"),
-            &randomness
-        ).unwrap();
+            &randomness,
+        )
+        .unwrap();
 
         let randomness_bytes = Blake2sRandomnessGadget(randomness_bytes);
 

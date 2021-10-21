@@ -1,5 +1,5 @@
-use algebra::fields::tweedle::{Fq, Fr};
 use crate::fields::fp::FpGadget;
+use algebra::fields::tweedle::{Fq, Fr};
 
 pub type FqGadget = FpGadget<Fq>;
 pub type FrGadget = FpGadget<Fr>;

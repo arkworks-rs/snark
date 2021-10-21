@@ -1,4 +1,7 @@
-use crate::{biginteger::BigInteger, fields::{Field, PrimeField, SquareRootField}};
+use crate::{
+    biginteger::BigInteger,
+    fields::{Field, PrimeField, SquareRootField},
+};
 
 pub mod bls12;
 pub mod bn;

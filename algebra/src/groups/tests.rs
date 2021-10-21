@@ -1,4 +1,4 @@
-use crate::{Group, AffineCurve, Field, UniformRand, ToCompressedBits, FromCompressedBits};
+use crate::{AffineCurve, Field, FromCompressedBits, Group, ToCompressedBits, UniformRand};
 use rand::SeedableRng;
 use rand_xorshift::XorShiftRng;
 
@@ -73,7 +73,6 @@ pub fn group_test<G: Group>(a: G, mut b: G) {
 }
 
 pub fn compression_test<T: AffineCurve + ToCompressedBits + FromCompressedBits>(even: T, odd: T) {
-
     //Test correct compression/de-compression of a non-zero point with even y
     let even_compressed = even.compress();
     let even_len = even_compressed.len();

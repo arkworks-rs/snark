@@ -1,8 +1,15 @@
-use crate::{curves::{
-    sw6::{G1Affine, G1Projective, G2Affine, G2Projective, SW6, g1::SW6G1Parameters, g2::SW6G2Parameters},
-    tests::{curve_tests, sw_jacobian_tests},
-    AffineCurve, PairingEngine,
-}, groups::tests::group_test, SemanticallyValid};
+use crate::{
+    curves::{
+        sw6::{
+            g1::SW6G1Parameters, g2::SW6G2Parameters, G1Affine, G1Projective, G2Affine,
+            G2Projective, SW6,
+        },
+        tests::{curve_tests, sw_jacobian_tests},
+        AffineCurve, PairingEngine,
+    },
+    groups::tests::group_test,
+    SemanticallyValid,
+};
 
 #[test]
 fn test_g1_projective_curve() {

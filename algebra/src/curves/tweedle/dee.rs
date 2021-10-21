@@ -3,10 +3,10 @@ use crate::{
     biginteger::BigInteger256,
     curves::{
         models::short_weierstrass_jacobian::{GroupAffine, GroupProjective},
-        ModelParameters, SWModelParameters
+        ModelParameters, SWModelParameters,
     },
+    fields::tweedle::*,
     Field,
-    fields::tweedle::*
 };
 
 #[derive(Copy, Clone, Default, PartialEq, Eq)]

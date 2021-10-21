@@ -1,11 +1,11 @@
 use super::quadratic_extension::*;
 use std::marker::PhantomData;
-use std::ops::{Neg, MulAssign};
+use std::ops::{MulAssign, Neg};
 
 use crate::{
-    fields::{Fp3, Fp3Parameters, Field, SquareRootField},
-    bits::{ToBits, ToCompressedBits, FromBits, FromCompressedBits},
-    Error, BitSerializationError,
+    bits::{FromBits, FromCompressedBits, ToBits, ToCompressedBits},
+    fields::{Field, Fp3, Fp3Parameters, SquareRootField},
+    BitSerializationError, Error,
 };
 
 /// Model for quadratic extension field F6 as towered extension
@@ -43,7 +43,6 @@ impl<P: Fp6Parameters> QuadExtParameters for Fp6ParamsWrapper<P> {
     type FrobCoeff = Self::BasePrimeField;
 
     const DEGREE_OVER_BASE_PRIME_FIELD: usize = 6;
-
 
     const NONRESIDUE: Self::BaseField = P::NONRESIDUE;
 
@@ -124,7 +123,7 @@ impl<P: Fp6Parameters> Fp6<P> {
 
     //Mul by an element of the form [c0: (0, 0, a), c1: (b, c, d)]
     pub fn mul_by_2345(self, other: &Self) -> Self
-    /* Devegili OhEig Scott Dahab --- Multiplication and Squaring on Pairing-Friendly Fields.pdf; Section 3 (Karatsuba) */
+/* Devegili OhEig Scott Dahab --- Multiplication and Squaring on Pairing-Friendly Fields.pdf; Section 3 (Karatsuba) */
     {
         let v0 = {
             let t = other.c0.c2 * &<P::Fp3Params as Fp3Parameters>::NONRESIDUE;
@@ -133,7 +132,7 @@ impl<P: Fp6Parameters> Fp6<P> {
         let v1 = self.c1 * &other.c1;
         let beta_v1 = P::mul_fp3_by_nonresidue(&v1);
         let c0 = v0 + &beta_v1;
-        let c1 = (self.c0 + &self.c1) * &(other.c0 + &other.c1) -&v0 -&v1;
+        let c1 = (self.c0 + &self.c1) * &(other.c0 + &other.c1) - &v0 - &v1;
         Self::new(c0, c1)
     }
 }
@@ -144,10 +143,8 @@ impl<P: Fp6Parameters> Fp6<P> {
 /// of the result.
 
 impl<P: Fp6Parameters> ToCompressedBits for Fp6<P> {
-
     #[inline]
     fn compress(&self) -> Vec<bool> {
-
         //Serialize c1
         let mut res = self.c1.write_bits();
 
@@ -160,7 +157,6 @@ impl<P: Fp6Parameters> ToCompressedBits for Fp6<P> {
 }
 
 impl<P: Fp6Parameters> FromCompressedBits for Fp6<P> {
-
     #[inline]
     fn decompress(compressed: Vec<bool>) -> Result<Self, Error> {
         let len = compressed.len() - 1;
@@ -176,13 +172,16 @@ impl<P: Fp6Parameters> FromCompressedBits for Fp6<P> {
         };
 
         match c0 {
-
             //Estabilish c0 parity
             Some(c0_u) => {
                 let neg_c0u = c0_u.neg();
-                let c0_s = if c0_u.is_odd() ^ parity_flag_set {neg_c0u} else {c0_u};
+                let c0_s = if c0_u.is_odd() ^ parity_flag_set {
+                    neg_c0u
+                } else {
+                    c0_u
+                };
                 Ok(Self::new(c0_s, c1))
-            },
+            }
 
             //sqrt(1 + nr*c1^2) doesn't exists in the field
             _ => Err(Box::new(BitSerializationError::UndefinedSqrt)),

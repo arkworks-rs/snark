@@ -1,13 +1,11 @@
-use algebra::{
-    CubicExtField, CubicExtParameters,
-    Field, PrimeField, SquareRootField
-};
+use algebra::{CubicExtField, CubicExtParameters, Field, PrimeField, SquareRootField};
 use r1cs_core::{ConstraintSystem, SynthesisError};
 use std::{borrow::Borrow, marker::PhantomData};
 
 use crate::{fields::FieldGadget, prelude::*, Assignment};
 
-pub trait CubicExtParametersGadget<ConstraintF: PrimeField>: CubicExtParameters<BasePrimeField = ConstraintF>
+pub trait CubicExtParametersGadget<ConstraintF: PrimeField>:
+    CubicExtParameters<BasePrimeField = ConstraintF>
 {
     type BaseFieldGadget: FieldGadget<Self::BaseField, ConstraintF>;
 
@@ -27,10 +25,14 @@ pub trait CubicExtParametersGadget<ConstraintF: PrimeField>: CubicExtParameters<
 }
 
 #[derive(Derivative)]
-#[derivative(Debug(bound = "P: CubicExtParametersGadget<ConstraintF>, ConstraintF: PrimeField + SquareRootField"))]
+#[derivative(Debug(
+    bound = "P: CubicExtParametersGadget<ConstraintF>, ConstraintF: PrimeField + SquareRootField"
+))]
 #[must_use]
-pub struct CubicExtFieldGadget<P: CubicExtParametersGadget<ConstraintF>, ConstraintF: PrimeField + SquareRootField>
-{
+pub struct CubicExtFieldGadget<
+    P: CubicExtParametersGadget<ConstraintF>,
+    ConstraintF: PrimeField + SquareRootField,
+> {
     pub c0: P::BaseFieldGadget,
     pub c1: P::BaseFieldGadget,
     pub c2: P::BaseFieldGadget,
@@ -38,7 +40,8 @@ pub struct CubicExtFieldGadget<P: CubicExtParametersGadget<ConstraintF>, Constra
     _params: PhantomData<P>,
 }
 
-impl<P: CubicExtParametersGadget<ConstraintF>, ConstraintF: PrimeField + SquareRootField> CubicExtFieldGadget<P, ConstraintF>
+impl<P: CubicExtParametersGadget<ConstraintF>, ConstraintF: PrimeField + SquareRootField>
+    CubicExtFieldGadget<P, ConstraintF>
 {
     #[inline]
     pub fn new(c0: P::BaseFieldGadget, c1: P::BaseFieldGadget, c2: P::BaseFieldGadget) -> Self {
@@ -98,8 +101,12 @@ impl<P: CubicExtParametersGadget<ConstraintF>, ConstraintF: PrimeField + SquareR
     }
 
     #[inline]
-    fn conditionally_add_constant<CS: ConstraintSystem<ConstraintF>>
-    (&self, mut cs: CS, bit: &Boolean, coeff: CubicExtField<P>) -> Result<Self, SynthesisError> {
+    fn conditionally_add_constant<CS: ConstraintSystem<ConstraintF>>(
+        &self,
+        mut cs: CS,
+        bit: &Boolean,
+        coeff: CubicExtField<P>,
+    ) -> Result<Self, SynthesisError> {
         let c0 = self
             .c0
             .conditionally_add_constant(cs.ns(|| "c0"), bit, coeff.c0)?;
@@ -137,7 +144,10 @@ impl<P: CubicExtParametersGadget<ConstraintF>, ConstraintF: PrimeField + SquareR
     }
 
     #[inline]
-    fn negate<CS: ConstraintSystem<ConstraintF>>(&self, mut cs: CS) -> Result<Self, SynthesisError> {
+    fn negate<CS: ConstraintSystem<ConstraintF>>(
+        &self,
+        mut cs: CS,
+    ) -> Result<Self, SynthesisError> {
         let c0 = self.c0.negate(&mut cs.ns(|| "negate c0"))?;
         let c1 = self.c1.negate(&mut cs.ns(|| "negate c1"))?;
         let c2 = self.c2.negate(&mut cs.ns(|| "negate c2"))?;
@@ -357,14 +367,11 @@ impl<P: CubicExtParametersGadget<ConstraintF>, ConstraintF: PrimeField + SquareR
         // that a(∞)b(∞) = lambda_1 at X = ∞.
         let lambda_1 = self.c2.mul(cs.ns(|| "lambda_1 <=> check 5"), &other.c2)?;
 
-        let lambda_2 = P::BaseFieldGadget::alloc(
-            cs.ns(|| "lambda_2"),
-            || {
-                let a1b2 = self.c1.get_value().get()? * &other.c2.get_value().get()?;
-                let a2b1 = self.c2.get_value().get()? * &other.c1.get_value().get()?;
-                Ok(a1b2 + &a2b1)
-            }
-        )?;
+        let lambda_2 = P::BaseFieldGadget::alloc(cs.ns(|| "lambda_2"), || {
+            let a1b2 = self.c1.get_value().get()? * &other.c2.get_value().get()?;
+            let a2b1 = self.c2.get_value().get()? * &other.c1.get_value().get()?;
+            Ok(a1b2 + &a2b1)
+        })?;
 
         let one = P::BaseField::one();
 
@@ -375,7 +382,8 @@ impl<P: CubicExtParametersGadget<ConstraintF>, ConstraintF: PrimeField + SquareR
                 .negate(cs.ns(|| "-(nr * lambda_2)"))?
                 .add(cs.ns(|| "c0 - nr * lambda_2"), &result.c0)?;
 
-            self.c0.mul_equals(cs.ns(|| "check 1"), &other.c0, &c0_plus_nr_lambda_2)?;
+            self.c0
+                .mul_equals(cs.ns(|| "check 1"), &other.c0, &c0_plus_nr_lambda_2)?;
         }
 
         //(a0 + a1 + a2)(b0 + b1 + b2) = (c0 + c1 + c2) + (lambda_1 + lambda_2)*(1 - β) at X = 1
@@ -394,10 +402,15 @@ impl<P: CubicExtParametersGadget<ConstraintF>, ConstraintF: PrimeField + SquareR
                 .add(cs.ns(|| "c0 + c1 + c2"), &result.c2)?;
             let lambda_1_plus_lambda_2_times_one_minus_nr = lambda_1
                 .add(cs.ns(|| "lambda_1 + lambda_2"), &lambda_2)?
-                .mul_by_constant(cs.ns(|| "(lambda_1 + lambda_2)*(1 - nr)"), &(one - &P::NONRESIDUE))?;
+                .mul_by_constant(
+                    cs.ns(|| "(lambda_1 + lambda_2)*(1 - nr)"),
+                    &(one - &P::NONRESIDUE),
+                )?;
 
-            let to_check = c0_plus_c1_plus_c2
-                .add(cs.ns(|| "c0 + c1 + c2 + (lambda_1 + lambda_2)*(1 - nr)"), &lambda_1_plus_lambda_2_times_one_minus_nr)?;
+            let to_check = c0_plus_c1_plus_c2.add(
+                cs.ns(|| "c0 + c1 + c2 + (lambda_1 + lambda_2)*(1 - nr)"),
+                &lambda_1_plus_lambda_2_times_one_minus_nr,
+            )?;
             a0_plus_a1_plus_a2.mul_equals(cs.ns(|| "check 2"), &b0_plus_b1_plus_b2, &to_check)?;
         }
 
@@ -417,32 +430,33 @@ impl<P: CubicExtParametersGadget<ConstraintF>, ConstraintF: PrimeField + SquareR
                 .add(cs.ns(|| "c0 - c1 + c2"), &result.c2)?;
             let lambda_1_minus_lambda_2_times_one_plus_nr = lambda_1
                 .sub(cs.ns(|| "lambda_1 - lambda_2"), &lambda_2)?
-                .mul_by_constant(cs.ns(|| "(lambda_1 - lambda_2)*(1 + nr)"), &(one + &P::NONRESIDUE))?;
+                .mul_by_constant(
+                    cs.ns(|| "(lambda_1 - lambda_2)*(1 + nr)"),
+                    &(one + &P::NONRESIDUE),
+                )?;
 
-            let to_check = c0_minus_c1_plus_c2
-                .add(cs.ns(|| "c0 - c1 + c2 + (lambda_1 - lambda_2)*(1 + nr)"), &lambda_1_minus_lambda_2_times_one_plus_nr)?;
+            let to_check = c0_minus_c1_plus_c2.add(
+                cs.ns(|| "c0 - c1 + c2 + (lambda_1 - lambda_2)*(1 + nr)"),
+                &lambda_1_minus_lambda_2_times_one_plus_nr,
+            )?;
             a0_minus_a1_plus_a2.mul_equals(cs.ns(|| "check 3"), &b0_minus_b1_plus_b2, &to_check)?;
         }
 
         // (a0 + 2a1 + 4a2)(b0 + 2b1 + 4b2) = (c0 + 2c1 + 4c2) + (2lambda_1 + lambda_2)(8 - β) at X = 2
         {
-
             let a0_plus_2_a1_plus_4_a2 = {
-
                 let a1_double = self.c1.double(cs.ns(|| "2 * a1"))?;
                 let a2_quad = self
                     .c2
                     .double(cs.ns(|| "2 * a2"))?
                     .double(cs.ns(|| "4 * a2"))?;
 
-                self
-                    .c0
+                self.c0
                     .add(cs.ns(|| "a0 + 2a1"), &a1_double)?
                     .add(cs.ns(|| "a0 + 2a1 + 4a2"), &a2_quad)?
             };
 
             let b0_plus_2_b1_plus_4_b2 = {
-
                 let b1_double = other.c1.double(cs.ns(|| "2 * b1"))?;
                 let b2_quad = other
                     .c2
@@ -456,7 +470,6 @@ impl<P: CubicExtParametersGadget<ConstraintF>, ConstraintF: PrimeField + SquareR
             };
 
             let c0_plus_2_c1_plus_4_c2 = {
-
                 let c1_double = result.c1.double(cs.ns(|| "2 * c1"))?;
                 let c2_quad = result
                     .c2
@@ -473,11 +486,20 @@ impl<P: CubicExtParametersGadget<ConstraintF>, ConstraintF: PrimeField + SquareR
             let two_lambda_1_plus_lambda_2_times_eight_minus_nr = lambda_1
                 .double(cs.ns(|| "2*lambda_1"))?
                 .add(cs.ns(|| "2*lambda_1 + lambda_2"), &lambda_2)?
-                .mul_by_constant(cs.ns(|| "(2*lambda_1 + lambda_2)*(8 - nr)"), &(eight - &P::NONRESIDUE))?;
+                .mul_by_constant(
+                    cs.ns(|| "(2*lambda_1 + lambda_2)*(8 - nr)"),
+                    &(eight - &P::NONRESIDUE),
+                )?;
 
-            let to_check = c0_plus_2_c1_plus_4_c2
-                .add(cs.ns(|| "(c0 + 2c1 + 4c2) + (2*lambda_1 + lambda_2)*(8 - nr)"), &two_lambda_1_plus_lambda_2_times_eight_minus_nr)?;
-            a0_plus_2_a1_plus_4_a2.mul_equals(cs.ns(|| "check 4"), &b0_plus_2_b1_plus_4_b2, &to_check)?;
+            let to_check = c0_plus_2_c1_plus_4_c2.add(
+                cs.ns(|| "(c0 + 2c1 + 4c2) + (2*lambda_1 + lambda_2)*(8 - nr)"),
+                &two_lambda_1_plus_lambda_2_times_eight_minus_nr,
+            )?;
+            a0_plus_2_a1_plus_4_a2.mul_equals(
+                cs.ns(|| "check 4"),
+                &b0_plus_2_b1_plus_4_b2,
+                &to_check,
+            )?;
         }
 
         Ok(())
@@ -519,8 +541,12 @@ impl<P: CubicExtParametersGadget<ConstraintF>, ConstraintF: PrimeField + SquareR
         // c0 = b0*a0 + β*b2*a1 + β*b1*a2,
         let c0 = {
             let a0_b0 = self.c0.mul_by_constant(cs.ns(|| "a0 * b0"), &other.c0)?;
-            let a1_b2_nr = self.c1.mul_by_constant(cs.ns(|| "a1 * b2 * nr"), &(other.c2 * &P::NONRESIDUE))?;
-            let a2_b1_nr = self.c2.mul_by_constant(cs.ns(|| "a2 * b1 * nr"), &(other.c1 * &P::NONRESIDUE))?;
+            let a1_b2_nr = self
+                .c1
+                .mul_by_constant(cs.ns(|| "a1 * b2 * nr"), &(other.c2 * &P::NONRESIDUE))?;
+            let a2_b1_nr = self
+                .c2
+                .mul_by_constant(cs.ns(|| "a2 * b1 * nr"), &(other.c1 * &P::NONRESIDUE))?;
 
             a0_b0
                 .add(cs.ns(|| "a0 * b0 + a1 * b2 * nr"), &a1_b2_nr)?
@@ -531,7 +557,9 @@ impl<P: CubicExtParametersGadget<ConstraintF>, ConstraintF: PrimeField + SquareR
         let c1 = {
             let a0_b1 = self.c0.mul_by_constant(cs.ns(|| "a0 * b1"), &other.c1)?;
             let a1_b0 = self.c1.mul_by_constant(cs.ns(|| "a1 * b0"), &other.c0)?;
-            let a2_b2_nr = self.c2.mul_by_constant(cs.ns(|| "a2 * b2 * nr"), &(other.c2 * &P::NONRESIDUE))?;
+            let a2_b2_nr = self
+                .c2
+                .mul_by_constant(cs.ns(|| "a2 * b2 * nr"), &(other.c2 * &P::NONRESIDUE))?;
 
             a0_b1
                 .add(cs.ns(|| "a0 * b1 + a1 * b0"), &a1_b0)?
@@ -575,7 +603,8 @@ impl<P: CubicExtParametersGadget<ConstraintF>, ConstraintF: PrimeField + SquareR
             &mut cs.ns(|| "c1 and c2 powers"),
             &mut self.c1,
             &mut self.c2,
-            power)?;
+            power,
+        )?;
 
         Ok(self)
     }
@@ -591,27 +620,32 @@ impl<P: CubicExtParametersGadget<ConstraintF>, ConstraintF: PrimeField + SquareR
     fn cost_of_inv() -> usize {
         Self::cost_of_mul_equals()
     }
-
 }
 
-impl<P: CubicExtParametersGadget<ConstraintF>, ConstraintF: PrimeField + SquareRootField> PartialEq for CubicExtFieldGadget<P, ConstraintF>
+impl<P: CubicExtParametersGadget<ConstraintF>, ConstraintF: PrimeField + SquareRootField> PartialEq
+    for CubicExtFieldGadget<P, ConstraintF>
 {
     fn eq(&self, other: &Self) -> bool {
         self.c0 == other.c0 && self.c1 == other.c1 && self.c2 == other.c2
     }
 }
 
-impl<P: CubicExtParametersGadget<ConstraintF>, ConstraintF: PrimeField + SquareRootField> Eq for CubicExtFieldGadget<P, ConstraintF> {}
+impl<P: CubicExtParametersGadget<ConstraintF>, ConstraintF: PrimeField + SquareRootField> Eq
+    for CubicExtFieldGadget<P, ConstraintF>
+{
+}
 
-impl<P: CubicExtParametersGadget<ConstraintF>, ConstraintF: PrimeField + SquareRootField> EqGadget<ConstraintF> for CubicExtFieldGadget<P, ConstraintF> {
+impl<P: CubicExtParametersGadget<ConstraintF>, ConstraintF: PrimeField + SquareRootField>
+    EqGadget<ConstraintF> for CubicExtFieldGadget<P, ConstraintF>
+{
     fn is_eq<CS: ConstraintSystem<ConstraintF>>(
         &self,
         mut cs: CS,
-        other: &Self
+        other: &Self,
     ) -> Result<Boolean, SynthesisError> {
         let b0 = self.c0.is_eq(cs.ns(|| "c0"), &other.c0)?;
-        let b1 = self.c1.is_eq(cs.ns(|| "c1"),&other.c1)?;
-        let b2 = self.c2.is_eq(cs.ns(|| "c2"),&other.c2)?;
+        let b1 = self.c1.is_eq(cs.ns(|| "c1"), &other.c1)?;
+        let b2 = self.c2.is_eq(cs.ns(|| "c2"), &other.c2)?;
         let temp = Boolean::and(cs.ns(|| "b0 AND b1"), &b0, &b1)?;
         Boolean::and(cs.ns(|| "b0 AND b1 AND b2"), &temp, &b2)
     }
@@ -621,11 +655,14 @@ impl<P: CubicExtParametersGadget<ConstraintF>, ConstraintF: PrimeField + SquareR
         &self,
         mut cs: CS,
         other: &Self,
-        should_enforce: &Boolean
+        should_enforce: &Boolean,
     ) -> Result<(), SynthesisError> {
-        self.c0.conditional_enforce_equal(cs.ns(|| "c0"),&other.c0, should_enforce)?;
-        self.c1.conditional_enforce_equal(cs.ns(|| "c1"),&other.c1, should_enforce)?;
-        self.c2.conditional_enforce_equal(cs.ns(|| "c2"),&other.c2, should_enforce)?;
+        self.c0
+            .conditional_enforce_equal(cs.ns(|| "c0"), &other.c0, should_enforce)?;
+        self.c1
+            .conditional_enforce_equal(cs.ns(|| "c1"), &other.c1, should_enforce)?;
+        self.c2
+            .conditional_enforce_equal(cs.ns(|| "c2"), &other.c2, should_enforce)?;
         Ok(())
     }
 
@@ -634,17 +671,28 @@ impl<P: CubicExtParametersGadget<ConstraintF>, ConstraintF: PrimeField + SquareR
         &self,
         mut cs: CS,
         other: &Self,
-        should_enforce: &Boolean
+        should_enforce: &Boolean,
     ) -> Result<(), SynthesisError> {
         let is_equal = self.is_eq(cs.ns(|| "is_eq(self, other)"), other)?;
-        Boolean::and(cs.ns(|| "is_equal AND should_enforce"), &is_equal, should_enforce)?
-            .enforce_equal(cs.ns(|| "is_equal AND should_enforce == false"), &Boolean::Constant(false))
+        Boolean::and(
+            cs.ns(|| "is_equal AND should_enforce"),
+            &is_equal,
+            should_enforce,
+        )?
+        .enforce_equal(
+            cs.ns(|| "is_equal AND should_enforce == false"),
+            &Boolean::Constant(false),
+        )
     }
 }
 
-impl<P: CubicExtParametersGadget<ConstraintF>, ConstraintF: PrimeField + SquareRootField> ToBitsGadget<ConstraintF> for CubicExtFieldGadget<P, ConstraintF>
+impl<P: CubicExtParametersGadget<ConstraintF>, ConstraintF: PrimeField + SquareRootField>
+    ToBitsGadget<ConstraintF> for CubicExtFieldGadget<P, ConstraintF>
 {
-    fn to_bits<CS: ConstraintSystem<ConstraintF>>(&self, mut cs: CS) -> Result<Vec<Boolean>, SynthesisError> {
+    fn to_bits<CS: ConstraintSystem<ConstraintF>>(
+        &self,
+        mut cs: CS,
+    ) -> Result<Vec<Boolean>, SynthesisError> {
         let mut c0 = self.c0.to_bits(&mut cs)?;
         let mut c1 = self.c1.to_bits(&mut cs)?;
         let mut c2 = self.c2.to_bits(cs)?;
@@ -670,10 +718,13 @@ impl<P: CubicExtParametersGadget<ConstraintF>, ConstraintF: PrimeField + SquareR
     }
 }
 
-impl<P: CubicExtParametersGadget<ConstraintF>, ConstraintF: PrimeField + SquareRootField> ToBytesGadget<ConstraintF> for CubicExtFieldGadget<P, ConstraintF>
-
+impl<P: CubicExtParametersGadget<ConstraintF>, ConstraintF: PrimeField + SquareRootField>
+    ToBytesGadget<ConstraintF> for CubicExtFieldGadget<P, ConstraintF>
 {
-    fn to_bytes<CS: ConstraintSystem<ConstraintF>>(&self, mut cs: CS) -> Result<Vec<UInt8>, SynthesisError> {
+    fn to_bytes<CS: ConstraintSystem<ConstraintF>>(
+        &self,
+        mut cs: CS,
+    ) -> Result<Vec<UInt8>, SynthesisError> {
         let mut c0 = self.c0.to_bytes(cs.ns(|| "c0"))?;
         let mut c1 = self.c1.to_bytes(cs.ns(|| "c1"))?;
         let mut c2 = self.c2.to_bytes(cs.ns(|| "c2"))?;
@@ -699,15 +750,16 @@ impl<P: CubicExtParametersGadget<ConstraintF>, ConstraintF: PrimeField + SquareR
     }
 }
 
-impl<P: CubicExtParametersGadget<ConstraintF>, ConstraintF: PrimeField + SquareRootField> Clone for CubicExtFieldGadget<P, ConstraintF>
-
+impl<P: CubicExtParametersGadget<ConstraintF>, ConstraintF: PrimeField + SquareRootField> Clone
+    for CubicExtFieldGadget<P, ConstraintF>
 {
     fn clone(&self) -> Self {
         Self::new(self.c0.clone(), self.c1.clone(), self.c2.clone())
     }
 }
 
-impl <P: CubicExtParametersGadget<ConstraintF>, ConstraintF: PrimeField + SquareRootField> CondSelectGadget<ConstraintF> for CubicExtFieldGadget<P, ConstraintF>
+impl<P: CubicExtParametersGadget<ConstraintF>, ConstraintF: PrimeField + SquareRootField>
+    CondSelectGadget<ConstraintF> for CubicExtFieldGadget<P, ConstraintF>
 {
     #[inline]
     fn conditionally_select<CS: ConstraintSystem<ConstraintF>>(
@@ -743,7 +795,8 @@ impl <P: CubicExtParametersGadget<ConstraintF>, ConstraintF: PrimeField + Square
     }
 }
 
-impl <P: CubicExtParametersGadget<ConstraintF>, ConstraintF: PrimeField + SquareRootField> TwoBitLookupGadget<ConstraintF> for CubicExtFieldGadget<P, ConstraintF>
+impl<P: CubicExtParametersGadget<ConstraintF>, ConstraintF: PrimeField + SquareRootField>
+    TwoBitLookupGadget<ConstraintF> for CubicExtFieldGadget<P, ConstraintF>
 {
     type TableConstant = CubicExtField<P>;
     fn two_bit_lookup<CS: ConstraintSystem<ConstraintF>>(
@@ -764,8 +817,8 @@ impl <P: CubicExtParametersGadget<ConstraintF>, ConstraintF: PrimeField + Square
         mut cs: CS,
         precomp: &Boolean,
         b: &[Boolean],
-        c: &[Self::TableConstant])
-        -> Result<Self, SynthesisError> {
+        c: &[Self::TableConstant],
+    ) -> Result<Self, SynthesisError> {
         let c0s = c.iter().map(|f| f.c0).collect::<Vec<_>>();
         let c1s = c.iter().map(|f| f.c1).collect::<Vec<_>>();
         let c2s = c.iter().map(|f| f.c2).collect::<Vec<_>>();
@@ -781,7 +834,7 @@ impl <P: CubicExtParametersGadget<ConstraintF>, ConstraintF: PrimeField + Square
 }
 
 impl<P: CubicExtParametersGadget<ConstraintF>, ConstraintF: PrimeField + SquareRootField>
-ThreeBitCondNegLookupGadget<ConstraintF> for CubicExtFieldGadget<P, ConstraintF>
+    ThreeBitCondNegLookupGadget<ConstraintF> for CubicExtFieldGadget<P, ConstraintF>
 {
     type TableConstant = CubicExtField<P>;
 
@@ -794,9 +847,12 @@ ThreeBitCondNegLookupGadget<ConstraintF> for CubicExtFieldGadget<P, ConstraintF>
         let c0s = c.iter().map(|f| f.c0).collect::<Vec<_>>();
         let c1s = c.iter().map(|f| f.c1).collect::<Vec<_>>();
         let c2s = c.iter().map(|f| f.c2).collect::<Vec<_>>();
-        let c0 = P::BaseFieldGadget::three_bit_cond_neg_lookup(cs.ns(|| "Lookup c0"), b, b0b1, &c0s)?;
-        let c1 = P::BaseFieldGadget::three_bit_cond_neg_lookup(cs.ns(|| "Lookup c1"), b, b0b1, &c1s)?;
-        let c2 = P::BaseFieldGadget::three_bit_cond_neg_lookup(cs.ns(|| "Lookup c2"), b, b0b1, &c2s)?;
+        let c0 =
+            P::BaseFieldGadget::three_bit_cond_neg_lookup(cs.ns(|| "Lookup c0"), b, b0b1, &c0s)?;
+        let c1 =
+            P::BaseFieldGadget::three_bit_cond_neg_lookup(cs.ns(|| "Lookup c1"), b, b0b1, &c1s)?;
+        let c2 =
+            P::BaseFieldGadget::three_bit_cond_neg_lookup(cs.ns(|| "Lookup c2"), b, b0b1, &c2s)?;
         Ok(Self::new(c0, c1, c2))
     }
 
@@ -806,22 +862,22 @@ ThreeBitCondNegLookupGadget<ConstraintF> for CubicExtFieldGadget<P, ConstraintF>
 }
 
 impl<P: CubicExtParametersGadget<ConstraintF>, ConstraintF: PrimeField + SquareRootField>
-AllocGadget<CubicExtField<P>, ConstraintF> for CubicExtFieldGadget<P, ConstraintF>
+    AllocGadget<CubicExtField<P>, ConstraintF> for CubicExtFieldGadget<P, ConstraintF>
 {
     #[inline]
     fn alloc<F, T, CS: ConstraintSystem<ConstraintF>>(
         mut cs: CS,
         value_gen: F,
     ) -> Result<Self, SynthesisError>
-        where
-            F: FnOnce() -> Result<T, SynthesisError>,
-            T: Borrow<CubicExtField<P>>,
+    where
+        F: FnOnce() -> Result<T, SynthesisError>,
+        T: Borrow<CubicExtField<P>>,
     {
         let (c0, c1, c2) = match value_gen() {
             Ok(fe) => {
                 let fe = *fe.borrow();
                 (Ok(fe.c0), Ok(fe.c1), Ok(fe.c2))
-            },
+            }
             _ => (
                 Err(SynthesisError::AssignmentMissing),
                 Err(SynthesisError::AssignmentMissing),
@@ -840,15 +896,15 @@ AllocGadget<CubicExtField<P>, ConstraintF> for CubicExtFieldGadget<P, Constraint
         mut cs: CS,
         value_gen: F,
     ) -> Result<Self, SynthesisError>
-        where
-            F: FnOnce() -> Result<T, SynthesisError>,
-            T: Borrow<CubicExtField<P>>,
+    where
+        F: FnOnce() -> Result<T, SynthesisError>,
+        T: Borrow<CubicExtField<P>>,
     {
         let (c0, c1, c2) = match value_gen() {
             Ok(fe) => {
                 let fe = *fe.borrow();
                 (Ok(fe.c0), Ok(fe.c1), Ok(fe.c2))
-            },
+            }
             _ => (
                 Err(SynthesisError::AssignmentMissing),
                 Err(SynthesisError::AssignmentMissing),
@@ -864,14 +920,10 @@ AllocGadget<CubicExtField<P>, ConstraintF> for CubicExtFieldGadget<P, Constraint
 }
 
 impl<P: CubicExtParametersGadget<ConstraintF>, ConstraintF: PrimeField + SquareRootField>
-ConstantGadget<CubicExtField<P>, ConstraintF> for CubicExtFieldGadget<P, ConstraintF>
+    ConstantGadget<CubicExtField<P>, ConstraintF> for CubicExtFieldGadget<P, ConstraintF>
 {
     #[inline]
-    fn from_value<CS: ConstraintSystem<ConstraintF>>(
-        mut cs: CS,
-        value: &CubicExtField<P>,
-    ) -> Self
-    {
+    fn from_value<CS: ConstraintSystem<ConstraintF>>(mut cs: CS, value: &CubicExtField<P>) -> Self {
         let c0 = P::BaseFieldGadget::from_value(&mut cs.ns(|| "c0"), &value.c0);
         let c1 = P::BaseFieldGadget::from_value(&mut cs.ns(|| "c1"), &value.c1);
         let c2 = P::BaseFieldGadget::from_value(&mut cs.ns(|| "c2"), &value.c2);

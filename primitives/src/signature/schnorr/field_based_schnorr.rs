@@ -1,55 +1,53 @@
-use crate::{crh::FieldBasedHash, signature::FieldBasedSignatureScheme, Error, compute_truncation_size};
-use algebra::{
-    Field, PrimeField, Group, UniformRand, ProjectiveCurve,
-    convert, leading_zeros, ToBits, ToConstraintField, ToBytes,
-    FromBytes, SemanticallyValid, FromBytesChecked,
-    serialize::*,
+use crate::{
+    compute_truncation_size, crh::FieldBasedHash, signature::FieldBasedSignatureScheme, Error,
 };
-use std::marker::PhantomData;
-use rand::Rng;
-use std::io::{Write, Read, Result as IoResult, Error as IoError, ErrorKind};
+use algebra::{
+    convert, leading_zeros, serialize::*, Field, FromBytes, FromBytesChecked, Group, PrimeField,
+    ProjectiveCurve, SemanticallyValid, ToBits, ToBytes, ToConstraintField, UniformRand,
+};
 use rand::distributions::{Distribution, Standard};
-use serde::{Serialize, Deserialize};
+use rand::Rng;
+use serde::{Deserialize, Serialize};
+use std::io::{Error as IoError, ErrorKind, Read, Result as IoResult, Write};
+use std::marker::PhantomData;
 
 #[allow(dead_code)]
-pub struct FieldBasedSchnorrSignatureScheme<
-    F: PrimeField,
-    G: Group,
-    H: FieldBasedHash,
->
-{
-    _field:    PhantomData<F>,
-    _group:    PhantomData<G>,
-    _hash:     PhantomData<H>,
+pub struct FieldBasedSchnorrSignatureScheme<F: PrimeField, G: Group, H: FieldBasedHash> {
+    _field: PhantomData<F>,
+    _group: PhantomData<G>,
+    _hash: PhantomData<H>,
 }
 
 #[derive(Derivative)]
 #[derivative(
-Copy(bound = "F: PrimeField, G: Group"),
-Clone(bound = "F: PrimeField, G: Group"),
-Default(bound = "F: PrimeField, G: Group"),
-Eq(bound = "F: PrimeField, G: Group"),
-PartialEq(bound = "F: PrimeField, G: Group"),
-Debug(bound = "F: PrimeField, G: Group")
+    Copy(bound = "F: PrimeField, G: Group"),
+    Clone(bound = "F: PrimeField, G: Group"),
+    Default(bound = "F: PrimeField, G: Group"),
+    Eq(bound = "F: PrimeField, G: Group"),
+    PartialEq(bound = "F: PrimeField, G: Group"),
+    Debug(bound = "F: PrimeField, G: Group")
 )]
 #[derive(Serialize, Deserialize)]
 #[serde(bound(serialize = "F: PrimeField, G: Group"))]
 #[serde(bound(deserialize = "F: PrimeField, G: Group"))]
 #[derive(CanonicalSerialize, CanonicalDeserialize)]
 pub struct FieldBasedSchnorrSignature<F: PrimeField, G: Group> {
-    pub e:    F,
-    pub s:    F,
+    pub e: F,
+    pub s: F,
     #[serde(skip)]
-    _group:   PhantomData<G>,
+    _group: PhantomData<G>,
 }
 
 impl<F: PrimeField, G: Group> FieldBasedSchnorrSignature<F, G> {
     #[allow(dead_code)]
     pub fn new(e: F, s: F) -> Self {
-        Self{ e, s, _group: PhantomData }
+        Self {
+            e,
+            s,
+            _group: PhantomData,
+        }
     }
 }
-
 
 impl<F: PrimeField, G: Group> ToBytes for FieldBasedSchnorrSignature<F, G> {
     fn write<W: Write>(&self, mut writer: W) -> IoResult<()> {
@@ -62,7 +60,11 @@ impl<F: PrimeField, G: Group> FromBytes for FieldBasedSchnorrSignature<F, G> {
     fn read<R: Read>(mut reader: R) -> IoResult<Self> {
         let e = F::read(&mut reader)?;
         let s = F::read(&mut reader)?;
-        Ok(Self{ e, s, _group: PhantomData} )
+        Ok(Self {
+            e,
+            s,
+            _group: PhantomData,
+        })
     }
 }
 
@@ -74,7 +76,13 @@ impl<F: PrimeField, G: Group> FromBytesChecked for FieldBasedSchnorrSignature<F,
                 let e_bits = e.write_bits();
                 let e_leading_zeros = leading_zeros(e_bits.as_slice()) as usize;
                 if (F::size_in_bits() - e_leading_zeros) >= G::ScalarField::size_in_bits() {
-                    return Err(IoError::new(ErrorKind::InvalidData, format!("Invalid bit-length for signature.e: {}", e_bits.len() - e_leading_zeros)))
+                    return Err(IoError::new(
+                        ErrorKind::InvalidData,
+                        format!(
+                            "Invalid bit-length for signature.e: {}",
+                            e_bits.len() - e_leading_zeros
+                        ),
+                    ));
                 }
                 Ok(e)
             })?;
@@ -83,32 +91,41 @@ impl<F: PrimeField, G: Group> FromBytesChecked for FieldBasedSchnorrSignature<F,
             .and_then(|s| {
                 let s_bits = s.write_bits();
                 let s_leading_zeros = leading_zeros(s_bits.as_slice()) as usize;
-                if (G::ScalarField::size_in_bits() - s_leading_zeros) >= F::size_in_bits(){
-                    return Err(IoError::new(ErrorKind::InvalidData, format!("Invalid bit-length for signature.s: {}", s_bits.len() - s_leading_zeros)))
+                if (G::ScalarField::size_in_bits() - s_leading_zeros) >= F::size_in_bits() {
+                    return Err(IoError::new(
+                        ErrorKind::InvalidData,
+                        format!(
+                            "Invalid bit-length for signature.s: {}",
+                            s_bits.len() - s_leading_zeros
+                        ),
+                    ));
                 }
                 Ok(s)
             })?;
-        Ok(Self{ e, s, _group: PhantomData })
+        Ok(Self {
+            e,
+            s,
+            _group: PhantomData,
+        })
     }
 }
 
 impl<F: PrimeField, G: Group> SemanticallyValid for FieldBasedSchnorrSignature<F, G> {
     fn is_valid(&self) -> bool {
-        self.e.is_valid() &&
-        {
-            //Checks e had proper bit-length when converted into a G::ScalarField element
-            let e_bits = self.e.write_bits();
-            let e_leading_zeros = leading_zeros(e_bits.as_slice()) as usize;
-            F::size_in_bits() - e_leading_zeros < G::ScalarField::size_in_bits()
-        }
-        &&
-        self.s.is_valid() &&
-        {
-            //Checks s had proper bit-length when converted into a F element
-            let s_bits = self.s.write_bits();
-            let s_leading_zeros = leading_zeros(s_bits.as_slice()) as usize;
-            G::ScalarField::size_in_bits() - s_leading_zeros < F::size_in_bits()
-        }
+        self.e.is_valid()
+            && {
+                //Checks e had proper bit-length when converted into a G::ScalarField element
+                let e_bits = self.e.write_bits();
+                let e_leading_zeros = leading_zeros(e_bits.as_slice()) as usize;
+                F::size_in_bits() - e_leading_zeros < G::ScalarField::size_in_bits()
+            }
+            && self.s.is_valid()
+            && {
+                //Checks s had proper bit-length when converted into a F element
+                let s_bits = self.s.write_bits();
+                let s_leading_zeros = leading_zeros(s_bits.as_slice()) as usize;
+                G::ScalarField::size_in_bits() - s_leading_zeros < F::size_in_bits()
+            }
     }
 }
 
@@ -120,7 +137,7 @@ impl<F: PrimeField, G: Group> SemanticallyValid for FieldBasedSchnorrSignature<F
     Hash(bound = "G: Group"),
     Eq(bound = "G: Group"),
     PartialEq(bound = "G: Group"),
-    Debug(bound = "G: Group"),
+    Debug(bound = "G: Group")
 )]
 #[derive(Serialize, Deserialize)]
 #[serde(bound(serialize = "G: Group"))]
@@ -145,7 +162,7 @@ impl<G: Group> ToBytes for FieldBasedSchnorrPk<G> {
 impl<G: Group> FromBytes for FieldBasedSchnorrPk<G> {
     fn read<R: Read>(mut reader: R) -> IoResult<Self> {
         let pk = G::read(&mut reader)?;
-        Ok( Self(pk) )
+        Ok(Self(pk))
     }
 }
 
@@ -154,10 +171,15 @@ impl<G: Group> FromBytesChecked for FieldBasedSchnorrPk<G> {
         let pk = G::read_checked(&mut reader)
             .map_err(|e| IoError::new(ErrorKind::InvalidData, format!("invalid schnorr pk: {}", e)))
             .and_then(|p| {
-                if p.is_zero() { return Err(IoError::new(ErrorKind::InvalidData, "invalid schnorr pk: point at infinity")); }
+                if p.is_zero() {
+                    return Err(IoError::new(
+                        ErrorKind::InvalidData,
+                        "invalid schnorr pk: point at infinity",
+                    ));
+                }
                 Ok(p)
             })?;
-        Ok( Self(pk) )
+        Ok(Self(pk))
     }
 }
 
@@ -175,24 +197,24 @@ impl<G: Group> SemanticallyValid for FieldBasedSchnorrPk<G> {
 // Low-level crypto for the length-restricted Schnorr Signature, does not perform any
 // input validity check. It's responsibility of the caller to do so, through keyverify()
 // function for the PublicKey, read() or is_valid() functions for FieldBasedSchnorrSignature.
-impl<F: PrimeField, G: ProjectiveCurve + ToConstraintField<F>, H: FieldBasedHash<Data = F>> FieldBasedSignatureScheme for
-FieldBasedSchnorrSignatureScheme<F, G, H>
+impl<F: PrimeField, G: ProjectiveCurve + ToConstraintField<F>, H: FieldBasedHash<Data = F>>
+    FieldBasedSignatureScheme for FieldBasedSchnorrSignatureScheme<F, G, H>
 {
     type Data = H::Data;
     type PublicKey = FieldBasedSchnorrPk<G>;
     type SecretKey = G::ScalarField;
     type Signature = FieldBasedSchnorrSignature<F, G>;
 
-    fn keygen<R: Rng>(rng: &mut R) -> (Self::PublicKey, Self::SecretKey)
-    {
+    fn keygen<R: Rng>(rng: &mut R) -> (Self::PublicKey, Self::SecretKey) {
         let secret_key = loop {
             let r = G::ScalarField::rand(rng);
             // Reject sk = 0 to avoid generating obviously weak keypair. See keyverify() function
             // for additional explanations.
-            if !r.is_zero() { break(r) }
+            if !r.is_zero() {
+                break (r);
+            }
         };
-        let public_key = G::prime_subgroup_generator()
-            .mul(&secret_key);
+        let public_key = G::prime_subgroup_generator().mul(&secret_key);
         (FieldBasedSchnorrPk(public_key), secret_key)
     }
 
@@ -205,8 +227,7 @@ FieldBasedSchnorrSignatureScheme<F, G, H>
         pk: &Self::PublicKey,
         sk: &Self::SecretKey,
         message: Self::Data,
-    )-> Result<Self::Signature, Error>
-    {
+    ) -> Result<Self::Signature, Error> {
         let required_leading_zeros_e = compute_truncation_size(
             F::size_in_bits() as i32,
             G::ScalarField::size_in_bits() as i32,
@@ -221,13 +242,11 @@ FieldBasedSchnorrSignatureScheme<F, G, H>
         let pk_coords = pk.0.to_field_elements()?;
 
         let (e, s) = loop {
-
             //Sample random element
             let k = G::ScalarField::rand(rng);
 
             //R = k * G
-            let r = G::prime_subgroup_generator()
-                .mul(&k);
+            let r = G::prime_subgroup_generator().mul(&k);
 
             //Affine coordinates of R (even if R is infinity)
             let r_coords = r.to_field_elements()?;
@@ -236,7 +255,9 @@ FieldBasedSchnorrSignatureScheme<F, G, H>
             let e = {
                 let mut digest = H::init_constant_length(4, None);
                 digest.update(message);
-                r_coords.into_iter().for_each(|coord| { digest.update(coord); });
+                r_coords.into_iter().for_each(|coord| {
+                    digest.update(coord);
+                });
                 digest.update(pk_coords[0]);
                 digest.finalize()
             }?;
@@ -245,7 +266,9 @@ FieldBasedSchnorrSignatureScheme<F, G, H>
             let e_leading_zeros = leading_zeros(e_bits.as_slice()) as usize;
 
             //Enforce e bit length is strictly smaller than G::ScalarField modulus bit length
-            if e_leading_zeros < required_leading_zeros_e {continue};
+            if e_leading_zeros < required_leading_zeros_e {
+                continue;
+            };
 
             //We can now safely convert it to the other field
             let e_conv = convert::<G::ScalarField>(e_bits)?;
@@ -255,24 +278,27 @@ FieldBasedSchnorrSignatureScheme<F, G, H>
             let s_bits = s.write_bits();
             let s_leading_zeros = leading_zeros(s_bits.as_slice()) as usize;
 
-            if s_leading_zeros < required_leading_zeros_s {continue};
+            if s_leading_zeros < required_leading_zeros_s {
+                continue;
+            };
 
             let s_conv = convert::<F>(s_bits)?;
 
             break (e, s_conv);
         };
 
-        Ok(FieldBasedSchnorrSignature {e, s, _group: PhantomData})
+        Ok(FieldBasedSchnorrSignature {
+            e,
+            s,
+            _group: PhantomData,
+        })
     }
 
     fn verify(
         pk: &Self::PublicKey,
         message: Self::Data,
-        signature: &Self::Signature
-    )
-        -> Result<bool, Error>
-    {
-
+        signature: &Self::Signature,
+    ) -> Result<bool, Error> {
         let pk_coords = pk.0.to_field_elements()?;
 
         //Compute R' = s*G - e * pk
@@ -281,7 +307,7 @@ FieldBasedSchnorrSignatureScheme<F, G, H>
             let s_conv = convert::<G::ScalarField>(s_bits)?;
 
             let e_bits = signature.e.write_bits();
-            let e_conv =  convert::<G::ScalarField>(e_bits)?;
+            let e_conv = convert::<G::ScalarField>(e_bits)?;
 
             let s_times_g = G::prime_subgroup_generator().mul(&s_conv);
             let neg_e_times_pk = pk.0.neg().mul(&e_conv);
@@ -294,7 +320,9 @@ FieldBasedSchnorrSignatureScheme<F, G, H>
         let e_prime = {
             let mut digest = H::init_constant_length(4, None);
             digest.update(message);
-            r_prime_coords.into_iter().for_each(|coord| { digest.update(coord); });
+            r_prime_coords.into_iter().for_each(|coord| {
+                digest.update(coord);
+            });
             digest.update(pk_coords[0]);
             digest.finalize()
         }?;
@@ -302,26 +330,23 @@ FieldBasedSchnorrSignatureScheme<F, G, H>
         Ok(signature.e == e_prime)
     }
 
-
     #[inline]
-    fn keyverify(pk: &Self::PublicKey) -> bool { pk.is_valid() }
+    fn keyverify(pk: &Self::PublicKey) -> bool {
+        pk.is_valid()
+    }
 }
 
 #[cfg(test)]
 mod test {
-    use algebra::curves::{
-        mnt4753::G1Projective as MNT4G1Projective,
-        mnt6753::G1Projective as MNT6G1Projective,
-    };
-    use algebra::fields::{
-        mnt4753::Fr as MNT4Fr,
-        mnt6753::Fr as MNT6Fr,
-    };
-    use algebra::{ToBytes, to_bytes, FromBytes, FromBytesChecked, SemanticallyValid};
     use crate::crh::{MNT4PoseidonHash, MNT6PoseidonHash};
-    use crate::signature::FieldBasedSignatureScheme;
     use crate::signature::schnorr::field_based_schnorr::FieldBasedSchnorrSignatureScheme;
-    use rand::{Rng, thread_rng};
+    use crate::signature::FieldBasedSignatureScheme;
+    use algebra::curves::{
+        mnt4753::G1Projective as MNT4G1Projective, mnt6753::G1Projective as MNT6G1Projective,
+    };
+    use algebra::fields::{mnt4753::Fr as MNT4Fr, mnt6753::Fr as MNT6Fr};
+    use algebra::{to_bytes, FromBytes, FromBytesChecked, SemanticallyValid, ToBytes};
+    use rand::{thread_rng, Rng};
 
     type SchnorrMNT4 = FieldBasedSchnorrSignatureScheme<MNT4Fr, MNT6G1Projective, MNT4PoseidonHash>;
     type SchnorrMNT6 = FieldBasedSchnorrSignatureScheme<MNT6Fr, MNT4G1Projective, MNT6PoseidonHash>;
@@ -336,13 +361,21 @@ mod test {
 
         //Serialization/deserialization test
         let sig_serialized = to_bytes!(sig).unwrap();
-        let sig_deserialized = <S as FieldBasedSignatureScheme>::Signature::read(sig_serialized.as_slice()).unwrap();
+        let sig_deserialized =
+            <S as FieldBasedSignatureScheme>::Signature::read(sig_serialized.as_slice()).unwrap();
         assert_eq!(sig, sig_deserialized);
-        assert!(<S as FieldBasedSignatureScheme>::Signature::read_checked(sig_serialized.as_slice()).is_ok());
+        assert!(<S as FieldBasedSignatureScheme>::Signature::read_checked(
+            sig_serialized.as_slice()
+        )
+        .is_ok());
         assert!(S::verify(&pk, message, &sig_deserialized).unwrap());
     }
 
-    fn failed_verification<S: FieldBasedSignatureScheme, R: Rng>(rng: &mut R, message: S::Data, bad_message: S::Data) {
+    fn failed_verification<S: FieldBasedSignatureScheme, R: Rng>(
+        rng: &mut R,
+        message: S::Data,
+        bad_message: S::Data,
+    ) {
         let (pk, sk) = S::keygen(rng);
         assert!(S::keyverify(&pk));
         assert_eq!(pk, S::get_public_key(&sk));
@@ -376,10 +409,10 @@ mod test {
     fn mnt6_schnorr_test() {
         let rng = &mut thread_rng();
         let samples = 100;
-        for _ in 0..samples{
+        for _ in 0..samples {
             let f: MNT6Fr = rng.gen();
             let g: MNT6Fr = rng.gen();
-            sign_and_verify::<SchnorrMNT6, _>(rng,f);
+            sign_and_verify::<SchnorrMNT6, _>(rng, f);
             failed_verification::<SchnorrMNT6, _>(rng, f, g);
         }
     }

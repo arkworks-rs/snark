@@ -17,7 +17,7 @@ macro_rules! impl_montgomery_reduction {
             (self.0).0.copy_from_slice(&r[$limbs..]);
             self.reduce();
         }
-    }
+    };
 }
 
 /// This modular multiplication algorithm uses Montgomery
@@ -113,7 +113,7 @@ macro_rules! impl_field_mul_short_assign {
             }
             self.reduce();
         }
-    }
+    };
 }
 
 macro_rules! impl_field_into_repr {
@@ -543,7 +543,6 @@ macro_rules! impl_mul_short {
 
         #[allow(unused_qualifications)]
         impl<P: $params> MulShortAssign<Self> for $type<P> {
-
             #[inline]
             fn mul_short_assign(&mut self, other: Self) {
                 self.mul_short_assign(&other)
@@ -552,7 +551,6 @@ macro_rules! impl_mul_short {
 
         #[allow(unused_qualifications)]
         impl<'a, P: $params> MulShortAssign<&'a mut Self> for $type<P> {
-
             #[inline]
             fn mul_short_assign(&mut self, other: &'a mut Self) {
                 self.mul_short_assign(&*other)

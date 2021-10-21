@@ -1,27 +1,27 @@
 use crate::curves::models::mnt6::{MNT6Parameters, MNT6p};
 use crate::curves::short_weierstrass_projective::{GroupAffine, GroupProjective};
-use crate::{Fp3, ToBytes, AffineCurve, FromBytes};
-use std::io::{Write, Result as IoResult, Read};
+use crate::{AffineCurve, Fp3, FromBytes, ToBytes};
+use serde::{Deserialize, Serialize};
 use std::io;
-use serde::{Serialize, Deserialize};
+use std::io::{Read, Result as IoResult, Write};
 
 pub type G1Affine<P> = GroupAffine<<P as MNT6Parameters>::G1Parameters>;
 pub type G1Projective<P> = GroupProjective<<P as MNT6Parameters>::G1Parameters>;
 
 #[derive(Derivative)]
 #[derivative(
-Copy(bound = "P: MNT6Parameters"),
-Clone(bound = "P: MNT6Parameters"),
-Debug(bound = "P: MNT6Parameters"),
-PartialEq(bound = "P: MNT6Parameters"),
-Eq(bound = "P: MNT6Parameters")
+    Copy(bound = "P: MNT6Parameters"),
+    Clone(bound = "P: MNT6Parameters"),
+    Debug(bound = "P: MNT6Parameters"),
+    PartialEq(bound = "P: MNT6Parameters"),
+    Eq(bound = "P: MNT6Parameters")
 )]
 #[derive(Serialize, Deserialize)]
 #[serde(bound(serialize = "P: MNT6Parameters"))]
 #[serde(bound(deserialize = "P: MNT6Parameters"))]
 pub struct G1Prepared<P: MNT6Parameters> {
-    pub p:                  G1Affine<P>,
-    pub py_twist_squared:   Fp3<P::Fp3Params>,
+    pub p: G1Affine<P>,
+    pub py_twist_squared: Fp3<P::Fp3Params>,
 }
 
 impl<P: MNT6Parameters> ToBytes for G1Prepared<P> {
@@ -38,7 +38,10 @@ impl<P: MNT6Parameters> FromBytes for G1Prepared<P> {
             .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
         let py_twist_squared = Fp3::<P::Fp3Params>::read(&mut reader)
             .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
-        Ok(G1Prepared{p, py_twist_squared})
+        Ok(G1Prepared {
+            p,
+            py_twist_squared,
+        })
     }
 }
 

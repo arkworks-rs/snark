@@ -1,12 +1,10 @@
 use algebra::{AffineCurve, Field, PairingEngine, ToConstraintField};
-use proof_systems::groth16::{
-    Parameters, PreparedVerifyingKey, Proof, VerifyingKey,
-};
+use proof_systems::groth16::{Parameters, PreparedVerifyingKey, Proof, VerifyingKey};
 use r1cs_core::{ConstraintSynthesizer, ConstraintSystem, SynthesisError};
 use r1cs_std::prelude::*;
 use std::{borrow::Borrow, marker::PhantomData};
 
-use super::{NIZK, NIZKVerifierGadget};
+use super::{NIZKVerifierGadget, NIZK};
 
 /// Note: V should serialize its contents to `Vec<E::Fr>` in the same order as
 /// during the constraint generation.
@@ -49,7 +47,7 @@ pub struct ProofGadget<
 
 #[derive(Derivative)]
 #[derivative(Clone(
-bound = "P::G1Gadget: Clone, P::GTGadget: Clone, P::G1PreparedGadget: Clone, \
+    bound = "P::G1Gadget: Clone, P::GTGadget: Clone, P::G1PreparedGadget: Clone, \
              P::G2PreparedGadget: Clone, "
 ))]
 pub struct VerifyingKeyGadget<
@@ -58,13 +56,13 @@ pub struct VerifyingKeyGadget<
     P: PairingGadget<PairingE, ConstraintF>,
 > {
     pub alpha_g1_beta_g2: P::GTGadget,
-    pub gamma_g2:         P::G2Gadget,
-    pub delta_g2:         P::G2Gadget,
-    pub gamma_abc_g1:     Vec<P::G1Gadget>,
+    pub gamma_g2: P::G2Gadget,
+    pub delta_g2: P::G2Gadget,
+    pub gamma_abc_g1: Vec<P::G1Gadget>,
 }
 
 impl<PairingE: PairingEngine, ConstraintF: Field, P: PairingGadget<PairingE, ConstraintF>>
-VerifyingKeyGadget<PairingE, ConstraintF, P>
+    VerifyingKeyGadget<PairingE, ConstraintF, P>
 {
     pub fn prepare<CS: ConstraintSystem<ConstraintF>>(
         &self,
@@ -89,7 +87,7 @@ VerifyingKeyGadget<PairingE, ConstraintF, P>
 
 #[derive(Derivative)]
 #[derivative(Clone(
-bound = "P::G1Gadget: Clone, P::GTGadget: Clone, P::G1PreparedGadget: Clone, \
+    bound = "P::G1Gadget: Clone, P::GTGadget: Clone, P::G1PreparedGadget: Clone, \
              P::G2PreparedGadget: Clone, "
 ))]
 pub struct PreparedVerifyingKeyGadget<
@@ -98,30 +96,30 @@ pub struct PreparedVerifyingKeyGadget<
     P: PairingGadget<PairingE, ConstraintF>,
 > {
     pub alpha_g1_beta_g2: P::GTGadget,
-    pub gamma_g2_neg_pc:  P::G2PreparedGadget,
-    pub delta_g2_neg_pc:  P::G2PreparedGadget,
-    pub gamma_abc_g1:     Vec<P::G1Gadget>,
+    pub gamma_g2_neg_pc: P::G2PreparedGadget,
+    pub delta_g2_neg_pc: P::G2PreparedGadget,
+    pub gamma_abc_g1: Vec<P::G1Gadget>,
 }
 
 pub struct Groth16VerifierGadget<PairingE, ConstraintF, P>
-    where
-        PairingE: PairingEngine,
-        ConstraintF: Field,
-        P: PairingGadget<PairingE, ConstraintF>,
+where
+    PairingE: PairingEngine,
+    ConstraintF: Field,
+    P: PairingGadget<PairingE, ConstraintF>,
 {
     _pairing_engine: PhantomData<PairingE>,
-    _engine:         PhantomData<ConstraintF>,
+    _engine: PhantomData<ConstraintF>,
     _pairing_gadget: PhantomData<P>,
 }
 
 impl<PairingE, ConstraintF, P, C, V> NIZKVerifierGadget<Groth16<PairingE, C, V>, ConstraintF>
-for Groth16VerifierGadget<PairingE, ConstraintF, P>
-    where
-        PairingE: PairingEngine,
-        ConstraintF: Field,
-        C: ConstraintSynthesizer<PairingE::Fr>,
-        V: ToConstraintField<PairingE::Fr>,
-        P: PairingGadget<PairingE, ConstraintF>,
+    for Groth16VerifierGadget<PairingE, ConstraintF, P>
+where
+    PairingE: PairingEngine,
+    ConstraintF: Field,
+    C: ConstraintSynthesizer<PairingE::Fr>,
+    V: ToConstraintField<PairingE::Fr>,
+    P: PairingGadget<PairingE, ConstraintF>,
 {
     type VerificationKeyGadget = VerifyingKeyGadget<PairingE, ConstraintF, P>;
     type ProofGadget = ProofGadget<PairingE, ConstraintF, P>;
@@ -132,10 +130,10 @@ for Groth16VerifierGadget<PairingE, ConstraintF, P>
         mut public_inputs: I,
         proof: &Self::ProofGadget,
     ) -> Result<(), SynthesisError>
-        where
-            CS: ConstraintSystem<ConstraintF>,
-            I: Iterator<Item = &'a T>,
-            T: 'a + ToBitsGadget<ConstraintF> + ?Sized,
+    where
+        CS: ConstraintSystem<ConstraintF>,
+        I: Iterator<Item = &'a T>,
+        T: 'a + ToBitsGadget<ConstraintF> + ?Sized,
     {
         let pvk = vk.prepare(&mut cs.ns(|| "Prepare vk"))?;
 
@@ -147,11 +145,11 @@ for Groth16VerifierGadget<PairingE, ConstraintF, P>
                 .by_ref()
                 .zip(pvk.gamma_abc_g1.iter().skip(1))
                 .enumerate()
-                {
-                    let input_bits = input.to_bits(cs.ns(|| format!("Input {}", i)))?;
-                    g_ic = b.mul_bits(cs.ns(|| format!("Mul {}", i)), &g_ic, input_bits.iter())?;
-                    input_len += 1;
-                }
+            {
+                let input_bits = input.to_bits(cs.ns(|| format!("Input {}", i)))?;
+                g_ic = b.mul_bits(cs.ns(|| format!("Mul {}", i)), &g_ic, input_bits.iter())?;
+                input_len += 1;
+            }
             // Check that the input and the query in the verification are of the
             // same length.
             if input_len != pvk.gamma_abc_g1.len() || public_inputs.next().is_some() {
@@ -190,21 +188,20 @@ for Groth16VerifierGadget<PairingE, ConstraintF, P>
 }
 
 impl<PairingE, ConstraintF, P> AllocGadget<VerifyingKey<PairingE>, ConstraintF>
-for VerifyingKeyGadget<PairingE, ConstraintF, P>
-    where
-        PairingE: PairingEngine,
-        ConstraintF: Field,
-        P: PairingGadget<PairingE, ConstraintF>,
+    for VerifyingKeyGadget<PairingE, ConstraintF, P>
+where
+    PairingE: PairingEngine,
+    ConstraintF: Field,
+    P: PairingGadget<PairingE, ConstraintF>,
 {
-
     #[inline]
     fn alloc_without_check<FN, T, CS: ConstraintSystem<ConstraintF>>(
         mut cs: CS,
         value_gen: FN,
     ) -> Result<Self, SynthesisError>
-        where
-            FN: FnOnce() -> Result<T, SynthesisError>,
-            T: Borrow<VerifyingKey<PairingE>>,
+    where
+        FN: FnOnce() -> Result<T, SynthesisError>,
+        T: Borrow<VerifyingKey<PairingE>>,
     {
         value_gen().and_then(|vk| {
             let VerifyingKey {
@@ -214,11 +211,15 @@ for VerifyingKeyGadget<PairingE, ConstraintF, P>
                 gamma_abc_g1,
             } = vk.borrow().clone();
             let alpha_g1_beta_g2 =
-                P::GTGadget::alloc_without_check(cs.ns(|| "alpha_g1_beta_g2"), || Ok(alpha_g1_beta_g2))?;
-            let gamma_g2 =
-                P::G2Gadget::alloc_without_check(cs.ns(|| "gamma_g2"), || Ok(gamma_g2.into_projective()))?;
-            let delta_g2 =
-                P::G2Gadget::alloc_without_check(cs.ns(|| "delta_g2"), || Ok(delta_g2.into_projective()))?;
+                P::GTGadget::alloc_without_check(cs.ns(|| "alpha_g1_beta_g2"), || {
+                    Ok(alpha_g1_beta_g2)
+                })?;
+            let gamma_g2 = P::G2Gadget::alloc_without_check(cs.ns(|| "gamma_g2"), || {
+                Ok(gamma_g2.into_projective())
+            })?;
+            let delta_g2 = P::G2Gadget::alloc_without_check(cs.ns(|| "delta_g2"), || {
+                Ok(delta_g2.into_projective())
+            })?;
 
             let gamma_abc_g1 = gamma_abc_g1
                 .iter()
@@ -245,9 +246,9 @@ for VerifyingKeyGadget<PairingE, ConstraintF, P>
         mut cs: CS,
         value_gen: FN,
     ) -> Result<Self, SynthesisError>
-        where
-            FN: FnOnce() -> Result<T, SynthesisError>,
-            T: Borrow<VerifyingKey<PairingE>>,
+    where
+        FN: FnOnce() -> Result<T, SynthesisError>,
+        T: Borrow<VerifyingKey<PairingE>>,
     {
         value_gen().and_then(|vk| {
             let VerifyingKey {
@@ -258,19 +259,20 @@ for VerifyingKeyGadget<PairingE, ConstraintF, P>
             } = vk.borrow().clone();
             let alpha_g1_beta_g2 =
                 P::GTGadget::alloc(cs.ns(|| "alpha_g1_beta_g2"), || Ok(alpha_g1_beta_g2))
-                    .and_then(|alpha_g1_beta_g2_g|{
-                        let zero_g = P::GTGadget::zero(cs.ns(|| "alloc zero for alpha_g1_beta_g2 comparison"))?;
-                        alpha_g1_beta_g2_g
-                            .enforce_not_equal(
-                                cs.ns(|| "alpha_g1_beta_g2 must not be zero"),
-                                &zero_g,
-                            )?;
+                    .and_then(|alpha_g1_beta_g2_g| {
+                        let zero_g = P::GTGadget::zero(
+                            cs.ns(|| "alloc zero for alpha_g1_beta_g2 comparison"),
+                        )?;
+                        alpha_g1_beta_g2_g.enforce_not_equal(
+                            cs.ns(|| "alpha_g1_beta_g2 must not be zero"),
+                            &zero_g,
+                        )?;
                         Ok(alpha_g1_beta_g2_g)
                     })?;
 
             let gamma_g2 =
                 P::G2Gadget::alloc(cs.ns(|| "gamma_g2"), || Ok(gamma_g2.into_projective()))
-                    .and_then(|gamma_g2_g|{
+                    .and_then(|gamma_g2_g| {
                         gamma_g2_g
                             .is_zero(cs.ns(|| "is gamma_g2 zero"))?
                             .enforce_equal(
@@ -282,7 +284,7 @@ for VerifyingKeyGadget<PairingE, ConstraintF, P>
 
             let delta_g2 =
                 P::G2Gadget::alloc(cs.ns(|| "delta_g2"), || Ok(delta_g2.into_projective()))
-                    .and_then(|delta_g2_g|{
+                    .and_then(|delta_g2_g| {
                         delta_g2_g
                             .is_zero(cs.ns(|| "is delta_g2 zero"))?
                             .enforce_equal(
@@ -299,15 +301,15 @@ for VerifyingKeyGadget<PairingE, ConstraintF, P>
                     P::G1Gadget::alloc(cs.ns(|| format!("gamma_abc_{}", i)), || {
                         Ok(gamma_abc_i.into_projective())
                     })
-                        .and_then(|input_g| {
-                            input_g
-                                .is_zero(cs.ns(|| format!("is input {} zero", i)))?
-                                .enforce_equal(
-                                    cs.ns(|| format!("input {} must not be zero", i)),
-                                    &Boolean::constant(false),
-                                )?;
-                            Ok(input_g)
-                        })
+                    .and_then(|input_g| {
+                        input_g
+                            .is_zero(cs.ns(|| format!("is input {} zero", i)))?
+                            .enforce_equal(
+                                cs.ns(|| format!("input {} must not be zero", i)),
+                                &Boolean::constant(false),
+                            )?;
+                        Ok(input_g)
+                    })
                 })
                 .collect::<Vec<_>>()
                 .into_iter()
@@ -326,9 +328,9 @@ for VerifyingKeyGadget<PairingE, ConstraintF, P>
         mut cs: CS,
         value_gen: FN,
     ) -> Result<Self, SynthesisError>
-        where
-            FN: FnOnce() -> Result<T, SynthesisError>,
-            T: Borrow<VerifyingKey<PairingE>>,
+    where
+        FN: FnOnce() -> Result<T, SynthesisError>,
+        T: Borrow<VerifyingKey<PairingE>>,
     {
         value_gen().and_then(|vk| {
             let VerifyingKey {
@@ -339,19 +341,19 @@ for VerifyingKeyGadget<PairingE, ConstraintF, P>
             } = vk.borrow().clone();
             let alpha_g1_beta_g2 =
                 P::GTGadget::alloc_checked(cs.ns(|| "alpha_g1_beta_g2"), || Ok(alpha_g1_beta_g2))
-                    .and_then(|alpha_g1_beta_g2_g|{
-                        let zero_g = P::GTGadget::zero(cs.ns(|| "alloc zero for alpha_g1_beta_g2 comparison"))?;
-                        alpha_g1_beta_g2_g
-                            .enforce_not_equal(
-                                cs.ns(|| "alpha_g1_beta_g2 must not be zero"),
-                                &zero_g,
-                            )?;
-                        Ok(alpha_g1_beta_g2_g)
-                    })?;
+                    .and_then(|alpha_g1_beta_g2_g| {
+                    let zero_g =
+                        P::GTGadget::zero(cs.ns(|| "alloc zero for alpha_g1_beta_g2 comparison"))?;
+                    alpha_g1_beta_g2_g.enforce_not_equal(
+                        cs.ns(|| "alpha_g1_beta_g2 must not be zero"),
+                        &zero_g,
+                    )?;
+                    Ok(alpha_g1_beta_g2_g)
+                })?;
 
             let gamma_g2 =
                 P::G2Gadget::alloc_checked(cs.ns(|| "gamma_g2"), || Ok(gamma_g2.into_projective()))
-                    .and_then(|gamma_g2_g|{
+                    .and_then(|gamma_g2_g| {
                         gamma_g2_g
                             .is_zero(cs.ns(|| "is gamma_g2 zero"))?
                             .enforce_equal(
@@ -363,7 +365,7 @@ for VerifyingKeyGadget<PairingE, ConstraintF, P>
 
             let delta_g2 =
                 P::G2Gadget::alloc_checked(cs.ns(|| "delta_g2"), || Ok(delta_g2.into_projective()))
-                    .and_then(|delta_g2_g|{
+                    .and_then(|delta_g2_g| {
                         delta_g2_g
                             .is_zero(cs.ns(|| "is delta_g2 zero"))?
                             .enforce_equal(
@@ -380,15 +382,15 @@ for VerifyingKeyGadget<PairingE, ConstraintF, P>
                     P::G1Gadget::alloc_checked(cs.ns(|| format!("gamma_abc_{}", i)), || {
                         Ok(gamma_abc_i.into_projective())
                     })
-                        .and_then(|input_g| {
-                            input_g
-                                .is_zero(cs.ns(|| format!("is input {} zero", i)))?
-                                .enforce_equal(
-                                    cs.ns(|| format!("input {} must not be zero", i)),
-                                    &Boolean::constant(false),
-                                )?;
-                            Ok(input_g)
-                        })
+                    .and_then(|input_g| {
+                        input_g
+                            .is_zero(cs.ns(|| format!("is input {} zero", i)))?
+                            .enforce_equal(
+                                cs.ns(|| format!("input {} must not be zero", i)),
+                                &Boolean::constant(false),
+                            )?;
+                        Ok(input_g)
+                    })
                 })
                 .collect::<Vec<_>>()
                 .into_iter()
@@ -407,9 +409,9 @@ for VerifyingKeyGadget<PairingE, ConstraintF, P>
         mut cs: CS,
         value_gen: FN,
     ) -> Result<Self, SynthesisError>
-        where
-            FN: FnOnce() -> Result<T, SynthesisError>,
-            T: Borrow<VerifyingKey<PairingE>>,
+    where
+        FN: FnOnce() -> Result<T, SynthesisError>,
+        T: Borrow<VerifyingKey<PairingE>>,
     {
         value_gen().and_then(|vk| {
             let VerifyingKey {
@@ -448,54 +450,42 @@ for VerifyingKeyGadget<PairingE, ConstraintF, P>
 }
 
 impl<PairingE, ConstraintF, P> AllocGadget<Proof<PairingE>, ConstraintF>
-for ProofGadget<PairingE, ConstraintF, P>
-    where
-        PairingE: PairingEngine,
-        ConstraintF: Field,
-        P: PairingGadget<PairingE, ConstraintF>,
+    for ProofGadget<PairingE, ConstraintF, P>
+where
+    PairingE: PairingEngine,
+    ConstraintF: Field,
+    P: PairingGadget<PairingE, ConstraintF>,
 {
     #[inline]
     fn alloc<FN, T, CS: ConstraintSystem<ConstraintF>>(
         mut cs: CS,
         value_gen: FN,
     ) -> Result<Self, SynthesisError>
-        where
-            FN: FnOnce() -> Result<T, SynthesisError>,
-            T: Borrow<Proof<PairingE>>,
+    where
+        FN: FnOnce() -> Result<T, SynthesisError>,
+        T: Borrow<Proof<PairingE>>,
     {
         value_gen().and_then(|proof| {
             let Proof { a, b, c } = proof.borrow().clone();
 
             let a = P::G1Gadget::alloc_checked(cs.ns(|| "a"), || Ok(a.into_projective()))
-                .and_then(|a_g|{
-                    a_g
-                        .is_zero(cs.ns(|| "is a zero"))?
-                        .enforce_equal(
-                            cs.ns(|| "a must not be zero"),
-                            &Boolean::constant(false),
-                        )?;
+                .and_then(|a_g| {
+                    a_g.is_zero(cs.ns(|| "is a zero"))?
+                        .enforce_equal(cs.ns(|| "a must not be zero"), &Boolean::constant(false))?;
                     Ok(a_g)
                 })?;
 
             let b = P::G2Gadget::alloc_checked(cs.ns(|| "b"), || Ok(b.into_projective()))
                 .and_then(|b_g| {
-                    b_g
-                        .is_zero(cs.ns(|| "is b zero"))?
-                        .enforce_equal(
-                            cs.ns(|| "b must not be zero"),
-                            &Boolean::constant(false),
-                        )?;
+                    b_g.is_zero(cs.ns(|| "is b zero"))?
+                        .enforce_equal(cs.ns(|| "b must not be zero"), &Boolean::constant(false))?;
                     Ok(b_g)
                 })?;
 
             let c = P::G1Gadget::alloc_checked(cs.ns(|| "c"), || Ok(c.into_projective()))
                 .and_then(|c_g| {
-                    c_g
-                        .is_zero(cs.ns(|| "is c zero"))?
-                        .enforce_equal(
-                            cs.ns(|| "c must not be zero"),
-                            &Boolean::constant(false),
-                        )?;
+                    c_g.is_zero(cs.ns(|| "is c zero"))?
+                        .enforce_equal(cs.ns(|| "c must not be zero"), &Boolean::constant(false))?;
                     Ok(c_g)
                 })?;
 
@@ -508,9 +498,9 @@ for ProofGadget<PairingE, ConstraintF, P>
         mut cs: CS,
         value_gen: FN,
     ) -> Result<Self, SynthesisError>
-        where
-            FN: FnOnce() -> Result<T, SynthesisError>,
-            T: Borrow<Proof<PairingE>>,
+    where
+        FN: FnOnce() -> Result<T, SynthesisError>,
+        T: Borrow<Proof<PairingE>>,
     {
         value_gen().and_then(|proof| {
             let Proof { a, b, c } = proof.borrow().clone();
@@ -525,11 +515,11 @@ for ProofGadget<PairingE, ConstraintF, P>
 }
 
 impl<PairingE, ConstraintF, P> ToBytesGadget<ConstraintF>
-for VerifyingKeyGadget<PairingE, ConstraintF, P>
-    where
-        PairingE: PairingEngine,
-        ConstraintF: Field,
-        P: PairingGadget<PairingE, ConstraintF>,
+    for VerifyingKeyGadget<PairingE, ConstraintF, P>
+where
+    PairingE: PairingEngine,
+    ConstraintF: Field,
+    P: PairingGadget<PairingE, ConstraintF>,
 {
     #[inline]
     fn to_bytes<CS: ConstraintSystem<ConstraintF>>(
@@ -537,7 +527,11 @@ for VerifyingKeyGadget<PairingE, ConstraintF, P>
         mut cs: CS,
     ) -> Result<Vec<UInt8>, SynthesisError> {
         let mut bytes = Vec::new();
-        bytes.extend_from_slice(&self.alpha_g1_beta_g2.to_bytes(&mut cs.ns(|| "alpha_g1_beta_g2 to bytes"))?);
+        bytes.extend_from_slice(
+            &self
+                .alpha_g1_beta_g2
+                .to_bytes(&mut cs.ns(|| "alpha_g1_beta_g2 to bytes"))?,
+        );
         bytes.extend_from_slice(&self.gamma_g2.to_bytes(&mut cs.ns(|| "gamma_g2 to bytes"))?);
         bytes.extend_from_slice(&self.delta_g2.to_bytes(&mut cs.ns(|| "delta_g2 to bytes"))?);
         for (i, g) in self.gamma_abc_g1.iter().enumerate() {
@@ -552,9 +546,21 @@ for VerifyingKeyGadget<PairingE, ConstraintF, P>
         mut cs: CS,
     ) -> Result<Vec<UInt8>, SynthesisError> {
         let mut bytes = Vec::new();
-        bytes.extend_from_slice(&self.alpha_g1_beta_g2.to_bytes_strict(&mut cs.ns(|| "alpha_g1_beta_g2 to bytes"))?);
-        bytes.extend_from_slice(&self.gamma_g2.to_bytes_strict(&mut cs.ns(|| "gamma_g2 to bytes"))?);
-        bytes.extend_from_slice(&self.delta_g2.to_bytes_strict(&mut cs.ns(|| "delta_g2 to bytes"))?);
+        bytes.extend_from_slice(
+            &self
+                .alpha_g1_beta_g2
+                .to_bytes_strict(&mut cs.ns(|| "alpha_g1_beta_g2 to bytes"))?,
+        );
+        bytes.extend_from_slice(
+            &self
+                .gamma_g2
+                .to_bytes_strict(&mut cs.ns(|| "gamma_g2 to bytes"))?,
+        );
+        bytes.extend_from_slice(
+            &self
+                .delta_g2
+                .to_bytes_strict(&mut cs.ns(|| "delta_g2 to bytes"))?,
+        );
         for (i, g) in self.gamma_abc_g1.iter().enumerate() {
             let mut cs = cs.ns(|| format!("Iteration {}", i));
             bytes.extend_from_slice(&g.to_bytes_strict(&mut cs.ns(|| "g"))?);
@@ -572,17 +578,12 @@ mod test {
     use r1cs_core::{ConstraintSynthesizer, ConstraintSystem, SynthesisError};
 
     use super::*;
-    use algebra::{
-        BitIterator, PrimeField, UniformRand
-    };
-    use r1cs_std::{
-        boolean::Boolean, test_constraint_system::TestConstraintSystem
-    };
+    use algebra::{BitIterator, PrimeField, UniformRand};
+    use r1cs_std::{boolean::Boolean, test_constraint_system::TestConstraintSystem};
     use rand::thread_rng;
 
-
     struct Bench<F: Field> {
-        inputs:          Vec<Option<F>>,
+        inputs: Vec<Option<F>>,
         num_constraints: usize,
     }
 
@@ -628,7 +629,6 @@ mod test {
     }
 
     fn groth16_verifier_test<E: PairingEngine, PG: PairingGadget<E, E::Fq>>() {
-
         let num_inputs = 2;
         let num_constraints = 100;
         let rng = &mut thread_rng();
@@ -670,27 +670,34 @@ mod test {
                     // Input must be in little-endian, but BitIterator outputs in big-endian.
                     input_bits.reverse();
 
-                    let input_bits =
-                        Boolean::alloc_input_vec(cs.ns(|| format!("Input {}", i)), input_bits.as_slice())
-                            .unwrap();
+                    let input_bits = Boolean::alloc_input_vec(
+                        cs.ns(|| format!("Input {}", i)),
+                        input_bits.as_slice(),
+                    )
+                    .unwrap();
                     input_gadgets.push(input_bits);
                 }
             }
 
             let vk_gadget =
-                VerifyingKeyGadget::<E, E::Fq, PG>::alloc_input(cs.ns(|| "Vk"), || Ok(&params.vk)).unwrap();
+                VerifyingKeyGadget::<E, E::Fq, PG>::alloc_input(cs.ns(|| "Vk"), || Ok(&params.vk))
+                    .unwrap();
 
             let proof_gadget =
-                ProofGadget::<E, E::Fq, PG>::alloc(cs.ns(|| "Proof"), || Ok(proof.clone())).unwrap();
+                ProofGadget::<E, E::Fq, PG>::alloc(cs.ns(|| "Proof"), || Ok(proof.clone()))
+                    .unwrap();
 
             println!("Time to verify!\n\n\n\n");
-            <Groth16VerifierGadget<E, E::Fq, PG> as NIZKVerifierGadget<Groth16<E, Bench<E::Fr>, E::Fr>, E::Fq>>::check_verify(
+            <Groth16VerifierGadget<E, E::Fq, PG> as NIZKVerifierGadget<
+                Groth16<E, Bench<E::Fr>, E::Fr>,
+                E::Fq,
+            >>::check_verify(
                 cs.ns(|| "Verify"),
                 &vk_gadget,
                 input_gadgets.iter(),
                 &proof_gadget,
             )
-                .unwrap();
+            .unwrap();
             if !cs.is_satisfied() {
                 println!("=========================================================");
                 println!("Unsatisfied constraints:");

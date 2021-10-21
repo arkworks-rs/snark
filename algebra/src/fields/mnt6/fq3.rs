@@ -15,13 +15,16 @@ impl Fp3Parameters for Fq3Parameters {
     type Fp = Fq;
 
     //alpha = 11
-    const NONRESIDUE: Fq = field_new!(Fq, BigInteger([
-        0x58eefd67fea995ca,
-        0x12f14affbb33a004,
-        0x4780323da44ac69b,
-        0x88acf9bea707eed9,
-        0x14bbbb859e8,
-    ]));
+    const NONRESIDUE: Fq = field_new!(
+        Fq,
+        BigInteger([
+            0x58eefd67fea995ca,
+            0x12f14affbb33a004,
+            0x4780323da44ac69b,
+            0x88acf9bea707eed9,
+            0x14bbbb859e8,
+        ])
+    );
 
     const TWO_ADICITY: u32 = 34;
 
@@ -43,62 +46,83 @@ impl Fp3Parameters for Fq3Parameters {
     ];
 
     const QUADRATIC_NONRESIDUE_TO_T: (Fq, Fq, Fq) = (
-        field_new!(Fq, BigInteger([
-            0x44a4178610a3a4e6,
-            0x49321e4d00f35073,
-            0xbbc01b9c400c07a1,
-            0xd0127c4589095738,
-            0x3730de2a45d,
-        ])),
+        field_new!(
+            Fq,
+            BigInteger([
+                0x44a4178610a3a4e6,
+                0x49321e4d00f35073,
+                0xbbc01b9c400c07a1,
+                0xd0127c4589095738,
+                0x3730de2a45d,
+            ])
+        ),
         field_new!(Fq, BigInteger([0, 0, 0, 0, 0])),
         field_new!(Fq, BigInteger([0, 0, 0, 0, 0])),
     );
 
     const FROBENIUS_COEFF_FP3_C1: &'static [Fq] = &[
-        field_new!(Fq, BigInteger([
-            0xc3177aefffbb845c,
-            0x9b80c702f9961788,
-            0xc5df8dcdac70a85a,
-            0x29184098647b5197,
-            0x1c1223d33c3,
-        ])),
-        field_new!(Fq, BigInteger([
-            0x1c17bb7477085b6a,
-            0x2621629c22e83dbb,
-            0x21c062106d949dd8,
-            0x9d5b981062164ba,
-            0x84ad703207,
-        ])),
-        field_new!(Fq, BigInteger([
-            0xdc13fe3f893c203b,
-            0x39a7226875df158f,
-            0xe34ed98542eefb62,
-            0x6f782a843d139e3c,
-            0x177280f6ea9,
-        ])),
+        field_new!(
+            Fq,
+            BigInteger([
+                0xc3177aefffbb845c,
+                0x9b80c702f9961788,
+                0xc5df8dcdac70a85a,
+                0x29184098647b5197,
+                0x1c1223d33c3,
+            ])
+        ),
+        field_new!(
+            Fq,
+            BigInteger([
+                0x1c17bb7477085b6a,
+                0x2621629c22e83dbb,
+                0x21c062106d949dd8,
+                0x9d5b981062164ba,
+                0x84ad703207,
+            ])
+        ),
+        field_new!(
+            Fq,
+            BigInteger([
+                0xdc13fe3f893c203b,
+                0x39a7226875df158f,
+                0xe34ed98542eefb62,
+                0x6f782a843d139e3c,
+                0x177280f6ea9,
+            ])
+        ),
     ];
 
     const FROBENIUS_COEFF_FP3_C2: &'static [Fq] = &[
-        field_new!(Fq, BigInteger([
-            0xc3177aefffbb845c,
-            0x9b80c702f9961788,
-            0xc5df8dcdac70a85a,
-            0x29184098647b5197,
-            0x1c1223d33c3,
-        ])),
-        field_new!(Fq, BigInteger([
-            0xdc13fe3f893c203b,
-            0x39a7226875df158f,
-            0xe34ed98542eefb62,
-            0x6f782a843d139e3c,
-            0x177280f6ea9,
-        ])),
-        field_new!(Fq, BigInteger([
-            0x1c17bb7477085b6a,
-            0x2621629c22e83dbb,
-            0x21c062106d949dd8,
-            0x9d5b981062164ba,
-            0x84ad703207,
-        ])),
+        field_new!(
+            Fq,
+            BigInteger([
+                0xc3177aefffbb845c,
+                0x9b80c702f9961788,
+                0xc5df8dcdac70a85a,
+                0x29184098647b5197,
+                0x1c1223d33c3,
+            ])
+        ),
+        field_new!(
+            Fq,
+            BigInteger([
+                0xdc13fe3f893c203b,
+                0x39a7226875df158f,
+                0xe34ed98542eefb62,
+                0x6f782a843d139e3c,
+                0x177280f6ea9,
+            ])
+        ),
+        field_new!(
+            Fq,
+            BigInteger([
+                0x1c17bb7477085b6a,
+                0x2621629c22e83dbb,
+                0x21c062106d949dd8,
+                0x9d5b981062164ba,
+                0x84ad703207,
+            ])
+        ),
     ];
 }

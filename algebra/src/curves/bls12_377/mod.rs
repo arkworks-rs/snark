@@ -1,10 +1,7 @@
 use crate::{
-    curves::{
-        bls12::{
-            Bls12, Bls12Parameters, G1Affine as Bls12G1Affine,
-            G1Projective as Bls12G1Projective, G2Affine as Bls12G2Affine,
-            G2Projective as Bls12G2Projective, TwistType,
-        },
+    curves::bls12::{
+        Bls12, Bls12Parameters, G1Affine as Bls12G1Affine, G1Projective as Bls12G1Projective,
+        G2Affine as Bls12G2Affine, G2Projective as Bls12G2Projective, TwistType,
     },
     fields::bls12_377::{Fq, Fq12Parameters, Fq2Parameters, Fq6Parameters},
 };

@@ -1,12 +1,12 @@
+use crate::crh::FixedLengthCRHGadget;
 use algebra::Field;
 use std::hash::Hash;
-use crate::crh::FixedLengthCRHGadget;
 
+use algebra::groups::Group;
 use primitives::{
     bowe_hopwood::{BoweHopwoodPedersenCRH, BoweHopwoodPedersenParameters, CHUNK_SIZE},
     crh::pedersen::PedersenWindow,
 };
-use algebra::groups::Group;
 use r1cs_core::{ConstraintSystem, SynthesisError};
 use r1cs_std::{alloc::AllocGadget, groups::GroupGadget, uint8::UInt8};
 
@@ -23,10 +23,10 @@ pub struct BoweHopwoodPedersenCRHGadgetParameters<
     ConstraintF: Field,
     GG: GroupGadget<G, ConstraintF>,
 > {
-    params:   BoweHopwoodPedersenParameters<G>,
+    params: BoweHopwoodPedersenParameters<G>,
     _group_g: PhantomData<GG>,
-    _engine:  PhantomData<ConstraintF>,
-    _window:  PhantomData<W>,
+    _engine: PhantomData<ConstraintF>,
+    _window: PhantomData<W>,
 }
 
 pub struct BoweHopwoodPedersenCRHGadget<
@@ -34,9 +34,9 @@ pub struct BoweHopwoodPedersenCRHGadget<
     ConstraintF: Field,
     GG: GroupGadget<G, ConstraintF>,
 > {
-    _group:        PhantomData<*const G>,
+    _group: PhantomData<*const G>,
     _group_gadget: PhantomData<*const GG>,
-    _engine:       PhantomData<ConstraintF>,
+    _engine: PhantomData<ConstraintF>,
 }
 
 impl<ConstraintF, G, GG, W> FixedLengthCRHGadget<BoweHopwoodPedersenCRH<G, W>, ConstraintF>
@@ -64,20 +64,26 @@ where
             }
         }
         if input_in_bits.len() % CHUNK_SIZE != 0 {
-            Err(SynthesisError::Other(format!(
-                "Input is not multiple of the chunk size. Input len: {}, chunk size: {}",
-                input_in_bits.len(),
-                CHUNK_SIZE,
-            ).to_owned()))?
+            Err(SynthesisError::Other(
+                format!(
+                    "Input is not multiple of the chunk size. Input len: {}, chunk size: {}",
+                    input_in_bits.len(),
+                    CHUNK_SIZE,
+                )
+                .to_owned(),
+            ))?
         }
         if parameters.params.generators.len() != W::NUM_WINDOWS {
-            Err(SynthesisError::Other(format!(
-                "Incorrect pp of size {:?} for window params {:?}x{:?}x{}",
-                parameters.params.generators.len(),
-                W::WINDOW_SIZE,
-                W::NUM_WINDOWS,
-                CHUNK_SIZE
-            ).to_owned()))?
+            Err(SynthesisError::Other(
+                format!(
+                    "Incorrect pp of size {:?} for window params {:?}x{:?}x{}",
+                    parameters.params.generators.len(),
+                    W::WINDOW_SIZE,
+                    W::NUM_WINDOWS,
+                    CHUNK_SIZE
+                )
+                .to_owned(),
+            ))?
         }
         for generators in parameters.params.generators.iter() {
             if generators.len() != W::WINDOW_SIZE {
@@ -145,23 +151,18 @@ impl<G: Group, W: PedersenWindow, ConstraintF: Field, GG: GroupGadget<G, Constra
 
 #[cfg(test)]
 mod test {
+    use crate::crh::{bowe_hopwood::BoweHopwoodPedersenCRHGadget, FixedLengthCRHGadget};
     use algebra::fields::sw6::fr::Fr;
-    use rand::{thread_rng, Rng};
-    use primitives::crh::{
-        pedersen::PedersenWindow,
-        bowe_hopwood::BoweHopwoodPedersenCRH,
-        FixedLengthCRH,
-    };
-    use crate::crh::{
-        bowe_hopwood::BoweHopwoodPedersenCRHGadget,
-        FixedLengthCRHGadget,
-    };
     use algebra::{curves::edwards_sw6::EdwardsProjective as Edwards, ProjectiveCurve};
+    use primitives::crh::{
+        bowe_hopwood::BoweHopwoodPedersenCRH, pedersen::PedersenWindow, FixedLengthCRH,
+    };
     use r1cs_core::ConstraintSystem;
     use r1cs_std::{
         alloc::AllocGadget, instantiated::edwards_sw6::EdwardsSWGadget,
         test_constraint_system::TestConstraintSystem, uint8::UInt8,
     };
+    use rand::{thread_rng, Rng};
 
     type TestCRH = BoweHopwoodPedersenCRH<Edwards, Window>;
     type TestCRHGadget = BoweHopwoodPedersenCRHGadget<Edwards, Fr, EdwardsSWGadget>;

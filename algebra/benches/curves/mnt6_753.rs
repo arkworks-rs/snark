@@ -3,17 +3,15 @@ use rand_xorshift::XorShiftRng;
 use std::ops::{AddAssign, MulAssign, SubAssign};
 
 use algebra::{
-    fields::mnt6753::{
-        fq::Fq, fq3::Fq3, fr::Fr, Fq6
-    },
+    biginteger::BigInteger768 as FqRepr,
     curves::{
         mnt6753::{
-            MNT6, G1Affine, G1Projective as G1, G2Affine,
-            G2Projective as G2, MNT6_753Parameters as Parameters,
+            G1Affine, G1Projective as G1, G2Affine, G2Projective as G2,
+            MNT6_753Parameters as Parameters, MNT6,
         },
         models::mnt6::{G1Prepared, G2Prepared},
     },
-    biginteger::BigInteger768 as FqRepr,
+    fields::mnt6753::{fq::Fq, fq3::Fq3, fr::Fr, Fq6},
     BigInteger, Field, PairingEngine, PrimeField, ProjectiveCurve, SquareRootField, UniformRand,
 };
 

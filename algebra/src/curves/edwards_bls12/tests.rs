@@ -1,6 +1,13 @@
-use crate::{curves::{edwards_bls12::*, tests::curve_tests, AffineCurve, ProjectiveCurve, models::twisted_edwards_extended::tests::montgomery_conversion_test}, groups::tests::group_test, SemanticallyValid};
-use rand;
 use crate::curves::tests::edwards_tests;
+use crate::{
+    curves::{
+        edwards_bls12::*, models::twisted_edwards_extended::tests::montgomery_conversion_test,
+        tests::curve_tests, AffineCurve, ProjectiveCurve,
+    },
+    groups::tests::group_test,
+    SemanticallyValid,
+};
+use rand;
 
 #[test]
 fn test_projective_curve() {

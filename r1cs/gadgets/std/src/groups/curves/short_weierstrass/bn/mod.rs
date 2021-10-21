@@ -19,12 +19,12 @@ pub type G1Gadget<P> = AffineGadget<
 >;
 
 pub type G2Gadget<P> =
-AffineGadget<<P as BnParameters>::G2Parameters, <P as BnParameters>::Fp, Fp2G<P>>;
+    AffineGadget<<P as BnParameters>::G2Parameters, <P as BnParameters>::Fp, Fp2G<P>>;
 
 #[derive(Derivative)]
 #[derivative(
-Clone(bound = "G1Gadget<P>: Clone"),
-Debug(bound = "G1Gadget<P>: Debug")
+    Clone(bound = "G1Gadget<P>: Clone"),
+    Debug(bound = "G1Gadget<P>: Debug")
 )]
 pub struct G1PreparedGadget<P: BnParameters>(pub G1Gadget<P>);
 
@@ -52,7 +52,7 @@ impl<P: BnParameters> ToBytesGadget<P::Fp> for G1PreparedGadget<P> {
 
     fn to_bytes_strict<CS: ConstraintSystem<P::Fp>>(
         &self,
-        mut cs: CS
+        mut cs: CS,
     ) -> Result<Vec<UInt8>, SynthesisError> {
         self.0.to_bytes_strict(&mut cs.ns(|| "g_alpha to bytes"))
     }
@@ -62,15 +62,14 @@ type Fp2G<P> = Fp2Gadget<<P as BnParameters>::Fp2Params, <P as BnParameters>::Fp
 type LCoeff<P> = (Fp2G<P>, Fp2G<P>);
 #[derive(Derivative)]
 #[derivative(
-Clone(bound = "Fp2Gadget<P::Fp2Params, P::Fp>: Clone"),
-Debug(bound = "Fp2Gadget<P::Fp2Params, P::Fp>: Debug")
+    Clone(bound = "Fp2Gadget<P::Fp2Params, P::Fp>: Clone"),
+    Debug(bound = "Fp2Gadget<P::Fp2Params, P::Fp>: Debug")
 )]
 pub struct G2PreparedGadget<P: BnParameters> {
     pub ell_coeffs: Vec<LCoeff<P>>,
 }
 
 impl<P: BnParameters> ToBytesGadget<P::Fp> for G2PreparedGadget<P> {
-
     #[inline]
     fn to_bytes<CS: ConstraintSystem<P::Fp>>(
         &self,
@@ -87,7 +86,7 @@ impl<P: BnParameters> ToBytesGadget<P::Fp> for G2PreparedGadget<P> {
 
     fn to_bytes_strict<CS: ConstraintSystem<P::Fp>>(
         &self,
-        mut cs: CS
+        mut cs: CS,
     ) -> Result<Vec<UInt8>, SynthesisError> {
         let mut bytes = Vec::new();
         for (i, coeffs) in self.ell_coeffs.iter().enumerate() {
@@ -101,7 +100,7 @@ impl<P: BnParameters> ToBytesGadget<P::Fp> for G2PreparedGadget<P> {
 
 fn mul_by_char<P: BnParameters, CS: ConstraintSystem<P::Fp>>(
     mut cs: CS,
-    q: &G2Gadget<P>
+    q: &G2Gadget<P>,
 ) -> Result<G2Gadget<P>, SynthesisError> {
     let mut s = q.clone();
     s.x.frobenius_map_in_place(cs.ns(|| "s.x.frobenius_map_1"), 1)?;
@@ -132,7 +131,7 @@ impl<P: BnParameters> G2PreparedGadget<P> {
             match bit {
                 1 => ell_coeffs.push(Self::add(cs.ns(|| "add_q"), &mut r, &q)?),
                 -1 => ell_coeffs.push(Self::add(cs.ns(|| "add_neg_q"), &mut r, &negq)?),
-                _ => continue
+                _ => continue,
             }
         }
 

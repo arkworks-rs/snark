@@ -2,10 +2,11 @@ use crate::{
     biginteger::BigInteger384,
     curves::{
         models::short_weierstrass_jacobian::{GroupAffine, GroupProjective},
-        ModelParameters, SWModelParameters
+        ModelParameters, SWModelParameters,
     },
-    Field, field_new,
-    fields::bn_382::*
+    field_new,
+    fields::bn_382::*,
+    Field,
 };
 
 #[derive(Copy, Clone, Default, PartialEq, Eq)]

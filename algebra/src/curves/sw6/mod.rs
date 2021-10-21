@@ -1,6 +1,5 @@
 use crate::field_new;
 use crate::{
-    Error,
     biginteger::BigInteger832,
     curves::PairingEngine,
     fields::{
@@ -10,6 +9,7 @@ use crate::{
         },
         BitIterator, Field, FpParameters,
     },
+    Error,
 };
 
 pub mod g1;
@@ -40,7 +40,7 @@ impl PairingEngine for SW6 {
 
     fn miller_loop<'a, I>(i: I) -> Result<Self::Fqk, Error>
     where
-        I: IntoIterator<Item = &'a (Self::G1Prepared, Self::G2Prepared)>
+        I: IntoIterator<Item = &'a (Self::G1Prepared, Self::G2Prepared)>,
     {
         let mut result = Self::Fqk::one();
         for &(ref p, ref q) in i {
@@ -90,7 +90,10 @@ impl SW6 {
             old_ry = ry;
 
             if old_ry.is_zero() {
-                Err(format!("Incorrect values for miller loop: p={}, q={}", p, q))?
+                Err(format!(
+                    "Incorrect values for miller loop: p={}, q={}",
+                    p, q
+                ))?
             }
 
             let old_rx_square = old_rx.square();
@@ -117,7 +120,10 @@ impl SW6 {
                 old_ry = ry;
 
                 if old_rx == qx {
-                    Err(format!("Incorrect values for miller loop: p={}, q={}", p, q))?
+                    Err(format!(
+                        "Incorrect values for miller loop: p={}, q={}",
+                        p, q
+                    ))?
                 }
 
                 let gamma = (old_ry - &qy) * &((old_rx - &qx).inverse().unwrap());
@@ -146,7 +152,10 @@ impl SW6 {
         let value_inv = value.inverse().unwrap();
         let value_to_first_chunk = SW6::final_exponentiation_first(value, &value_inv);
         let value_inv_to_first_chunk = SW6::final_exponentiation_first(&value_inv, value);
-        Ok(SW6::final_exponentiation_last(&value_to_first_chunk, &value_inv_to_first_chunk))
+        Ok(SW6::final_exponentiation_last(
+            &value_to_first_chunk,
+            &value_inv_to_first_chunk,
+        ))
     }
 
     fn final_exponentiation_first(elt: &Fq6, elt_inv: &Fq6) -> Fq6 {

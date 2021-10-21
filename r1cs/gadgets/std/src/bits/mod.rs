@@ -3,8 +3,8 @@ use algebra::Field;
 use r1cs_core::{ConstraintSystem, SynthesisError};
 
 pub mod boolean;
-pub mod uint64;
 pub mod uint32;
+pub mod uint64;
 pub mod uint8;
 
 pub trait ToBitsGadget<ConstraintF: Field> {
@@ -21,8 +21,8 @@ pub trait ToBitsGadget<ConstraintF: Field> {
 }
 
 pub trait FromBitsGadget<ConstraintF: Field>
-    where
-        Self: Sized
+where
+    Self: Sized,
 {
     /// Given a bit representation `bits` of bit len not bigger than CAPACITY
     /// (i.e. MODULUS - 1) of `Self` in *big endian* form, reconstructs a `Self`.
@@ -113,7 +113,6 @@ pub trait ToBytesGadget<ConstraintF: Field> {
 }
 
 pub trait ToCompressedBitsGadget<ConstraintF: Field> {
-
     /// Enforce compression of an element through serialization of the x coordinate and storing
     /// a sign bit for the y coordinate. For GT elements we assume x <-> c1 and y <-> c0 to avoid
     /// confusion. When enforcing byte serialization of a field element, "x_in_field" and "y_in_field"

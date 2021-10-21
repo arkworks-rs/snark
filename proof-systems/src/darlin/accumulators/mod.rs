@@ -1,18 +1,15 @@
 //! Trait for general (public, or "atomic") accumulation schemes [BCMS20](https://eprint.iacr.org/2020/499).
-//! Comes with the aggregation/verification of "items", i.e. some data structure typically satisfying a 
+//! Comes with the aggregation/verification of "items", i.e. some data structure typically satisfying a
 //! non-efficient predicate).  
 //! The trait applies to mixed type accumulators as described in our Darlin Proof Tree document:
-//! There, a (full) accumulator is a composite structure of dlog and inner sumcheck ("single") accumulators, 
-//! from both groups of the EC cycle (the "current", and the "collected" ones). 
+//! There, a (full) accumulator is a composite structure of dlog and inner sumcheck ("single") accumulators,
+//! from both groups of the EC cycle (the "current", and the "collected" ones).
 //! Although within recursion we do not separate accumulation strategy from the SNARK on protocol level,
 //! we nevertheless serve this functionality for post processing outside the PCD.
-use algebra::{AffineCurve, serialize::*};
-use rand::RngCore;
-use poly_commit::{
-    ipa_pc::Proof,
-    Error
-};
+use algebra::{serialize::*, AffineCurve};
 use poly_commit::ipa_pc::Commitment;
+use poly_commit::{ipa_pc::Proof, Error};
+use rand::RngCore;
 
 pub mod dlog;
 
@@ -32,9 +29,9 @@ pub struct AccumulationProof<G: AffineCurve> {
 /// and verifying aggregation, as well as checking ("deciding") if an item
 /// satisfies the predicate.
 /// It applies to mixed type accumulators as described in our [Darlin Proof Tree doc](TODO: add link):
-/// There, a (full) accumulator is a composite structure of dlog and inner 
-/// sumcheck ("single") accumulators, from both groups of the EC cycle (the 
-/// "current", and the "collected" ones). Although within recursion we do 
+/// There, a (full) accumulator is a composite structure of dlog and inner
+/// sumcheck ("single") accumulators, from both groups of the EC cycle (the
+/// "current", and the "collected" ones). Although within recursion we do
 /// not separate accumulation strategy from the SNARK on protocol level,
 /// we nevertheless serve this functionality for post processing outside the PCD.
 pub trait ItemAccumulator {

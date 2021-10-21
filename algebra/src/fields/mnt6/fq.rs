@@ -1,7 +1,7 @@
 use crate::{
     biginteger::BigInteger320 as BigInteger,
-    fields::{Fp320, Fp320Parameters, FpParameters},
     field_new,
+    fields::{Fp320, Fp320Parameters, FpParameters},
 };
 
 pub type Fq = Fp320<FqParameters>;

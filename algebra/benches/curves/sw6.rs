@@ -4,14 +4,8 @@ use std::ops::{AddAssign, MulAssign, SubAssign};
 
 use algebra::{
     biginteger::{BigInteger384 as FrRepr, BigInteger832 as FqRepr},
-    fields::sw6::{
-        fq::Fq, fq3::Fq3, fr::Fr, Fq6,
-    },
-    curves::sw6::{
-            G1Affine, G1Projective as G1,
-            G2Affine, G2Projective as G2,
-            SW6,
-        },
+    curves::sw6::{G1Affine, G1Projective as G1, G2Affine, G2Projective as G2, SW6},
+    fields::sw6::{fq::Fq, fq3::Fq3, fr::Fr, Fq6},
     BigInteger, Field, PairingEngine, PrimeField, ProjectiveCurve, SquareRootField, UniformRand,
 };
 

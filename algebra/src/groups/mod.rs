@@ -1,5 +1,7 @@
-use crate::{BitIterator, FromBytesChecked, SemanticallyValid, CanonicalSerialize, CanonicalDeserialize};
 use crate::UniformRand;
+use crate::{
+    BitIterator, CanonicalDeserialize, CanonicalSerialize, FromBytesChecked, SemanticallyValid,
+};
 use std::{
     fmt::{Debug, Display},
     hash::Hash,
@@ -10,7 +12,7 @@ use crate::{
     bytes::{FromBytes, ToBytes},
     fields::PrimeField,
 };
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
 #[cfg(test)]
 pub mod tests;

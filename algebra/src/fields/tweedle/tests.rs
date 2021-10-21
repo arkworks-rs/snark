@@ -2,8 +2,8 @@ use crate::{
     biginteger::BigInteger256 as BigInteger,
     bytes::{FromBytes, ToBytes},
     fields::{
-        tweedle::{fq::Fq, fr::Fr},
         tests::{field_test, primefield_test},
+        tweedle::{fq::Fq, fr::Fr},
         Field,
         LegendreSymbol::*,
         PrimeField, SquareRootField,
@@ -186,9 +186,10 @@ fn test_fq_square_in_place() {
         "21864651240005695523200639428464570946052769938774601449735727714436878540682",
     )
     .unwrap();
-    let f3 =
-        Fq::from_str("19581484219153942072047858331099766329275818131597627721493461404774907481642")
-            .unwrap();
+    let f3 = Fq::from_str(
+        "19581484219153942072047858331099766329275818131597627721493461404774907481642",
+    )
+    .unwrap();
     assert!(!f1.is_zero());
     assert!(!f3.is_zero());
     f1.square_in_place();
@@ -214,7 +215,7 @@ fn test_fq_from_str() {
         0x17a655e2b3cd9f8a,
         0xe98745acbc60cf8,
         0x8318964c0b265e48,
-        0x3056f43c9ee293fd
+        0x3056f43c9ee293fd,
     ]));
     let f1 = Fq::from_str(
         "21864651240005695523200639428464570946052769938774601449735727714436878540682",
@@ -224,7 +225,7 @@ fn test_fq_from_str() {
         0x97e9103775d2f35c,
         0xbe6756b6c587544b,
         0x6ee38c3afd88ef4b,
-        0x2bacd150f540c677
+        0x2bacd150f540c677,
     ]));
     let f2 = Fq::from_str(
         "19754794831832707859764530223239420866832328728734160755396495950822165902172",
@@ -241,11 +242,13 @@ fn test_fq_legendre() {
 
     let e = Fq::from_str(
         "19754794831832707859764530223239420866832328728734160755396495950822165902172",
-    ).unwrap();
+    )
+    .unwrap();
     assert_eq!(QuadraticResidue, e.legendre());
     let e = Fq::from_str(
         "7894070009960485405056471228743059385328854667547937089962899125529157892247",
-    ).unwrap();
+    )
+    .unwrap();
     assert_eq!(QuadraticNonResidue, e.legendre());
 }
 
@@ -304,7 +307,6 @@ fn test_fr_mul() {
     assert!(!f3.is_zero());
     assert_eq!(f1 * &f2, f3);
 }
-
 
 #[test]
 fn test_fr_bytes() {

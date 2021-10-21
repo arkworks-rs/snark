@@ -1,6 +1,6 @@
 use algebra::{
     fields::{Fp3Parameters, Fp3ParamsWrapper},
-    PrimeField, SquareRootField
+    PrimeField, SquareRootField,
 };
 use r1cs_core::{ConstraintSystem, SynthesisError};
 
@@ -13,9 +13,8 @@ impl<P: Fp3Parameters<Fp = ConstraintF>, ConstraintF: PrimeField + SquareRootFie
 
     fn mul_base_field_gadget_by_nonresidue<CS: ConstraintSystem<ConstraintF>>(
         cs: CS,
-        fe: &Self::BaseFieldGadget
-    ) -> Result<Self::BaseFieldGadget, SynthesisError>
-    {
+        fe: &Self::BaseFieldGadget,
+    ) -> Result<Self::BaseFieldGadget, SynthesisError> {
         fe.mul_by_constant(cs, &P::NONRESIDUE)
     }
 
@@ -23,17 +22,10 @@ impl<P: Fp3Parameters<Fp = ConstraintF>, ConstraintF: PrimeField + SquareRootFie
         mut cs: CS,
         c1: &mut Self::BaseFieldGadget,
         c2: &mut Self::BaseFieldGadget,
-        power: usize
-    ) -> Result<(), SynthesisError>
-    {
-        c1.mul_by_constant_in_place(
-            cs.ns(|| "c1_power"),
-            &P::FROBENIUS_COEFF_FP3_C1[power % 3],
-        )?;
-        c2.mul_by_constant_in_place(
-            cs.ns(|| "c2_power"),
-            &P::FROBENIUS_COEFF_FP3_C2[power % 3],
-        )?;
+        power: usize,
+    ) -> Result<(), SynthesisError> {
+        c1.mul_by_constant_in_place(cs.ns(|| "c1_power"), &P::FROBENIUS_COEFF_FP3_C1[power % 3])?;
+        c2.mul_by_constant_in_place(cs.ns(|| "c2_power"), &P::FROBENIUS_COEFF_FP3_C2[power % 3])?;
 
         Ok(())
     }
@@ -41,7 +33,8 @@ impl<P: Fp3Parameters<Fp = ConstraintF>, ConstraintF: PrimeField + SquareRootFie
 
 pub type Fp3Gadget<P, ConstraintF> = CubicExtFieldGadget<Fp3ParamsWrapper<P>, ConstraintF>;
 
-impl<P: Fp3Parameters<Fp = ConstraintF>, ConstraintF: PrimeField + SquareRootField> Fp3Gadget<P, ConstraintF>
+impl<P: Fp3Parameters<Fp = ConstraintF>, ConstraintF: PrimeField + SquareRootField>
+    Fp3Gadget<P, ConstraintF>
 {
     /// Multiply a Fp3Gadget by a Fp gadget.
     #[inline]

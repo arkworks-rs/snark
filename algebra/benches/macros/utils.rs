@@ -1,6 +1,5 @@
 macro_rules! n_fold {
     ($tmp:ident, $v:ident, $func:ident, $count:ident) => {
-
         #[cfg(not(feature = "n_fold"))]
         $tmp.$func(&$v[$count].1);
         #[cfg(feature = "n_fold")]
@@ -10,7 +9,6 @@ macro_rules! n_fold {
     };
 
     ($tmp:ident, $func:ident) => {
-
         #[cfg(not(feature = "n_fold"))]
         $tmp.$func();
         #[cfg(feature = "n_fold")]
