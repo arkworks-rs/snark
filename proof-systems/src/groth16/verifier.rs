@@ -8,7 +8,7 @@ use std::ops::{AddAssign, Neg};
 
 pub fn prepare_verifying_key<E: PairingEngine>(vk: &VerifyingKey<E>) -> PreparedVerifyingKey<E> {
     PreparedVerifyingKey {
-        alpha_g1_beta_g2: vk.alpha_g1_beta_g2.clone(),
+        alpha_g1_beta_g2: vk.alpha_g1_beta_g2,
         gamma_g2_neg_pc: vk.gamma_g2.neg().into(),
         delta_g2_neg_pc: vk.delta_g2.neg().into(),
         gamma_abc_g1: vk.gamma_abc_g1.clone(),

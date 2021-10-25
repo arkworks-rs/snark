@@ -16,7 +16,7 @@ use std::fs::File;
 use std::path::Path;
 use std::time::{SystemTime, UNIX_EPOCH};
 
-const DATA_PATH: &'static str = "./msm_bases_tweedle";
+const DATA_PATH: &str = "./msm_bases_tweedle";
 
 fn save_data(samples: usize) {
     let rng = &mut rand::thread_rng();

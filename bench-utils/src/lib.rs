@@ -7,7 +7,7 @@ pub mod inner {
     pub use colored::Colorize;
     use std::sync::atomic::AtomicUsize;
     pub static NUM_INDENT: AtomicUsize = AtomicUsize::new(0);
-    pub const PAD_CHAR: &'static str = "·";
+    pub const PAD_CHAR: &str = "·";
     use std::time::Instant;
 
     pub struct TimerInfo {
@@ -117,7 +117,7 @@ pub mod inner {
     pub fn compute_indent_whitespace(indent_amount: usize) -> String {
         let mut indent = String::new();
         for _ in 0..indent_amount {
-            indent.push_str(" ");
+            indent.push(' ');
         }
         indent
     }

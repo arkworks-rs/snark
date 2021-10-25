@@ -116,7 +116,7 @@ where
                     self.path.len(),
                     P::HEIGHT
                 )
-                .to_owned(),
+                ,
             ));
         }
 
@@ -250,7 +250,6 @@ mod test {
             pedersen::PedersenWindow,
             FixedLengthCRH,
         },
-        merkle_tree::*,
     };
     use r1cs_core::ConstraintSystem;
     use r1cs_std::{

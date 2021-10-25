@@ -112,7 +112,7 @@ impl UInt32 {
             }
         }
 
-        Self { value, bits }
+        Self { bits, value }
     }
 
     pub fn rotr(&self, by: usize) -> Self {
@@ -168,7 +168,7 @@ impl UInt32 {
         // in the scalar field
         assert!(ConstraintF::Params::MODULUS_BITS >= 64);
 
-        assert!(operands.len() >= 1);
+        assert!(!operands.is_empty());
         assert!(operands.len() <= 10);
 
         if operands.len() == 1 {
@@ -210,7 +210,7 @@ impl UInt32 {
                         all_constants = false;
 
                         // Add coeff * bit_gadget
-                        lc = lc + (coeff, bit.get_variable());
+                        lc += (coeff, bit.get_variable());
                     }
                     Boolean::Not(ref bit) => {
                         all_constants = false;
@@ -220,7 +220,7 @@ impl UInt32 {
                     }
                     Boolean::Constant(bit) => {
                         if bit {
-                            lc = lc + (coeff, CS::one());
+                            lc += (coeff, CS::one());
                         }
                     }
                 }
@@ -317,7 +317,7 @@ impl<ConstraintF: Field> ToBytesGadget<ConstraintF> for UInt32 {
 
 impl PartialEq for UInt32 {
     fn eq(&self, other: &Self) -> bool {
-        !self.value.is_none() && !other.value.is_none() && self.value == other.value
+        self.value.is_some() && other.value.is_some() && self.value == other.value
     }
 }
 
@@ -424,7 +424,7 @@ mod test {
                         assert!(b.get_value().unwrap() == (expected & 1 == 1));
                     }
                     &Boolean::Not(ref b) => {
-                        assert!(!b.get_value().unwrap() == (expected & 1 == 1));
+                        assert!(b.get_value().unwrap() != (expected & 1 == 1));
                     }
                     &Boolean::Constant(b) => {
                         assert!(b == (expected & 1 == 1));
@@ -503,7 +503,7 @@ mod test {
                         assert!(b.get_value().unwrap() == (expected & 1 == 1));
                     }
                     &Boolean::Not(ref b) => {
-                        assert!(!b.get_value().unwrap() == (expected & 1 == 1));
+                        assert!(b.get_value().unwrap() != (expected & 1 == 1));
                     }
                     &Boolean::Constant(_) => unreachable!(),
                 }

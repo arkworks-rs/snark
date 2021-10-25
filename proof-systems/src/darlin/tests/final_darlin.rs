@@ -246,7 +246,7 @@ where
             d: None,
             num_constraints: config.num_constraints,
             num_variables: config.num_variables,
-            deferred: config.dummy_deferred.clone(),
+            deferred: config.dummy_deferred,
         }
     }
 

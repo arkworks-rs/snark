@@ -248,10 +248,7 @@ impl<E: PairingEngine> SemanticallyValid for VerifyingKey<E> {
             && !self.delta_g2.is_zero()
             && self
                 .gamma_abc_g1
-                .iter()
-                .filter(|&p| !p.is_valid() || p.is_zero())
-                .collect::<Vec<_>>()
-                .is_empty()
+                .iter().find(|&p| !p.is_valid() || p.is_zero()).is_none()
             && Self::check_gamma_abc_g1_points(self.gamma_abc_g1.as_slice()).is_ok()
     }
 }
@@ -471,34 +468,19 @@ impl<E: PairingEngine> SemanticallyValid for Parameters<E> {
             && !self.delta_g2.is_zero()
             && self
                 .a_query
-                .iter()
-                .filter(|&p| !p.is_valid())
-                .collect::<Vec<_>>()
-                .is_empty()
+                .iter().find(|&p| !p.is_valid()).is_none()
             && self
                 .b_g1_query
-                .iter()
-                .filter(|&p| !p.is_valid())
-                .collect::<Vec<_>>()
-                .is_empty()
+                .iter().find(|&p| !p.is_valid()).is_none()
             && self
                 .b_g2_query
-                .iter()
-                .filter(|&p| !p.is_valid())
-                .collect::<Vec<_>>()
-                .is_empty()
+                .iter().find(|&p| !p.is_valid()).is_none()
             && self
                 .h_query
-                .iter()
-                .filter(|&p| !p.is_valid() || p.is_zero())
-                .collect::<Vec<_>>()
-                .is_empty()
+                .iter().find(|&p| !p.is_valid() || p.is_zero()).is_none()
             && self
                 .l_query
-                .iter()
-                .filter(|&p| !p.is_valid() || p.is_zero())
-                .collect::<Vec<_>>()
-                .is_empty()
+                .iter().find(|&p| !p.is_valid() || p.is_zero()).is_none()
     }
 }
 

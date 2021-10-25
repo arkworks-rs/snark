@@ -158,7 +158,7 @@ where
 
     let input_assignment = Arc::new(
         prover.input_assignment[1..]
-            .into_iter()
+            .iter()
             .map(|s| s.into_repr())
             .collect::<Vec<_>>(),
     );

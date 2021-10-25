@@ -50,9 +50,9 @@ where
         r: &Self::RandomnessGadget,
     ) -> Result<Self::OutputGadget, SynthesisError> {
         if (input.len() * 8) > (W::WINDOW_SIZE * W::NUM_WINDOWS) {
-            Err(SynthesisError::Other(
-                format!("incorrect input length: {:?}", input.len()).to_owned(),
-            ))?
+            return Err(SynthesisError::Other(
+                format!("incorrect input length: {:?}", input.len()),
+            ))
         }
 
         let mut padded_input = input.to_vec();
@@ -65,19 +65,19 @@ where
         }
 
         if padded_input.len() * 8 != W::WINDOW_SIZE * W::NUM_WINDOWS {
-            Err(SynthesisError::Other(
+            return Err(SynthesisError::Other(
                 "padded input length verification failed".to_owned(),
-            ))?
+            ))
         }
         if parameters.params.generators.len() != W::NUM_WINDOWS {
-            Err(SynthesisError::Other(
+            return Err(SynthesisError::Other(
                 format!(
                     "Number of generators: {} not enough for the selected num_windows: {}",
                     parameters.params.generators.len(),
                     W::NUM_WINDOWS
                 )
-                .to_owned(),
-            ))?
+                ,
+            ))
         }
 
         // Allocate new variable for commitment output.

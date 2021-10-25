@@ -226,7 +226,7 @@ pub trait FieldGadget<F: Field, ConstraintF: Field>:
         bits: &[Boolean],
     ) -> Result<Self, SynthesisError> {
         let mut res = Self::one(cs.ns(|| "Alloc result"))?;
-        for (i, bit) in bits.into_iter().enumerate() {
+        for (i, bit) in bits.iter().enumerate() {
             res = res.square(cs.ns(|| format!("Double {}", i)))?;
             let tmp = res.mul(cs.ns(|| format!("Add {}-th base power", i)), self)?;
             res = Self::conditionally_select(
@@ -408,7 +408,7 @@ pub(crate) mod tests {
         assert_eq!(a_inv.get_value().unwrap(), a_native.inverse().unwrap());
         // a * a * a = a^3
         let bits = BitIterator::new([0x3])
-            .map(|bit| Boolean::constant(bit))
+            .map(Boolean::constant)
             .collect::<Vec<_>>();
         assert_eq!(
             a_native * &(a_native * &a_native),
@@ -535,7 +535,7 @@ pub(crate) mod tests {
 
         //Modify packed value
         cs.set(
-            format!("pack f_g_bits/variable/alloc").as_ref(),
+            "pack f_g_bits/variable/alloc".to_string().as_ref(),
             ConstraintF::rand(&mut rng),
         );
         assert!(!cs.is_satisfied());
@@ -641,7 +641,7 @@ pub(crate) mod tests {
 
             //If a == b then v = True
             let b_gadget =
-                FpGadget::<ConstraintF>::alloc(cs.ns(|| "alloc b"), || Ok(a.clone())).unwrap();
+                FpGadget::<ConstraintF>::alloc(cs.ns(|| "alloc b"), || Ok(a)).unwrap();
 
             let v = a_gadget.is_eq(cs.ns(|| "a == b"), &b_gadget).unwrap();
             v.enforce_equal(cs.ns(|| " v == True"), &Boolean::constant(true))

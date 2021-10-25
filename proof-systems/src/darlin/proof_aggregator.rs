@@ -36,7 +36,7 @@ where
 {
     let accumulators_time = start_timer!(|| "Compute accumulators");
 
-    if pcds.len() == 0 || vks.len() == 0 || pcds.len() != vks.len() {
+    if pcds.is_empty() || vks.is_empty() || pcds.len() != vks.len() {
         return Err(None);
     }
 
@@ -76,7 +76,7 @@ where
     } else {
         // Otherwise, collect and return as error the indices of all the failing proofs
         // sorted in ascending order
-        failing_indices.sort();
+        failing_indices.sort_unstable();
         Err(Some(failing_indices))
     }
 }

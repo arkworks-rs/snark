@@ -358,8 +358,8 @@ where
     ) -> Result<Self, SynthesisError> {
         let mut to_sub = SWProjective::<P>::zero();
 
-        let mut t = base.clone();
-        let sigma = base.clone();
+        let mut t = *base;
+        let sigma = *base;
         let mut result = result.clone();
 
         let mut bit_vec = Vec::new();
@@ -371,7 +371,7 @@ where
         }
 
         for (i, bits) in bit_vec.chunks(2).enumerate() {
-            let ti = t.clone();
+            let ti = t;
             let two_ti = ti.double();
             let mut table = [sigma, sigma + &ti, sigma + &two_ti, sigma + &ti + &two_ti];
 
@@ -441,11 +441,11 @@ where
         };
         // Compute ∏(h_i^{m_i}) for all i.
         for (segment_i, (segment_bits_chunks, segment_powers)) in
-            scalars.into_iter().zip(bases.iter()).enumerate()
+            scalars.iter().zip(bases.iter()).enumerate()
         {
             for (i, (bits, base_power)) in segment_bits_chunks
                 .borrow()
-                .into_iter()
+                .iter()
                 .zip(segment_powers.borrow().iter())
                 .enumerate()
             {
@@ -454,7 +454,7 @@ where
                 let mut coords = vec![];
                 for _ in 0..4 {
                     coords.push(acc_power);
-                    acc_power = acc_power + base_power;
+                    acc_power += base_power;
                 }
                 let bits = bits.borrow().to_bits(
                     &mut cs.ns(|| format!("Convert Scalar {}, {} to bits", segment_i, i)),

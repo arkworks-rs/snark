@@ -37,14 +37,14 @@ impl<ConstraintF: Field> ToBitsGadget<ConstraintF> for Boolean {
         &self,
         _: CS,
     ) -> Result<Vec<Boolean>, SynthesisError> {
-        Ok(vec![self.clone()])
+        Ok(vec![*self])
     }
 
     fn to_bits_strict<CS: ConstraintSystem<ConstraintF>>(
         &self,
         _: CS,
     ) -> Result<Vec<Boolean>, SynthesisError> {
-        Ok(vec![self.clone()])
+        Ok(vec![*self])
     }
 }
 

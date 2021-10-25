@@ -163,14 +163,14 @@ where
             // Check that the input and the query in the verification are of the
             // same length.
             if input_len != pvk.query.len() || public_inputs.next().is_some() {
-                Err(SynthesisError::Other(
+                return Err(SynthesisError::Other(
                     format!(
                         "Input and query must have the same length. Input len: {}, Query len: {}",
                         input_len,
                         pvk.query.len()
                     )
-                    .to_owned(),
-                ))?
+                    ,
+                ))
             }
             g_psi
         };
@@ -216,7 +216,7 @@ where
             P::miller_loop(
                 cs.ns(|| "Miller loop 4"),
                 &[a_prep, pvk.g_gamma_pc.clone()],
-                &[pvk.h_gamma_pc.clone(), b_prep],
+                &[pvk.h_gamma_pc, b_prep],
             )?
         };
         let test2 = P::final_exponentiation(cs.ns(|| "Final Exp 2"), &test2_exp)?;

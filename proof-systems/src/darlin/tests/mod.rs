@@ -65,7 +65,7 @@ mod test {
             .collect::<HashSet<usize>>()
             .into_iter()
             .collect::<Vec<usize>>();
-        indices.sort();
+        indices.sort_unstable();
         indices
     }
 
@@ -207,7 +207,7 @@ mod test {
             // Check accumulation verification failed in hard part
             assert!(
                 (result.is_err() && result.clone().unwrap_err().is_none())
-                    || (result.is_ok() && !result.clone().unwrap())
+                    || (result.is_ok() && !result.unwrap())
             );
 
             // Restore correct PCD
@@ -411,7 +411,7 @@ mod test {
 
         let simple_marlin_pcds_fake = pcds_fake
             .into_iter()
-            .map(|simple_marlin_pcd| GeneralPCD::SimpleMarlin(simple_marlin_pcd))
+            .map(GeneralPCD::SimpleMarlin)
             .collect::<Vec<_>>();
 
         println!("Test accumulation");
@@ -516,12 +516,12 @@ mod test {
         // Collect PCDs
         let mut final_darlin_pcds = pcds
             .into_iter()
-            .map(|final_darlin_pcd| GeneralPCD::FinalDarlin(final_darlin_pcd))
+            .map(GeneralPCD::FinalDarlin)
             .collect::<Vec<_>>();
 
         let final_darlin_pcds_fake = pcds_fake
             .into_iter()
-            .map(|final_darlin_pcd| GeneralPCD::FinalDarlin(final_darlin_pcd))
+            .map(GeneralPCD::FinalDarlin)
             .collect::<Vec<_>>();
 
         println!("Test accumulation");
@@ -612,7 +612,7 @@ mod test {
 
                 let mut iteration_pcds = iteration_pcds
                     .into_iter()
-                    .map(|pcd| GeneralPCD::SimpleMarlin(pcd))
+                    .map(GeneralPCD::SimpleMarlin)
                     .collect::<Vec<_>>();
 
                 pcds.append(&mut iteration_pcds);
@@ -629,7 +629,7 @@ mod test {
 
                 let mut iteration_pcds_fake = iteration_pcds_fake
                     .into_iter()
-                    .map(|pcd| GeneralPCD::SimpleMarlin(pcd))
+                    .map(GeneralPCD::SimpleMarlin)
                     .collect::<Vec<_>>();
 
                 pcds_fake.append(&mut iteration_pcds_fake);
@@ -650,7 +650,7 @@ mod test {
 
                 let mut iteration_pcds = iteration_pcds
                     .into_iter()
-                    .map(|pcd| GeneralPCD::FinalDarlin(pcd))
+                    .map(GeneralPCD::FinalDarlin)
                     .collect::<Vec<_>>();
 
                 pcds.append(&mut iteration_pcds);
@@ -667,7 +667,7 @@ mod test {
 
                 let mut iteration_pcds_fake = iteration_pcds_fake
                     .into_iter()
-                    .map(|pcd| GeneralPCD::FinalDarlin(pcd))
+                    .map(GeneralPCD::FinalDarlin)
                     .collect::<Vec<_>>();
 
                 pcds_fake.append(&mut iteration_pcds_fake);
@@ -748,16 +748,14 @@ mod test {
                     .commitments
                     .iter()
                     .flatten()
-                    .collect::<Vec<_>>()
-                    .len()
+                    .count()
                     * 4),
             proof
                 .proof
                 .commitments
                 .iter()
                 .flatten()
-                .collect::<Vec<_>>()
-                .len()
+                .count()
         );
         println!(
             "---- {} - evaluations ({})",

@@ -130,7 +130,7 @@ pub trait GroupGadget<G: Group, ConstraintF: Field>:
         bits: &[Boolean],
     ) -> Result<Self, SynthesisError> {
         let base_g = Self::from_value(cs.ns(|| "hardcode base"), base);
-        base_g.mul_bits(cs, result, bits.into_iter())
+        base_g.mul_bits(cs, result, bits.iter())
     }
 
     fn precomputed_base_3_bit_signed_digit_scalar_mul<'a, CS, I, J, B>(
@@ -247,7 +247,7 @@ pub(crate) mod test {
         let a = GG::alloc(&mut cs.ns(|| "generate_a"), || Ok(a)).unwrap();
         let b = GG::alloc(&mut cs.ns(|| "generate_b"), || Ok(b)).unwrap();
 
-        let zero = GG::zero(cs.ns(|| "Zero")).unwrap();
+        let _zero = GG::zero(cs.ns(|| "Zero")).unwrap();
 
         // a + b = b + a
         let a_b = a.add(cs.ns(|| "a_plus_b"), &b).unwrap();

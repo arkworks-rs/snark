@@ -54,7 +54,7 @@ impl<F: PrimeField> FpGadget<F> {
         let mut coeff = F::one();
 
         for bit in bits.iter().rev() {
-            lc = lc + (coeff, bit.get_variable());
+            lc += (coeff, bit.get_variable());
 
             coeff.double_in_place();
         }
@@ -99,7 +99,7 @@ impl<F: PrimeField> FpGadget<F> {
         {
             match bit {
                 Boolean::Is(bit) => {
-                    lc = lc + (coeff, bit.get_variable());
+                    lc += (coeff, bit.get_variable());
                     coeff.double_in_place();
                 }
                 Boolean::Constant(_) | Boolean::Not(_) => unreachable!(),
@@ -374,7 +374,7 @@ impl<F: PrimeField> FieldGadget<F, F> for FpGadget<F> {
 
 impl<F: PrimeField> PartialEq for FpGadget<F> {
     fn eq(&self, other: &Self) -> bool {
-        !self.value.is_none() && !other.value.is_none() && self.value == other.value
+        self.value.is_some() && other.value.is_some() && self.value == other.value
     }
 }
 
@@ -691,7 +691,7 @@ impl<F: PrimeField> ThreeBitCondNegLookupGadget<F> for FpGadget<F> {
 impl<F: PrimeField> Clone for FpGadget<F> {
     fn clone(&self) -> Self {
         Self {
-            value: self.value.clone(),
+            value: self.value,
             variable: self.variable.clone(),
         }
     }

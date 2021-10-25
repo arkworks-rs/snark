@@ -143,7 +143,7 @@ pub fn generate_test_data<'a, G: AffineCurve, D: Digest + 'a, R: RngCore>(
     };
 
     let (index_pk, index_vk) =
-        Marlin::<G::ScalarField, InnerProductArgPC<G, D>, D>::index(&committer_key, circ.clone())
+        Marlin::<G::ScalarField, InnerProductArgPC<G, D>, D>::index(&committer_key, circ)
             .unwrap();
 
     // Generate Marlin PCDs

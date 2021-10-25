@@ -29,7 +29,7 @@ fn evaluate_constraint<'a, E: PairingEngine>(
                 val.mul(coeff)
             }
         })
-        .reduce(|| E::Fr::zero(), |sum, val| sum + &val)
+        .reduce(E::Fr::zero, |sum, val| sum + &val)
 }
 /*A R1CS consisting of n constraints in m variables
 

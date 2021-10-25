@@ -124,7 +124,7 @@ impl<P: MNT6Parameters> PairingGadget<MNT6p<P>, P::Fp> for MNT6PairingGadget<P> 
         //Final exp last chunk (q^2 -q +1)/r = m_1*q + m_0, m_0 can be signed.
         //compute elt^q
         let elt_q = elt
-            .clone()
+            
             .frobenius_map(cs.ns(|| "elt_q_frobenius_1"), 1)?;
 
         let w1_part =

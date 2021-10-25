@@ -60,7 +60,7 @@ impl UInt8 {
         T: Into<Option<u8>> + Copy,
     {
         let mut output_vec = Vec::with_capacity(values.len());
-        for (i, value) in values.into_iter().enumerate() {
+        for (i, value) in values.iter().enumerate() {
             let byte: Option<u8> = Into::into(*value);
             let alloc_byte = Self::alloc(&mut cs.ns(|| format!("byte_{}", i)), || byte.get())?;
             output_vec.push(alloc_byte);
@@ -128,7 +128,7 @@ impl UInt8 {
     /// LSB-first means that we can easily get the corresponding field element
     /// via double and add.
     pub fn into_bits_le(&self) -> Vec<Boolean> {
-        self.bits.iter().cloned().collect()
+        self.bits.to_vec()
     }
 
     /// Converts a little-endian byte order representation of bits into a
@@ -165,7 +165,7 @@ impl UInt8 {
             }
         }
 
-        Self { value, bits }
+        Self { bits, value }
     }
 
     /// XOR this `UInt8` with another `UInt8`
@@ -221,7 +221,7 @@ impl UInt8 {
 
 impl PartialEq for UInt8 {
     fn eq(&self, other: &Self) -> bool {
-        !self.value.is_none() && !other.value.is_none() && self.value == other.value
+        self.value.is_some() && other.value.is_some() && self.value == other.value
     }
 }
 
@@ -481,7 +481,7 @@ mod test {
                         assert!(b.get_value().unwrap() == (expected & 1 == 1));
                     }
                     &Boolean::Not(ref b) => {
-                        assert!(!b.get_value().unwrap() == (expected & 1 == 1));
+                        assert!(b.get_value().unwrap() != (expected & 1 == 1));
                     }
                     &Boolean::Constant(b) => {
                         assert!(b == (expected & 1 == 1));

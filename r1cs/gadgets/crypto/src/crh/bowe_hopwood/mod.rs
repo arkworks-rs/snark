@@ -64,17 +64,17 @@ where
             }
         }
         if input_in_bits.len() % CHUNK_SIZE != 0 {
-            Err(SynthesisError::Other(
+            return Err(SynthesisError::Other(
                 format!(
                     "Input is not multiple of the chunk size. Input len: {}, chunk size: {}",
                     input_in_bits.len(),
                     CHUNK_SIZE,
                 )
-                .to_owned(),
-            ))?
+                ,
+            ))
         }
         if parameters.params.generators.len() != W::NUM_WINDOWS {
-            Err(SynthesisError::Other(
+            return Err(SynthesisError::Other(
                 format!(
                     "Incorrect pp of size {:?} for window params {:?}x{:?}x{}",
                     parameters.params.generators.len(),
@@ -82,16 +82,16 @@ where
                     W::NUM_WINDOWS,
                     CHUNK_SIZE
                 )
-                .to_owned(),
-            ))?
+                ,
+            ))
         }
         for generators in parameters.params.generators.iter() {
             if generators.len() != W::WINDOW_SIZE {
-                Err(SynthesisError::Other(format!(
+                return Err(SynthesisError::Other(format!(
                     "Number of generators: {} not enough for the selected window size: {}",
                     parameters.params.generators.len(),
                     W::WINDOW_SIZE
-                )))?
+                )))
             }
         }
 

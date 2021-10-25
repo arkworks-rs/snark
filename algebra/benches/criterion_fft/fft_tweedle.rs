@@ -8,7 +8,7 @@ use algebra::fft::{
     get_best_evaluation_domain, BasicRadix2Domain, DensePolynomial, EvaluationDomain,
 };
 use algebra::{fields::tweedle::Fr, PrimeField, UniformRand};
-use rand;
+
 
 use std::{
     fs::File,
@@ -17,7 +17,7 @@ use std::{
 };
 
 use criterion::{BatchSize, BenchmarkId, Criterion};
-const DATA_PATH: &'static str = "./coeffs_tweedle";
+const DATA_PATH: &str = "./coeffs_tweedle";
 
 fn save_data<F: PrimeField>(num_coeffs: usize) {
     let mut fs = File::create(DATA_PATH).unwrap();

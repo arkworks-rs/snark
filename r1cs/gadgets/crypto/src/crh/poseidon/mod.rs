@@ -217,10 +217,10 @@ where
 // Assumption:
     //     capacity c = 1
     {
-        if input.len() == 0 {
-            Err(SynthesisError::Other(
+        if input.is_empty() {
+            return Err(SynthesisError::Other(
                 "Input data array does not contain any data".to_owned(),
-            ))?
+            ))
         }
 
         let mut state = Vec::new();

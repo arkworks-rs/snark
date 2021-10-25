@@ -10,7 +10,7 @@ use arithmetic::*;
 
 use proc_macro::TokenStream;
 use quote::quote;
-use syn;
+
 
 #[proc_macro_attribute]
 pub fn assemble(_meta: TokenStream, input: TokenStream) -> TokenStream {

@@ -153,11 +153,11 @@ where
             // Check that the input and the query in the verification are of the
             // same length.
             if input_len != pvk.gamma_abc_g1.len() || public_inputs.next().is_some() {
-                Err(SynthesisError::Other(format!(
+                return Err(SynthesisError::Other(format!(
                     "Input and query must have the same length. Input len: {}, gamma_abc_g1 len: {}",
                     input_len,
                     pvk.gamma_abc_g1.len()
-                ).to_owned()))?
+                )))
             }
             g_ic
         };
