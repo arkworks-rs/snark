@@ -55,8 +55,8 @@ mod montgomery_affine_impl {
             } else if p.x == P::BaseField::zero() {
                 GroupAffine::new(P::BaseField::zero(), P::BaseField::zero())
             } else {
-                let u = (P::BaseField::one() + &p.y)
-                    * &(P::BaseField::one() - &p.y).inverse().unwrap();
+                let u =
+                    (P::BaseField::one() + &p.y) * &(P::BaseField::one() - &p.y).inverse().unwrap();
                 let v = u * &p.x.inverse().unwrap();
                 GroupAffine::new(u, v)
             };

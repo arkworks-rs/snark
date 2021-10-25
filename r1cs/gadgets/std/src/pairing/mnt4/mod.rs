@@ -118,9 +118,7 @@ impl<P: MNT4Parameters> PairingGadget<MNT4p<P>, P::Fp> for MNT4PairingGadget<P> 
 
         //Final exp last chunk (p^2 +1)/r = m_1*q + m_0, m_0 can be signed.
         //compute elt^q
-        let elt_q = elt
-            
-            .frobenius_map(cs.ns(|| "elt_q_frobenius_1"), 1)?;
+        let elt_q = elt.frobenius_map(cs.ns(|| "elt_q_frobenius_1"), 1)?;
 
         //compute elt^{m1*q}
         let w1_part =

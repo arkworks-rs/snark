@@ -4,7 +4,6 @@ use rand::SeedableRng;
 use rand_xorshift::XorShiftRng;
 
 fn biginteger_arithmetic_test<B: BigInteger>(a: B, b: B, zero: B) {
-
     // zero.is_zero() == true
     assert_eq!(zero.is_zero(), true);
 

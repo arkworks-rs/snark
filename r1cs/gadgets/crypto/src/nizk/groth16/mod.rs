@@ -157,7 +157,7 @@ where
                     "Input and query must have the same length. Input len: {}, gamma_abc_g1 len: {}",
                     input_len,
                     pvk.gamma_abc_g1.len()
-                )))
+                )));
             }
             g_ic
         };

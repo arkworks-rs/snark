@@ -640,8 +640,7 @@ pub(crate) mod tests {
             let a_gadget = FpGadget::<ConstraintF>::alloc(cs.ns(|| "alloc a"), || Ok(a)).unwrap();
 
             //If a == b then v = True
-            let b_gadget =
-                FpGadget::<ConstraintF>::alloc(cs.ns(|| "alloc b"), || Ok(a)).unwrap();
+            let b_gadget = FpGadget::<ConstraintF>::alloc(cs.ns(|| "alloc b"), || Ok(a)).unwrap();
 
             let v = a_gadget.is_eq(cs.ns(|| "a == b"), &b_gadget).unwrap();
             v.enforce_equal(cs.ns(|| " v == True"), &Boolean::constant(true))

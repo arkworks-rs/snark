@@ -248,7 +248,9 @@ impl<E: PairingEngine> SemanticallyValid for VerifyingKey<E> {
             && !self.delta_g2.is_zero()
             && self
                 .gamma_abc_g1
-                .iter().find(|&p| !p.is_valid() || p.is_zero()).is_none()
+                .iter()
+                .find(|&p| !p.is_valid() || p.is_zero())
+                .is_none()
             && Self::check_gamma_abc_g1_points(self.gamma_abc_g1.as_slice()).is_ok()
     }
 }
@@ -466,21 +468,19 @@ impl<E: PairingEngine> SemanticallyValid for Parameters<E> {
             && !self.delta_g1.is_zero()
             && self.delta_g2.is_valid()
             && !self.delta_g2.is_zero()
-            && self
-                .a_query
-                .iter().find(|&p| !p.is_valid()).is_none()
-            && self
-                .b_g1_query
-                .iter().find(|&p| !p.is_valid()).is_none()
-            && self
-                .b_g2_query
-                .iter().find(|&p| !p.is_valid()).is_none()
+            && self.a_query.iter().find(|&p| !p.is_valid()).is_none()
+            && self.b_g1_query.iter().find(|&p| !p.is_valid()).is_none()
+            && self.b_g2_query.iter().find(|&p| !p.is_valid()).is_none()
             && self
                 .h_query
-                .iter().find(|&p| !p.is_valid() || p.is_zero()).is_none()
+                .iter()
+                .find(|&p| !p.is_valid() || p.is_zero())
+                .is_none()
             && self
                 .l_query
-                .iter().find(|&p| !p.is_valid() || p.is_zero()).is_none()
+                .iter()
+                .find(|&p| !p.is_valid() || p.is_zero())
+                .is_none()
     }
 }
 

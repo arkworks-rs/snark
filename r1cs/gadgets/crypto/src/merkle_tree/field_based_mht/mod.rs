@@ -172,7 +172,7 @@ where
         if leaves.len() != 2_usize.pow(height as u32) {
             return Err(SynthesisError::Other(
                 "Leaves number must be a power of 2".to_owned(),
-            ))
+            ));
         }
 
         let mut prev_level_nodes = leaves.to_vec();
@@ -324,14 +324,11 @@ where
         let mut v = Vec::new();
         let len = self.path.len();
         if self.path.len() != other.path.len() {
-            return Err(SynthesisError::Other(
-                format!(
-                    "Paths length must be the same. Self len:{}, Other len: {}",
-                    self.path.len(),
-                    other.path.len()
-                )
-                ,
-            ))
+            return Err(SynthesisError::Other(format!(
+                "Paths length must be the same. Self len:{}, Other len: {}",
+                self.path.len(),
+                other.path.len()
+            )));
         }
         for i in 0..len {
             let b1_i = &self.path[i]
@@ -354,14 +351,11 @@ where
     ) -> Result<(), SynthesisError> {
         let len = self.path.len();
         if self.path.len() != other.path.len() {
-            return Err(SynthesisError::Other(
-                format!(
-                    "Paths length must be the same. Self len:{}, Other len: {}",
-                    self.path.len(),
-                    other.path.len()
-                )
-                ,
-            ))
+            return Err(SynthesisError::Other(format!(
+                "Paths length must be the same. Self len:{}, Other len: {}",
+                self.path.len(),
+                other.path.len()
+            )));
         }
         for i in 0..len {
             self.path[i].0.conditional_enforce_equal(
@@ -386,14 +380,11 @@ where
     ) -> Result<(), SynthesisError> {
         let len = self.path.len();
         if self.path.len() != other.path.len() {
-            return Err(SynthesisError::Other(
-                format!(
-                    "Paths length must be the same. Self len:{}, Other len: {}",
-                    self.path.len(),
-                    other.path.len()
-                )
-                ,
-            ))
+            return Err(SynthesisError::Other(format!(
+                "Paths length must be the same. Self len:{}, Other len: {}",
+                self.path.len(),
+                other.path.len()
+            )));
         }
         for i in 0..len {
             self.path[i].0.conditional_enforce_not_equal(
@@ -416,7 +407,7 @@ mod test {
     use super::*;
     use crate::crh::MNT4PoseidonHashGadget;
     use algebra::fields::mnt4753::Fr;
-    use primitives::{crh::MNT4PoseidonHash};
+    use primitives::crh::MNT4PoseidonHash;
     use r1cs_core::ConstraintSystem;
     use r1cs_std::{
         instantiated::mnt6_753::FqGadget, test_constraint_system::TestConstraintSystem,

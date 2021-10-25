@@ -11,7 +11,6 @@ use arithmetic::*;
 use proc_macro::TokenStream;
 use quote::quote;
 
-
 #[proc_macro_attribute]
 pub fn assemble(_meta: TokenStream, input: TokenStream) -> TokenStream {
     let ast: syn::ItemFn = syn::parse(input).unwrap();

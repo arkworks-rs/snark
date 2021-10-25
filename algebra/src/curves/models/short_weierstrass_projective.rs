@@ -456,7 +456,9 @@ impl<P: Parameters> PartialEq for GroupProjective<P> {
             return false;
         }
 
-        if ((self.x * &other.z) != (other.x * &self.z) || (self.y * &other.z) != (other.y * &self.z)) {
+        if ((self.x * &other.z) != (other.x * &self.z)
+            || (self.y * &other.z) != (other.y * &self.z))
+        {
             false
         } else {
             true

@@ -57,19 +57,16 @@ where
         if padded_input.len() * 8 != W::WINDOW_SIZE * W::NUM_WINDOWS {
             return Err(SynthesisError::Other(
                 "padded input length verification failed".to_owned(),
-            ))
+            ));
         }
         if parameters.params.generators.len() != W::NUM_WINDOWS {
-            return Err(SynthesisError::Other(
-                format!(
-                    "Incorrect pp of size {:?}x{:?} for window params {:?}x{:?}",
-                    parameters.params.generators[0].len(),
-                    parameters.params.generators.len(),
-                    W::WINDOW_SIZE,
-                    W::NUM_WINDOWS
-                )
-                ,
-            ))
+            return Err(SynthesisError::Other(format!(
+                "Incorrect pp of size {:?}x{:?} for window params {:?}x{:?}",
+                parameters.params.generators[0].len(),
+                parameters.params.generators.len(),
+                W::WINDOW_SIZE,
+                W::NUM_WINDOWS
+            )));
         }
 
         // Allocate new variable for the result.

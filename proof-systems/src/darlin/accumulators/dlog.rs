@@ -221,10 +221,7 @@ impl<G: AffineCurve, D: Digest> DLogItemAccumulator<G, D> {
             .collect::<Vec<_>>();
 
         // Save the evaluations into a separate vec
-        let values = comms_values
-            .iter()
-            .map(|(_, val)| *val)
-            .collect::<Vec<_>>();
+        let values = comms_values.iter().map(|(_, val)| *val).collect::<Vec<_>>();
 
         // Save comms into a separate vector
         let comms = comms_values
@@ -321,10 +318,7 @@ impl<G: AffineCurve, D: Digest> ItemAccumulator for DLogItemAccumulator<G, D> {
             .map(|(&chal, xi_s)| {
                 Polynomial::from_coefficients_vec(xi_s.compute_scaled_coeffs(-chal))
             })
-            .reduce(
-                Polynomial::zero,
-                |acc, scaled_poly| &acc + &scaled_poly,
-            );
+            .reduce(Polynomial::zero, |acc, scaled_poly| &acc + &scaled_poly);
         end_timer!(batching_time);
 
         // The dlog "hard part", checking that G_bar = sum_k lambda^k * G_f[k] == Comm(h_bar(X))

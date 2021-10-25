@@ -163,14 +163,11 @@ where
             // Check that the input and the query in the verification are of the
             // same length.
             if input_len != pvk.query.len() || public_inputs.next().is_some() {
-                return Err(SynthesisError::Other(
-                    format!(
-                        "Input and query must have the same length. Input len: {}, Query len: {}",
-                        input_len,
-                        pvk.query.len()
-                    )
-                    ,
-                ))
+                return Err(SynthesisError::Other(format!(
+                    "Input and query must have the same length. Input len: {}, Query len: {}",
+                    input_len,
+                    pvk.query.len()
+                )));
             }
             g_psi
         };

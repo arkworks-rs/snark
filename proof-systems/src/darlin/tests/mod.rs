@@ -743,19 +743,8 @@ mod test {
         println!(
             "---- {} - commitments ({})",
             proof.proof.commitments.serialized_size()
-                - (proof
-                    .proof
-                    .commitments
-                    .iter()
-                    .flatten()
-                    .count()
-                    * 4),
-            proof
-                .proof
-                .commitments
-                .iter()
-                .flatten()
-                .count()
+                - (proof.proof.commitments.iter().flatten().count() * 4),
+            proof.proof.commitments.iter().flatten().count()
         );
         println!(
             "---- {} - evaluations ({})",

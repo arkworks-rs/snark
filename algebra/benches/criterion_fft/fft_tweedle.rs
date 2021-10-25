@@ -9,7 +9,6 @@ use algebra::fft::{
 };
 use algebra::{fields::tweedle::Fr, PrimeField, UniformRand};
 
-
 use std::{
     fs::File,
     path::Path,

@@ -129,10 +129,7 @@ impl<P: QuadExtParametersGadget<ConstraintF>, ConstraintF: PrimeField + SquareRo
 
     #[inline]
     fn get_variable(&self) -> Self::Variable {
-        (
-            self.c0.get_variable(),
-            self.c1.get_variable(),
-        )
+        (self.c0.get_variable(), self.c1.get_variable())
     }
 
     #[inline]

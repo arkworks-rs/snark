@@ -110,14 +110,11 @@ where
         should_enforce: &Boolean,
     ) -> Result<(), SynthesisError> {
         if self.path.len() != P::HEIGHT {
-            return Err(SynthesisError::Other(
-                format!(
-                    "Path length must be equal to height. Path len: {}, Height: {}",
-                    self.path.len(),
-                    P::HEIGHT
-                )
-                ,
-            ));
+            return Err(SynthesisError::Other(format!(
+                "Path length must be equal to height. Path len: {}, Height: {}",
+                self.path.len(),
+                P::HEIGHT
+            )));
         }
 
         // Check that the hash of the given leaf matches the leaf hash in the membership
@@ -244,12 +241,10 @@ mod test {
         FixedLengthCRHGadget,
     };
     use algebra::{curves::jubjub::JubJubAffine as JubJub, fields::jubjub::fq::Fq};
-    use primitives::{
-        crh::{
-            injective_map::{PedersenCRHCompressor, TECompressor},
-            pedersen::PedersenWindow,
-            FixedLengthCRH,
-        },
+    use primitives::crh::{
+        injective_map::{PedersenCRHCompressor, TECompressor},
+        pedersen::PedersenWindow,
+        FixedLengthCRH,
     };
     use r1cs_core::ConstraintSystem;
     use r1cs_std::{
