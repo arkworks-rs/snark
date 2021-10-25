@@ -1,5 +1,17 @@
 #![warn(unused, future_incompatible, nonstandard_style, rust_2018_idioms)]
 #![forbid(unsafe_code)]
+#![allow(
+    clippy::upper_case_acronyms,
+    clippy::too_many_arguments,
+    clippy::type_complexity,
+    clippy::try_err,
+    clippy::map_collect_result_unit,
+    clippy::not_unsafe_ptr_arg_deref,
+    clippy::suspicious_op_assign_impl,
+    clippy::suspicious_arithmetic_impl,
+    clippy::assertions_on_constants
+)]
+
 
 use proc_macro2::TokenStream;
 use syn::{parse_macro_input, Data, DeriveInput, Index, Type};
