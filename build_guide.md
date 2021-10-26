@@ -1,3 +1,4 @@
+# Build guide
 
 The library compiles on the `1.51.0 stable` toolchain of the Rust compiler. To install Rust, first install `rustup` by following the instructions [here](https://rustup.rs/), or via your platform's package manager. Once `rustup` is installed, install the appropriate Rust toolchain by invoking:
 ```bash
