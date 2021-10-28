@@ -2,10 +2,10 @@
 
 <!-- The traviis links do work as soon as the ci is properly configured for master? -->
 <p align="center">
-    <a href="https://github.com/HorizenOfficial/ginger-lib/tree/master/AUTHORS"><img src="https://avatars.githubusercontent.com/u/29291571?s=20&v=4",style="width: 5vw"></a>
+    <a href="AUTHORS"><img src="https://avatars.githubusercontent.com/u/29291571?s=20&v=4",style="width: 5vw"></a>
     <a href="https://travis-ci.com/github/HorizenOfficial/ginger-lib"><img src="https://app.travis-ci.com/HorizenOfficial/ginger-lib.svg?branch=master"></a>
-    <a href="https://github.com/HorizenOfficial/ginger-lib/tree/master/LICENSE-APACHE"><img src="https://img.shields.io/badge/license-APACHE-blue.svg"></a>
-   <a href="https://github.com/HorizenOfficial/ginger-lib/tree/master/LICENSE-MIT"><img src="https://img.shields.io/badge/license-MIT-blue.svg"></a>
+    <a href="LICENSE-APACHE"><img src="https://img.shields.io/badge/license-APACHE-blue.svg"></a>
+   <a href="LICENSE-MIT"><img src="https://img.shields.io/badge/license-MIT-blue.svg"></a>
 </p>
 
 
