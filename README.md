@@ -35,7 +35,7 @@ The high-level structure of the repository is as follows:
 
 * [`algebra`](algebra):  implements the mathematical base components:  large integers, finite fields, elliptic curves, and fast Fourier transform.
 * [`primitives`](primitives): serves basic cryptographic primitives (such as hash functions and Merkle trees, signature schemes, verifiable random functions).
-* [`proof-systems`](proof-systems): This is the main crate for the Darlin protocol suite. It provides the traits and structs for proof carrying data and the above mentioned proof systems. Groth16 and GM17 proving systems have been kept to for backward compatibility.
+* [`proof-systems`](proof-systems): This is the main crate for the Darlin protocol suite. It provides the traits and structs for proof carrying data and the above mentioned proof systems. [Groth16](https://ia.cr/2016/260) and [GM17](https://ia.cr/2017/540) proving systems have been kept too for backward compatibility.
 * [`r1cs-core`](r1cs/core): Defines core functionalities for rank-1 constraint systems (the circuit synthesizer). 
 * [`r1cs-std`](r1cs/gadgets/std): This crate contains elementary "standard" circuits (or, "gadgets"): Boolean operations, native field and elliptic curve arithmetics.  
 * [`r1cs-crypto`](r1cs/gadgets/crypto): Provides the circuits for various cryptographic primitives, such as the Poseidon hash, signature schemes, and SNARK verifiers.
