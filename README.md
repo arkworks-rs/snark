@@ -23,7 +23,7 @@ These are
 - *Darlin* for recursion, including a standard set of circuits for proof composition,
 - *Rainbow Marlin*, yet another Marlin variant, which transforms Darlin proofs into ordinary Coboundary Marlin proofs.   
 
-A detailed specification of  Coboundary Marlin and Darlin, including security proofs are given in [HGB](https://eprint.iacr.org/2021/930.pdf). In short, Coboundary Marlin is an optimization of Marlin. It uses a simpler "sumcheck" argument, and applies a different matrix arithmetization based on the normalized Lagrange kernel. Darlin is Coboundary Marlin turned into a recursive argument (or, "accumulator SNARK") which aggregates both the dlog hard parts as well as Marlin's inner sumchecks over "time". Inner sumcheck aggregation is done cross-circuit, and a Darlin proof includes an inner sumcheck aggregator (or, *Rainbow Accumulator*) which supports a given pre-defined family of circuits. 
+A detailed specification of  Coboundary Marlin and Darlin, including security proofs are given in [HGB](https://eprint.iacr.org/2021/930.pdf). In short, Coboundary Marlin is an optimization of Marlin. It uses a simpler "sumcheck" argument, and applies a different matrix arithmetization based on the normalized Lagrange kernel. Darlin is Coboundary Marlin turned into a recursive argument (or, *accumulator SNARK*) which aggregates both the dlog hard parts as well as Marlin's inner sumchecks over "time". Inner sumcheck aggregation is done across circuits, and a Darlin proof includes an inner sumcheck aggregator (or, *Rainbow Accumulator*) which supports a given pre-defined family of circuits. 
 
 Rainbow Marlin is used to verify a previous Darlin proof by running a cross-circuit inner sumcheck argument for its Rainbow Accumulator, overall transforming Darlin proofs into simple Marlin proofs.
 
@@ -44,7 +44,7 @@ In addition, there is a  [`bench-utils`](bench-utils) crate which contains an in
 
 ## Release Note
 
-The current release does not yet serve proof composition. The [`proof-systems`](proof-systems) subcrate [`darlin`](proof-systems/src/darlin) prepares for the full Darlin protocol suite by providing the traits and structs necessary for proof carrying data, and puts simple Coboundary Marlin proofs into this framework. It further contains additional tools for scaling verification:
+The current release has been audited by [nccgroup](https://www.nccgroup.com). However, it does not yet serve proof composition. The [`proof-systems`](proof-systems) subcrate [`darlin`](proof-systems/src/darlin) prepares for the full Darlin protocol suite by providing the traits and structs necessary for proof carrying data, and puts simple Coboundary Marlin proofs from [`marlin`](https://github.com/HorizenLabs/marlin) into this framework. It further contains additional tools for scaling verification:
 - A batch verifier for Darlin/Marlin proofs, and 
 - a post-processor for batches of Darlin/Marlin proofs, which aggregates their dlog hard parts into a single one.
 
