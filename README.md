@@ -2,7 +2,7 @@
 
 <!-- The traviis links do work as soon as the ci is properly configured for master? -->
 <p align="center">
-    <a href="AUTHORS"><img src="https://avatars.githubusercontent.com/u/29291571?s=20&v=4",style="width: 5vw"></a>
+    <a href="AUTHORS"><img src="https://img.shields.io/github/contributors/HorizenOfficial/ginger-lib.svg?"></a>
     <a href="https://travis-ci.com/github/HorizenOfficial/ginger-lib"><img src="https://app.travis-ci.com/HorizenOfficial/ginger-lib.svg?branch=master"></a>
     <a href="LICENSE-APACHE"><img src="https://img.shields.io/badge/license-APACHE-blue.svg"></a>
    <a href="LICENSE-MIT"><img src="https://img.shields.io/badge/license-MIT-blue.svg"></a>
@@ -43,8 +43,7 @@ The high-level structure of the repository is as follows:
 In addition, there is a  [`bench-utils`](bench-utils) crate which contains an infrastructure for benchmarking, including macros for timing code segments. 
 
 ## Release Note
-
-The current release has been audited by [nccgroup](https://www.nccgroup.com). However, it does not yet serve proof composition. The [`proof-systems`](proof-systems) subcrate [`darlin`](proof-systems/src/darlin) prepares for the full Darlin protocol suite by providing the traits and structs necessary for proof carrying data, and puts simple Coboundary Marlin proofs from [`marlin`](https://github.com/HorizenLabs/marlin) into this framework. It further contains additional tools for scaling verification:
+However, it does not yet serve proof composition. The [`proof-systems`](proof-systems) subcrate [`darlin`](proof-systems/src/darlin) prepares for the full Darlin protocol suite by providing the traits and structs necessary for proof carrying data, and puts simple Coboundary Marlin proofs from [`marlin`](https://github.com/HorizenLabs/marlin) into this framework. It further contains additional tools for scaling verification:
 - A batch verifier for Darlin/Marlin proofs, and 
 - a post-processor for batches of Darlin/Marlin proofs, which aggregates their dlog hard parts into a single one.
 
