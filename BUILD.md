@@ -12,8 +12,8 @@ cargo build --release
 ```
 This library comes with unit tests for each of the provided crates. Run the tests with:
 ```bash
-cargo test --all-features 
-
+cargo test --all-features
+```
 This library comes with several benchmarks.
 Some of the benchmarks in [`algebra`](algebra/benches) crate require the nightly Rust toolchain (we suggest to use `nightly-2021-04-25)`; to install this, run `rustup install nightly-2021-04-25`. Then, to run benchmarks, run the following command: 
 ```bash
