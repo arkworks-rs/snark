@@ -5,8 +5,8 @@
     <a href="AUTHORS"><img src="https://img.shields.io/github/contributors/HorizenOfficial/ginger-lib.svg?"></a>
     <a href="https://travis-ci.com/github/HorizenOfficial/ginger-lib"><img src="https://app.travis-ci.com/HorizenOfficial/ginger-lib.svg?branch=master"></a>
     <a href="LICENSE-APACHE"><img src="https://img.shields.io/badge/license-APACHE-blue.svg"></a>
-   <a href="LICENSE-MIT"><img src="https://img.shields.io/badge/license-MIT-blue.svg"></a>
-    <a href="http://makeapullrequest.com"><img src="https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=flat-square"></a>
+    <a href="LICENSE-MIT"><img src="https://img.shields.io/badge/license-MIT-blue.svg"></a>
+    <a href="CONTRIBUTING.md"><img src="https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=flat-square"></a>
 </p>
 
 
@@ -59,14 +59,4 @@ Run tests using
 ```bash
 cargo test --all-features 
 ```
-More detailed information can be found in our [build guide](build_guide.md).
-
-
-## License
-
-This library is licensed under either of the following licenses, at your discretion.
-
- * [Apache License Version 2.0](LICENSE-APACHE)
- * [MIT License](LICENSE-MIT)
-
-Unless you explicitly state otherwise, any contribution that you submit to this library shall be dual licensed as above (as defined in the Apache v2 License), without any additional terms or conditions.
+More detailed information can be found in our [build guide](BUILD.md).
