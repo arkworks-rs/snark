@@ -11,7 +11,7 @@
 </p>
 
 
-Ginger-lib (Italian zenzero) is a high-performance library for building succinct zero-knowledge arguments by means of the *Darlin protocol suite*. The core piece of the protocol suite is the [Darlin](https://eprint.iacr.org/2021/930) argument system, a recursion-friendly variant of the [Marlin](https://eprint.iacr.org/2019/1047) zk-SNARK for rank-1 constraint systems (R1CS). Darlin relies on the *dlog* polynomial commitment scheme and uses an aggregation technique similar to [Halo](https://eprint.iacr.org/2019/1021) for amortizing the computational costs of both prover and verifier over time. The scheme requires no trusted setup and allows ordinary sized elliptic curves. See our reference paper [HGB](https://eprint.iacr.org/2021/930) for details.
+Ginger-lib (in Italian *zen-zero*) is a high-performance library for building succinct zero-knowledge arguments by means of the *Darlin protocol suite*. The core piece of the protocol suite is the [Darlin](https://eprint.iacr.org/2021/930) argument system, a recursion-friendly variant of the [Marlin](https://eprint.iacr.org/2019/1047) zk-SNARK for rank-1 constraint systems (R1CS). Darlin relies on the *dlog* polynomial commitment scheme and uses an aggregation technique similar to [Halo](https://eprint.iacr.org/2019/1021) for amortizing the computational costs of both prover and verifier over time. The scheme requires no trusted setup and allows ordinary sized elliptic curves. See our reference paper [HGB](https://eprint.iacr.org/2021/930) for details.
 
 The library is based on a fork from [arkworks](https://github.com/arkworks-rs/), and is adapted to the specific needs of the Darlin protocol suite. 
 
