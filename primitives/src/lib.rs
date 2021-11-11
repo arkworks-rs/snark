@@ -1,13 +1,18 @@
+#![allow(
+    clippy::upper_case_acronyms,
+    clippy::too_many_arguments,
+    clippy::type_complexity,
+    clippy::try_err,
+    clippy::map_collect_result_unit,
+    clippy::not_unsafe_ptr_arg_deref,
+    clippy::suspicious_op_assign_impl,
+    clippy::suspicious_arithmetic_impl,
+    clippy::assertions_on_constants
+)]
+
 #[macro_use]
 extern crate bench_utils;
 
-#[cfg(any(
-    feature = "commitment",
-    feature = "merkle_tree",
-    feature = "prf",
-    feature = "signature",
-    feature = "vrf"
-))]
 #[macro_use]
 extern crate derivative;
 
@@ -39,7 +44,6 @@ pub mod vrf;
 #[cfg(feature = "vrf")]
 pub use self::vrf::*;
 
-
 pub type Error = Box<dyn std::error::Error>;
 
 #[derive(Debug)]
@@ -48,15 +52,25 @@ pub enum CryptoError {
     InvalidElement(String),
     NotPrimeOrder(String),
     FailedVerification,
+    InitializationError(String),
+    HashingError(String),
+    Other(String),
 }
 
 impl std::fmt::Display for CryptoError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let msg = match self {
-            CryptoError::IncorrectInputLength(elem, len) => format!("{} length is wrong: {}", elem, len),
+            CryptoError::IncorrectInputLength(elem, len) => {
+                format!("{} length is wrong: {}", elem, len)
+            }
             CryptoError::InvalidElement(elem) => format!("{} is invalid", elem),
             CryptoError::NotPrimeOrder(elem) => format!("element {} is not prime order", elem),
             CryptoError::FailedVerification => "verification failed".to_owned(),
+            CryptoError::InitializationError(message) => format!("{}", message),
+            CryptoError::HashingError(message) => {
+                format!("Failed to compute the hash: {}", message)
+            }
+            CryptoError::Other(message) => format!("{}", message),
         };
         write!(f, "{}", msg)
     }
@@ -81,16 +95,14 @@ pub fn compute_truncation_size(modulus_from: i32, modulus_to: i32) -> usize {
     }) as usize
 }
 
-use algebra::{
-    PrimeField, FpParameters,
-};
+use algebra::{FpParameters, PrimeField};
 
 /// Return the number of bytes to skip in a little-endian byte order representation
 /// of a field element belonging to field `F`.
 #[allow(dead_code)]
 pub fn compute_bytes_truncation_size<F: PrimeField>() -> usize {
-    let bigint_bytes = (F::Params::MODULUS_BITS + F::Params::REPR_SHAVE_BITS)/8;
-    let safe_bytes = F::Params::CAPACITY/8;
+    let bigint_bytes = (F::Params::MODULUS_BITS + F::Params::REPR_SHAVE_BITS) / 8;
+    let safe_bytes = F::Params::CAPACITY / 8;
     (bigint_bytes - safe_bytes) as usize
 }
 

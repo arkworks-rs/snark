@@ -1,7 +1,7 @@
 use crate::field_new;
 use crate::{
     biginteger::BigInteger320,
-    curves::{PairingCurve, PairingEngine, ProjectiveCurve},
+    curves::{PairingEngine, ProjectiveCurve},
     fields::{
         mnt6::{
             fq::{Fq, FqParameters},
@@ -9,6 +9,7 @@ use crate::{
         },
         BitIterator, Field, FpParameters,
     },
+    Error,
 };
 
 pub mod g1;
@@ -24,27 +25,24 @@ pub use self::{
 
 pub type GT = Fq6;
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Eq, PartialEq, Debug)]
 pub struct MNT6;
 
 impl PairingEngine for MNT6 {
     type Fr = Fr;
     type G1Projective = G1Projective;
     type G1Affine = G1Affine;
+    type G1Prepared = G1Prepared;
     type G2Projective = G2Projective;
     type G2Affine = G2Affine;
+    type G2Prepared = G2Prepared;
     type Fq = Fq;
     type Fqe = Fq3;
     type Fqk = Fq6;
 
     fn miller_loop<'a, I>(i: I) -> Self::Fqk
     where
-        I: IntoIterator<
-            Item = &'a (
-                &'a <Self::G1Affine as PairingCurve>::Prepared,
-                &'a <Self::G2Affine as PairingCurve>::Prepared,
-            ),
-        >,
+        I: IntoIterator<Item = &'a (Self::G1Prepared, Self::G2Prepared)>,
     {
         let mut result = Self::Fqk::one();
         for &(ref p, ref q) in i {
@@ -86,11 +84,11 @@ impl MNT6 {
         let twist_inv = TWIST.inverse().unwrap();
 
         let mut g2p = G2Prepared {
-            x:                     g2.x,
-            y:                     g2.y,
-            x_over_twist:          g2.x * &twist_inv,
-            y_over_twist:          g2.y * &twist_inv,
-            double_coefficients:   vec![],
+            x: g2.x,
+            y: g2.y,
+            x_over_twist: g2.x * &twist_inv,
+            y_over_twist: g2.y * &twist_inv,
+            double_coefficients: vec![],
             addition_coefficients: vec![],
         };
 
@@ -168,10 +166,10 @@ impl MNT6 {
 
         let r2 = G2ProjectiveExtended { x, y, z, t };
         let coeff = AteDoubleCoefficients {
-            c_h:  (r2.z + &r.t).square() - &r2.t - &a,
+            c_h: (r2.z + &r.t).square() - &r2.t - &a,
             c_4c: c + &c + &c + &c,
-            c_j:  (f + &r.t).square() - &g - &a,
-            c_l:  (f + &r.x).square() - &g - &b,
+            c_j: (f + &r.t).square() - &g - &a,
+            c_l: (f + &r.x).square() - &g - &b,
         };
 
         (r2, coeff)
@@ -258,11 +256,17 @@ impl MNT6 {
         f
     }
 
-    pub fn final_exponentiation(value: &Fq6) -> GT {
+    pub fn final_exponentiation(value: &Fq6) -> Result<GT, Error> {
+        if value.is_zero() {
+            Err(format!("Invalid exponentiation value: 0"))?
+        }
         let value_inv = value.inverse().unwrap();
         let value_to_first_chunk = MNT6::final_exponentiation_first_chunk(value, &value_inv);
         let value_inv_to_first_chunk = MNT6::final_exponentiation_first_chunk(&value_inv, value);
-        MNT6::final_exponentiation_last_chunk(&value_to_first_chunk, &value_inv_to_first_chunk)
+        Ok(MNT6::final_exponentiation_last_chunk(
+            &value_to_first_chunk,
+            &value_inv_to_first_chunk,
+        ))
     }
 
     fn final_exponentiation_first_chunk(elt: &Fq6, elt_inv: &Fq6) -> Fq6 {
@@ -272,7 +276,7 @@ impl MNT6 {
         let mut elt_q3 = elt.clone();
         elt_q3.frobenius_map(3);
         // elt_q3_over_elt = elt^(q^3-1)
-        let elt_q3_over_elt = elt_q3 * &elt_inv;
+        let elt_q3_over_elt = elt_q3 * elt_inv;
         // alpha = elt^((q^3-1) * q)
         let mut alpha = elt_q3_over_elt.clone();
         alpha.frobenius_map(1);
@@ -302,16 +306,20 @@ impl MNT6 {
 pub const TWIST: Fq3 = field_new!(Fq3, FQ_ZERO, FQ_ONE, FQ_ZERO);
 pub const FQ_ZERO: Fq = field_new!(Fq, BigInteger320([0, 0, 0, 0, 0]));
 pub const FQ_ONE: Fq = field_new!(Fq, FqParameters::R);
-pub const TWIST_COEFF_A: Fq3 = field_new!(Fq3, 
+pub const TWIST_COEFF_A: Fq3 = field_new!(
+    Fq3,
     FQ_ZERO,
     FQ_ZERO,
-    field_new!(Fq, BigInteger320([
-        0xb9b2411bfd0eafef,
-        0xc61a10fadd9fecbd,
-        0x89f128e59811f3fb,
-        0x980c0f780adadabb,
-        0x9ba1f11320,
-    ])),
+    field_new!(
+        Fq,
+        BigInteger320([
+            0xb9b2411bfd0eafef,
+            0xc61a10fadd9fecbd,
+            0x89f128e59811f3fb,
+            0x980c0f780adadabb,
+            0x9ba1f11320,
+        ])
+    ),
 );
 
 pub const ATE_LOOP_COUNT: [u64; 3] = [0xdc9a1b671660000, 0x46609756bec2a33f, 0x1eef55];

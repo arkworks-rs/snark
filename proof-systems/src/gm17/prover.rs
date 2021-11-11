@@ -1,14 +1,15 @@
 use rand::Rng;
 use rayon::prelude::*;
 
-use algebra::{
-    UniformRand, msm::VariableBaseMSM, AffineCurve, Field, PairingEngine, PrimeField, ProjectiveCurve,
-};
+use algebra::msm::VariableBaseMSM;
+use algebra::{AffineCurve, Field, PairingEngine, PrimeField, ProjectiveCurve, UniformRand};
 
-use crate::gm17::{Parameters, Proof};
 use crate::gm17::r1cs_to_sap::R1CStoSAP;
+use crate::gm17::{Parameters, Proof};
 
-use r1cs_core::{ConstraintSynthesizer, ConstraintSystem, Index, LinearCombination, SynthesisError, Variable};
+use r1cs_core::{
+    ConstraintSynthesizer, ConstraintSystem, Index, LinearCombination, SynthesisError, Variable,
+};
 
 use smallvec::SmallVec;
 
@@ -36,11 +37,11 @@ fn eval<E: PairingEngine>(
             Index::Input(i) => {
                 constraints[this_constraint].push((coeff, Index::Input(i)));
                 tmp = input_assignment[i];
-            },
+            }
             Index::Aux(i) => {
                 constraints[this_constraint].push((coeff, Index::Aux(i)));
                 tmp = aux_assignment[i];
-            },
+            }
         }
 
         if coeff.is_one() {
@@ -67,10 +68,10 @@ pub struct ProvingAssignment<E: PairingEngine> {
 
     // Assignments of variables
     pub(crate) input_assignment: Vec<E::Fr>,
-    pub(crate) aux_assignment:   Vec<E::Fr>,
-    pub(crate) num_inputs:       usize,
-    pub(crate) num_aux:          usize,
-    pub(crate) num_constraints:  usize,
+    pub(crate) aux_assignment: Vec<E::Fr>,
+    pub(crate) num_inputs: usize,
+    pub(crate) num_aux: usize,
+    pub(crate) num_constraints: usize,
 }
 
 impl<E: PairingEngine> ProvingAssignment<E> {
@@ -207,17 +208,17 @@ where
 {
     let prover_time = start_timer!(|| "Prover");
     let mut prover = ProvingAssignment {
-        at:               vec![],
-        bt:               vec![],
-        ct:               vec![],
-        a:                vec![],
-        b:                vec![],
-        c:                vec![],
+        at: vec![],
+        bt: vec![],
+        ct: vec![],
+        a: vec![],
+        b: vec![],
+        c: vec![],
         input_assignment: vec![],
-        aux_assignment:   vec![],
-        num_inputs:       0,
-        num_aux:          0,
-        num_constraints:  0,
+        aux_assignment: vec![],
+        num_inputs: 0,
+        num_aux: 0,
+        num_constraints: 0,
     };
 
     // Allocate the "one" input variable
@@ -234,7 +235,7 @@ where
 
     let input_assignment = Arc::new(
         full_input_assignment[1..prover.num_inputs]
-            .into_iter()
+            .iter()
             .map(|s| s.into_repr())
             .collect::<Vec<_>>(),
     );
@@ -249,7 +250,7 @@ where
 
     let h_input = Arc::new(
         h[0..prover.num_inputs]
-            .into_iter()
+            .iter()
             .map(|s| s.into_repr())
             .collect::<Vec<_>>(),
     );
@@ -264,8 +265,8 @@ where
     // Compute A
     let a_acc_time = start_timer!(|| "Compute A");
     let (a_inputs_source, a_aux_source) = params.get_a_query(prover.num_inputs)?;
-    let a_inputs_acc = VariableBaseMSM::multi_scalar_mul(a_inputs_source, &input_assignment);
-    let a_aux_acc = VariableBaseMSM::multi_scalar_mul(a_aux_source, &aux_assignment);
+    let a_inputs_acc = VariableBaseMSM::multi_scalar_mul(a_inputs_source, &input_assignment)?;
+    let a_aux_acc = VariableBaseMSM::multi_scalar_mul(a_aux_source, &aux_assignment)?;
 
     let r_g = params.get_g_gamma_z()?.mul(r);
     let d1_g = params.get_g_gamma_z()?.mul(d1);
@@ -281,8 +282,8 @@ where
     let b_acc_time = start_timer!(|| "Compute B");
 
     let (b_inputs_source, b_aux_source) = params.get_b_query(prover.num_inputs)?;
-    let b_inputs_acc = VariableBaseMSM::multi_scalar_mul(b_inputs_source, &input_assignment);
-    let b_aux_acc = VariableBaseMSM::multi_scalar_mul(b_aux_source, &aux_assignment);
+    let b_inputs_acc = VariableBaseMSM::multi_scalar_mul(b_inputs_source, &input_assignment)?;
+    let b_aux_acc = VariableBaseMSM::multi_scalar_mul(b_aux_source, &aux_assignment)?;
 
     let r_h = params.get_h_gamma_z()?.mul(r);
     let d1_h = params.get_h_gamma_z()?.mul(d1);
@@ -302,14 +303,14 @@ where
 
     let c1_acc_time = start_timer!(|| "Compute C1");
     let (_, c1_aux_source) = params.get_c_query_1(0)?;
-    let c1_acc = VariableBaseMSM::multi_scalar_mul(c1_aux_source, &aux_assignment);
+    let c1_acc = VariableBaseMSM::multi_scalar_mul(c1_aux_source, &aux_assignment)?;
     end_timer!(c1_acc_time);
 
     let c2_acc_time = start_timer!(|| "Compute C2");
 
     let (c2_inputs_source, c2_aux_source) = params.get_c_query_2(prover.num_inputs)?;
-    let c2_inputs_acc = VariableBaseMSM::multi_scalar_mul(c2_inputs_source, &input_assignment);
-    let c2_aux_acc = VariableBaseMSM::multi_scalar_mul(c2_aux_source, &aux_assignment);
+    let c2_inputs_acc = VariableBaseMSM::multi_scalar_mul(c2_inputs_source, &input_assignment)?;
+    let c2_aux_acc = VariableBaseMSM::multi_scalar_mul(c2_aux_source, &aux_assignment)?;
 
     let c2_acc = c2_inputs_acc + &c2_aux_acc;
     end_timer!(c2_acc_time);
@@ -318,8 +319,8 @@ where
     let g_acc_time = start_timer!(|| "Compute G");
 
     let (g_inputs_source, g_aux_source) = params.get_g_gamma2_z_t(prover.num_inputs)?;
-    let g_inputs_acc = VariableBaseMSM::multi_scalar_mul(g_inputs_source, &h_input);
-    let g_aux_acc = VariableBaseMSM::multi_scalar_mul(g_aux_source, &h_aux);
+    let g_inputs_acc = VariableBaseMSM::multi_scalar_mul(g_inputs_source, &h_input)?;
+    let g_aux_acc = VariableBaseMSM::multi_scalar_mul(g_aux_source, &h_aux)?;
 
     let g_acc = g_inputs_acc + &g_aux_acc;
     end_timer!(g_acc_time);

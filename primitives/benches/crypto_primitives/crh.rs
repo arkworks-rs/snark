@@ -1,5 +1,3 @@
-use rand;
-
 #[macro_use]
 extern crate criterion;
 

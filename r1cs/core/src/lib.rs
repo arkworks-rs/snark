@@ -6,17 +6,27 @@
 #![deny(unused_attributes, unused_imports, unused_mut, missing_docs)]
 #![deny(renamed_and_removed_lints, stable_features, unused_allocation)]
 #![deny(unused_comparisons, bare_trait_objects, unused_must_use, const_err)]
-
 #![forbid(unsafe_code)]
+#![allow(
+    clippy::upper_case_acronyms,
+    clippy::too_many_arguments,
+    clippy::type_complexity,
+    clippy::try_err,
+    clippy::map_collect_result_unit,
+    clippy::not_unsafe_ptr_arg_deref,
+    clippy::suspicious_op_assign_impl,
+    clippy::suspicious_arithmetic_impl,
+    clippy::assertions_on_constants
+)]
 
 mod constraint_system;
 mod error;
-mod impl_lc;
 mod impl_constraint_var;
+mod impl_lc;
 
-pub use constraint_system::{ConstraintSystem, ConstraintSynthesizer, Namespace};
-pub use error::SynthesisError;
 pub use algebra::ToConstraintField;
+pub use constraint_system::{ConstraintSynthesizer, ConstraintSystem, Namespace};
+pub use error::SynthesisError;
 
 use algebra::Field;
 use smallvec::SmallVec as StackVec;
@@ -68,14 +78,12 @@ impl Ord for Index {
     }
 }
 
-
 /// This represents a linear combination of some variables, with coefficients
 /// in the field `F`.
 /// The `(coeff, var)` pairs in a `LinearCombination` are kept sorted according
 /// to the index of the variable in its constraint system.
 #[derive(Debug, Clone)]
 pub struct LinearCombination<F: Field>(pub SmallVec<F>);
-
 
 /// Either a `Variable` or a `LinearCombination`.
 #[derive(Clone, Debug)]

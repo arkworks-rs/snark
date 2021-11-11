@@ -63,7 +63,9 @@ mod projective {
         let randomness: [u8; 32] = rng.gen();
 
         c.bench_function("SchnorrMNT4Projective: Randomize PubKey", move |b| {
-            b.iter(|| SchnorrMNT4Affine::randomize_public_key(&parameters, &pk, &randomness).unwrap())
+            b.iter(|| {
+                SchnorrMNT4Affine::randomize_public_key(&parameters, &pk, &randomness).unwrap()
+            })
         });
     }
 
@@ -77,7 +79,8 @@ mod projective {
 
         c.bench_function("SchnorrMNT4Projective: Randomize Signature", move |b| {
             b.iter(|| {
-                SchnorrMNT4Affine::randomize_signature(&parameters, &signature, &randomness).unwrap()
+                SchnorrMNT4Affine::randomize_signature(&parameters, &signature, &randomness)
+                    .unwrap()
             })
         });
     }
@@ -91,20 +94,19 @@ mod projective {
 
 mod field_impl {
     use algebra::{
-        fields::mnt4753::Fr as MNT4Fr,
-        curves::mnt6753::G1Projective as MNT6G1Projective,
+        curves::mnt6753::G1Projective as MNT6G1Projective, fields::mnt4753::Fr as MNT4Fr,
         UniformRand,
     };
     use criterion::Criterion;
     use primitives::{
         crh::MNT4PoseidonHash,
-        signature::{schnorr::field_based_schnorr::*, FieldBasedSignatureScheme}
+        signature::{schnorr::field_based_schnorr::*, FieldBasedSignatureScheme},
     };
 
-    type SchnorrMNT4Fr = FieldBasedSchnorrSignatureScheme<MNT4Fr, MNT6G1Projective, MNT4PoseidonHash>;
+    type SchnorrMNT4Fr =
+        FieldBasedSchnorrSignatureScheme<MNT4Fr, MNT6G1Projective, MNT4PoseidonHash>;
 
     fn schnorr_signature_keygen(c: &mut Criterion) {
-
         c.bench_function("FieldSchnorrMNT4: KeyGen", move |b| {
             b.iter(|| {
                 let mut rng = &mut rand::thread_rng();
@@ -121,7 +123,7 @@ mod field_impl {
         c.bench_function("FieldSchnorrMNT4: Sign", move |b| {
             b.iter(|| {
                 let mut rng = &mut rand::thread_rng();
-                SchnorrMNT4Fr::sign(&mut rng, &pk, &sk, &[message]).unwrap()
+                SchnorrMNT4Fr::sign(&mut rng, &pk, &sk, message).unwrap()
             })
         });
     }
@@ -130,10 +132,10 @@ mod field_impl {
         let mut rng = &mut rand::thread_rng();
         let (pk, sk) = SchnorrMNT4Fr::keygen(&mut rng);
         let message = MNT4Fr::rand(rng);
-        let signature = SchnorrMNT4Fr::sign(&mut rng, &pk, &sk, &[message]).unwrap();
+        let signature = SchnorrMNT4Fr::sign(&mut rng, &pk, &sk, message).unwrap();
 
         c.bench_function("FieldSchnorrMNT4: Verify", move |b| {
-            b.iter(|| SchnorrMNT4Fr::verify(&pk, &[message], &signature).unwrap())
+            b.iter(|| SchnorrMNT4Fr::verify(&pk, message, &signature).unwrap())
         });
     }
 
@@ -145,5 +147,5 @@ mod field_impl {
     }
 }
 
-use crate::{projective::schnorr_sig_projective, field_impl::field_based_schnorr_sig};
+use crate::{field_impl::field_based_schnorr_sig, projective::schnorr_sig_projective};
 criterion_main!(schnorr_sig_projective, field_based_schnorr_sig);

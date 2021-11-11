@@ -1,6 +1,6 @@
 [package]
 name = "primitives"
-version = "0.2.0"
+version = "0.3.0"
 authors = [
     "Sean Bowe",
     "Alessandro Chiesa",
@@ -9,8 +9,11 @@ authors = [
     "Pratyush Mishra",
     "Howard Wu",
     "Daniele Di Benedetto <daniele@horizenlabs.io>",
-    "Marcelo Kaihara <marcelo@horizenlabs.io>",
-    "Ulrich Haboeck <ulrich@horizenlabs.io>"
+    "Marcelo Kaihara",
+    "Ulrich Haboeck <ulrich@horizenlabs.io>",
+    "Maksym Vereshchak <phoinic@gmail.com>",
+    "Luigi Varriale <luigi@horizenlabs.io>",
+    "cronicc <cronic@horizenlabs.io>"
 ]
 description = "A library of cryptographic primitives"
 include = ["Cargo.toml", "src", "README.md", "LICENSE-APACHE", "LICENSE-MIT"]
@@ -20,27 +23,41 @@ edition = "2018"
 ################################# Dependencies ################################
 
 [dependencies]
-algebra = { path = "../algebra" }
+algebra = { git = "https://github.com/HorizenOfficial/ginger-lib", tag = "0.3.0", features = ["parallel"] }
 bench-utils = { path = "../bench-utils" }
 
 digest = { version = "0.8", optional = true }
 blake2 = { version = "0.8.1", optional = true }
 
-rand = { version = "0.7" }
-derivative = "1"
+rand = { version = "0.8.4" }
+derivative = "2.2.0"
 rayon = "1"
 hex = "0.4.0"
 
+
+serde = { version = "1.0.117", features = ["derive"]}
+
 [features]
+llvm_asm = ["algebra/llvm_asm"]
+
 commitment = ["digest", "blake2"]
-merkle_tree = []
+merkle_tree = ["algebra/derive"]
 prf = ["digest", "blake2"]
-signature = ["digest", "blake2"]
-vrf = []
+signature = ["digest", "blake2", "algebra/derive"]
+vrf = ["algebra/derive"]
+
+# For Poseidon CRH / Merkle Tree
+mnt4_753 = ["algebra/mnt4_753"]
+mnt6_753 = ["algebra/mnt6_753"]
+bn_382 = ["algebra/bn_382"]
+tweedle = ["algebra/tweedle"]
 
 [dev-dependencies]
-criterion = "0.2"
-rand_xorshift = { version = "0.2" }
+algebra = { git = "https://github.com/HorizenOfficial/ginger-lib", tag = "0.3.0", features = ["edwards_sw6", "jubjub", "sw6", "bls12_377"] }
+primitives = { path = "../primitives", features = ["mnt4_753", "mnt6_753", "bn_382", "tweedle"] }
+
+criterion = "0.3.2"
+rand_xorshift = { version = "0.3.0" }
 
 ################################# Benchmarks ##################################
 
@@ -48,12 +65,13 @@ rand_xorshift = { version = "0.2" }
 name = "pedersen_crh"
 path = "benches/crypto_primitives/crh.rs"
 harness = false
+required-features = ["mnt4_753"]
 
 [[bench]]
 name = "pedersen_comm"
 path = "benches/crypto_primitives/comm.rs"
 harness = false
-required-features = ["commitment"]
+required-features = ["commitment", "mnt4_753"]
 
 [[bench]]
 name = "blake2s_prf"
@@ -65,10 +83,22 @@ required-features = ["prf"]
 name = "schnorr_sig"
 path = "benches/crypto_primitives/signature.rs"
 harness = false
-required-features = ["signature"]
+required-features = ["signature", "mnt4_753", "mnt6_753"]
 
 [[bench]]
 name = "ecvrf"
 path = "benches/crypto_primitives/ecvrf.rs"
 harness = false
-required-features = ["vrf"]
+required-features = ["vrf", "mnt4_753", "mnt6_753"]
+
+[[bench]]
+name = "poseidon_crh"
+path = "benches/crypto_primitives/poseidon_crh.rs"
+harness = false
+required-features = ["bn_382", "mnt4_753", "mnt6_753", "tweedle"]
+
+[[bench]]
+name = "poseidon_mht"
+path = "benches/crypto_primitives/poseidon_mht.rs"
+harness = false
+required-features = ["merkle_tree", "mnt4_753", "mnt6_753"]

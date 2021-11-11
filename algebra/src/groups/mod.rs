@@ -1,5 +1,7 @@
-use crate::BitIterator;
 use crate::UniformRand;
+use crate::{
+    BitIterator, CanonicalDeserialize, CanonicalSerialize, FromBytesChecked, SemanticallyValid,
+};
 use std::{
     fmt::{Debug, Display},
     hash::Hash,
@@ -10,6 +12,7 @@ use crate::{
     bytes::{FromBytes, ToBytes},
     fields::PrimeField,
 };
+use serde::{Deserialize, Serialize};
 
 #[cfg(test)]
 pub mod tests;
@@ -17,6 +20,12 @@ pub mod tests;
 pub trait Group:
     ToBytes
     + FromBytes
+    + FromBytesChecked
+    + SemanticallyValid
+    + Serialize
+    + for<'a> Deserialize<'a>
+    + CanonicalSerialize
+    + CanonicalDeserialize
     + Copy
     + Clone
     + Debug
@@ -56,6 +65,11 @@ pub trait Group:
         copy
     }
 
+    /// WARNING: This implementation doesn't take costant time with respect
+    /// to the exponent, and therefore is susceptible to side-channel attacks.
+    /// Be sure to use it in applications where timing (or similar) attacks
+    /// are not possible.
+    /// TODO: Add a side-channel secure variant.
     fn mul_assign<'a>(&mut self, other: &'a Self::ScalarField) {
         let mut res = Self::zero();
         for i in BitIterator::new(other.into_repr()) {

@@ -1,8 +1,13 @@
+use crate::curves::tests::edwards_tests;
 use crate::{
     bytes::{FromBytes, ToBytes},
-    curves::{jubjub::*, tests::curve_tests, AffineCurve, ProjectiveCurve, models::twisted_edwards_extended::tests::montgomery_conversion_test},
+    curves::{
+        jubjub::*, models::twisted_edwards_extended::tests::montgomery_conversion_test,
+        tests::curve_tests, AffineCurve, ProjectiveCurve,
+    },
     fields::jubjub::fr::Fr,
     groups::tests::group_test,
+    SemanticallyValid,
 };
 use rand;
 use std::str::FromStr;
@@ -10,6 +15,7 @@ use std::str::FromStr;
 #[test]
 fn test_projective_curve() {
     curve_tests::<JubJubProjective>();
+    edwards_tests::<JubJubParameters>()
 }
 
 #[test]
@@ -33,8 +39,7 @@ fn test_affine_group() {
 #[test]
 fn test_generator() {
     let generator = JubJubAffine::prime_subgroup_generator();
-    assert!(generator.is_on_curve());
-    assert!(generator.is_in_correct_subgroup_assuming_on_curve());
+    assert!(generator.is_valid());
 }
 
 #[test]

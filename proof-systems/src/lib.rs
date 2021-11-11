@@ -5,10 +5,27 @@
 #![deny(renamed_and_removed_lints, stable_features, unused_allocation)]
 #![deny(unused_comparisons, bare_trait_objects, unused_must_use, const_err)]
 #![forbid(unsafe_code)]
+#![allow(
+    clippy::upper_case_acronyms,
+    clippy::too_many_arguments,
+    clippy::type_complexity,
+    clippy::try_err,
+    clippy::map_collect_result_unit,
+    clippy::not_unsafe_ptr_arg_deref,
+    clippy::suspicious_op_assign_impl,
+    clippy::suspicious_arithmetic_impl,
+    clippy::assertions_on_constants
+)]
 
-#[cfg(any(feature = "groth16", feature = "gm17"))]
 #[macro_use]
 extern crate bench_utils;
+
+#[cfg(feature = "darlin")]
+#[macro_use]
+extern crate derivative;
+
+#[cfg(feature = "darlin")]
+pub mod darlin;
 
 #[cfg(feature = "groth16")]
 pub mod groth16;

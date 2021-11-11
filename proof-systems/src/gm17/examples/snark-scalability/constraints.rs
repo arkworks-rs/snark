@@ -4,7 +4,7 @@ use std::marker::PhantomData;
 
 pub struct Benchmark<F: Field> {
     num_constraints: usize,
-    _engine:         PhantomData<F>,
+    _engine: PhantomData<F>,
 }
 
 impl<F: Field> Benchmark<F> {
@@ -17,7 +17,10 @@ impl<F: Field> Benchmark<F> {
 }
 
 impl<F: Field> ConstraintSynthesizer<F> for Benchmark<F> {
-    fn generate_constraints<CS: ConstraintSystem<F>>(self, cs: &mut CS) -> Result<(), SynthesisError> {
+    fn generate_constraints<CS: ConstraintSystem<F>>(
+        self,
+        cs: &mut CS,
+    ) -> Result<(), SynthesisError> {
         let mut assignments = Vec::new();
 
         let mut a_val = F::one();

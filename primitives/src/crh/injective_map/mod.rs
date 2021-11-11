@@ -16,8 +16,10 @@ use algebra::{
     groups::Group,
 };
 
+use serde::{Deserialize, Serialize};
+
 pub trait InjectiveMap<G: Group> {
-    type Output: ToBytes + Clone + Eq + Hash + Default + Debug;
+    type Output: ToBytes + Serialize + for<'a> Deserialize<'a> + Clone + Eq + Hash + Default + Debug;
     fn injective_map(ge: &G) -> Result<Self::Output, CryptoError>;
 }
 
@@ -27,7 +29,9 @@ impl<P: TEModelParameters> InjectiveMap<TEAffine<P>> for TECompressor {
     type Output = <P as ModelParameters>::BaseField;
 
     fn injective_map(ge: &TEAffine<P>) -> Result<Self::Output, CryptoError> {
-        debug_assert!(ge.is_in_correct_subgroup_assuming_on_curve());
+        if !ge.is_in_correct_subgroup_assuming_on_curve() {
+            return Err(CryptoError::InvalidElement(format!("{}", ge)));
+        }
         Ok(ge.x)
     }
 }
@@ -37,15 +41,17 @@ impl<P: TEModelParameters> InjectiveMap<TEProjective<P>> for TECompressor {
 
     fn injective_map(ge: &TEProjective<P>) -> Result<Self::Output, CryptoError> {
         let ge = ge.into_affine();
-        debug_assert!(ge.is_in_correct_subgroup_assuming_on_curve());
+        if !ge.is_in_correct_subgroup_assuming_on_curve() {
+            return Err(CryptoError::InvalidElement(format!("{}", ge)));
+        }
         Ok(ge.x)
     }
 }
 
 pub struct PedersenCRHCompressor<G: Group, I: InjectiveMap<G>, W: PedersenWindow> {
-    _group:      PhantomData<G>,
+    _group: PhantomData<G>,
     _compressor: PhantomData<I>,
-    _crh:        PedersenCRH<G, W>,
+    _crh: PedersenCRH<G, W>,
 }
 
 impl<G: Group, I: InjectiveMap<G>, W: PedersenWindow> FixedLengthCRH

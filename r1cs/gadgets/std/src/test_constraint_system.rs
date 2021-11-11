@@ -12,7 +12,7 @@ enum NamedObject {
 
 /// Constraint system for testing purposes.
 pub struct TestConstraintSystem<ConstraintF: Field> {
-    named_objects:     Trie<String, NamedObject>,
+    named_objects: Trie<String, NamedObject>,
     current_namespace: Vec<String>,
     pub constraints: Vec<(
         LinearCombination<ConstraintF>,
@@ -20,8 +20,8 @@ pub struct TestConstraintSystem<ConstraintF: Field> {
         LinearCombination<ConstraintF>,
         String,
     )>,
-    inputs:            Vec<(ConstraintF, String)>,
-    aux:               Vec<(ConstraintF, String)>,
+    inputs: Vec<(ConstraintF, String)>,
+    aux: Vec<(ConstraintF, String)>,
 }
 
 impl<ConstraintF: Field> TestConstraintSystem<ConstraintF> {
@@ -38,8 +38,8 @@ impl<ConstraintF: Field> TestConstraintSystem<ConstraintF> {
                 Index::Aux(index) => aux[index].0,
             };
 
-            tmp.mul_assign(&coeff);
-            acc.add_assign(&tmp);
+            tmp.mul_assign(coeff);
+            acc.add_assign(tmp);
         }
 
         acc
@@ -55,11 +55,11 @@ impl<ConstraintF: Field> TestConstraintSystem<ConstraintF> {
         );
 
         TestConstraintSystem {
-            named_objects:     map,
+            named_objects: map,
             current_namespace: vec![],
-            constraints:       vec![],
-            inputs:            vec![(ConstraintF::one(), "ONE".into())],
-            aux:               vec![],
+            constraints: vec![],
+            inputs: vec![(ConstraintF::one(), "ONE".into())],
+            aux: vec![],
         }
     }
 
@@ -212,7 +212,7 @@ impl<ConstraintF: Field> ConstraintSystem<ConstraintF> for TestConstraintSystem<
     {
         let name = name_fn().into();
         let path = compute_path(&self.current_namespace, name.clone());
-        self.set_named_obj(path.clone(), NamedObject::Namespace);
+        self.set_named_obj(path, NamedObject::Namespace);
         self.current_namespace.push(name);
     }
 

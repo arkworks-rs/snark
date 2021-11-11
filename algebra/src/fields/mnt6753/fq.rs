@@ -1,5 +1,6 @@
 use crate::{
     biginteger::BigInteger768 as BigInteger,
+    field_new,
     fields::{Fp768, Fp768Parameters, FpParameters},
 };
 
@@ -162,3 +163,6 @@ impl FpParameters for FqParameters {
         0x3898C,
     ]);
 }
+
+pub const FQ_ONE: Fq = field_new!(Fq, FqParameters::R);
+pub const FQ_ZERO: Fq = field_new!(Fq, BigInteger([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]));

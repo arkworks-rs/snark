@@ -1,6 +1,7 @@
 macro_rules! bigint_impl {
     ($name:ident, $num_limbs:expr) => {
-        #[derive(Copy, Clone, PartialEq, Eq, Debug, Default, Hash)]
+        #[derive(Copy, Clone, PartialEq, Eq, Debug, Default, Hash, Serialize, Deserialize)]
+        #[serde(transparent)]
         pub struct $name(pub [u64; $num_limbs]);
 
         impl $name {
@@ -195,6 +196,27 @@ macro_rules! bigint_impl {
                 }
 
                 res
+            }
+        }
+
+        impl CanonicalSerialize for $name {
+            #[inline]
+            fn serialize<W: Write>(&self, writer: W) -> Result<(), SerializationError> {
+                self.write(writer)?;
+                Ok(())
+            }
+
+            #[inline]
+            fn serialized_size(&self) -> usize {
+                $num_limbs * 8
+            }
+        }
+
+        impl CanonicalDeserialize for $name {
+            #[inline]
+            fn deserialize<R: Read>(reader: R) -> Result<Self, SerializationError> {
+                let value = Self::read(reader)?;
+                Ok(value)
             }
         }
 

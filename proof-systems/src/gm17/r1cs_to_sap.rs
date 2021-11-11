@@ -1,4 +1,4 @@
-use algebra::fft::EvaluationDomain;
+use algebra::fft::domain::get_best_evaluation_domain;
 use algebra::{Field, PairingEngine};
 
 use crate::gm17::{generator::KeypairAssembly, prover::ProvingAssignment};
@@ -16,7 +16,7 @@ impl R1CStoSAP {
         t: &E::Fr,
     ) -> Result<(Vec<E::Fr>, Vec<E::Fr>, E::Fr, usize, usize), SynthesisError> {
         let domain_size = 2 * assembly.num_constraints + 2 * (assembly.num_inputs - 1) + 1;
-        let domain = EvaluationDomain::<E::Fr>::new(domain_size)
+        let domain = get_best_evaluation_domain::<E::Fr>(domain_size)
             .ok_or(SynthesisError::PolynomialDegreeTooLarge)?;
         let domain_size = domain.size();
 
@@ -49,7 +49,7 @@ impl R1CStoSAP {
                     Index::Aux(i) => assembly.num_inputs + i,
                 };
 
-                a[index] += &(u_add * &coeff);
+                a[index] += &(u_add * coeff);
             }
 
             for &(ref coeff, index) in assembly.bt[i].iter() {
@@ -58,7 +58,7 @@ impl R1CStoSAP {
                     Index::Aux(i) => assembly.num_inputs + i,
                 };
 
-                a[index] += &(u_sub * &coeff);
+                a[index] += &(u_sub * coeff);
             }
 
             for &(ref coeff, index) in assembly.ct[i].iter() {
@@ -67,7 +67,7 @@ impl R1CStoSAP {
                     Index::Aux(i) => assembly.num_inputs + i,
                 };
 
-                c[index] += &((u_2i * &coeff).double().double());
+                c[index] += &((u_2i * coeff).double().double());
             }
             c[extra_var_offset + i].add_assign(&u_add);
         }
@@ -150,7 +150,7 @@ impl R1CStoSAP {
             full_input_assignment.push(extra_var);
         }
 
-        let domain = EvaluationDomain::<E::Fr>::new(
+        let domain = get_best_evaluation_domain::<E::Fr>(
             2 * prover.num_constraints + 2 * (prover.num_inputs - 1) + 1,
         )
         .ok_or(SynthesisError::PolynomialDegreeTooLarge)?;
@@ -193,14 +193,14 @@ impl R1CStoSAP {
         let d1_double = d1.double();
         let mut h: Vec<E::Fr> = vec![d1_double; domain_size];
         h.par_iter_mut().zip(&a).for_each(|(h_i, a_i)| *h_i *= a_i);
-        h[0].sub_assign(&d2);
+        h[0].sub_assign(d2);
         let d1d1 = d1.square();
         h[0].sub_assign(&d1d1);
         h.push(d1d1);
 
         domain.coset_fft_in_place(&mut a);
 
-        let mut aa = domain.mul_polynomials_in_evaluation_domain(&a, &a);
+        let mut aa = domain.mul_polynomials_in_evaluation_domain(&a, &a)?;
         drop(a);
 
         let mut c = vec![zero; domain_size];
@@ -234,7 +234,9 @@ impl R1CStoSAP {
         domain.ifft_in_place(&mut c);
         domain.coset_fft_in_place(&mut c);
 
-        aa.par_iter_mut().zip(c).for_each(|(aa_i, c_i)| *aa_i -= &c_i);
+        aa.par_iter_mut()
+            .zip(c)
+            .for_each(|(aa_i, c_i)| *aa_i -= &c_i);
 
         domain.divide_by_vanishing_poly_on_coset_in_place(&mut aa);
         domain.coset_ifft_in_place(&mut aa);

@@ -1,247 +1,236 @@
-use algebra::{
-    fields::{
-        mnt4753::Fr as MNT4753Fr,
-        mnt6753::Fr as MNT6753Fr,
-    }, PrimeField, MulShort,
-};
-use primitives::crh::poseidon::PoseidonParameters;
-use crate::crh::FieldBasedHashGadget;
-use primitives::crh::{
-    poseidon::PoseidonHash,
-    parameters::{
-        MNT4753PoseidonParameters, MNT6753PoseidonParameters
-    },
+use crate::crh::{FieldBasedHashGadget, SBoxGadget};
+use algebra::PrimeField;
+use primitives::crh::poseidon::{PoseidonHash, PoseidonParameters};
+use r1cs_core::{ConstraintSystem, SynthesisError};
+use r1cs_std::{
+    alloc::ConstantGadget,
+    fields::{fp::FpGadget, FieldGadget},
 };
 use std::marker::PhantomData;
-use r1cs_core::{ConstraintSystem, SynthesisError};
-use r1cs_std::fields::fp::FpGadget;
-use r1cs_std::fields::FieldGadget;
-use r1cs_std::bits::boolean::Boolean;
-use r1cs_std::alloc::{AllocGadget, ConstantGadget};
-use r1cs_std::Assignment;
-use r1cs_std::eq::ConditionalEqGadget;
 
-pub type MNT4PoseidonHashGadget = PoseidonHashGadget<MNT4753Fr, MNT4753PoseidonParameters>;
-pub type MNT6PoseidonHashGadget = PoseidonHashGadget<MNT6753Fr, MNT6753PoseidonParameters>;
+#[cfg(feature = "mnt4_753")]
+pub mod mnt4753;
+#[cfg(feature = "mnt4_753")]
+pub use self::mnt4753::*;
 
-pub struct PoseidonHashGadget
-<
+#[cfg(feature = "mnt6_753")]
+pub mod mnt6753;
+#[cfg(feature = "mnt6_753")]
+pub use self::mnt6753::*;
+
+#[cfg(feature = "tweedle")]
+pub mod tweedle;
+#[cfg(feature = "tweedle")]
+pub use self::tweedle::*;
+
+#[cfg(feature = "bn_382")]
+pub mod bn382;
+#[cfg(feature = "bn_382")]
+pub use self::bn382::*;
+
+use primitives::SBox;
+
+pub struct PoseidonHashGadget<
     ConstraintF: PrimeField,
-    P:           PoseidonParameters<Fr = ConstraintF>,
->
-{
-    _field:      PhantomData<ConstraintF>,
+    P: PoseidonParameters<Fr = ConstraintF>,
+    SB: SBox<Field = ConstraintF, Parameters = P>,
+    SBG: SBoxGadget<ConstraintF, SB>,
+> {
+    _field: PhantomData<ConstraintF>,
     _parameters: PhantomData<P>,
+    _sbox: PhantomData<SB>,
+    _sbox_gadget: PhantomData<SBG>,
 }
 
-impl<ConstraintF: PrimeField + MulShort, P: PoseidonParameters<Fr = ConstraintF>> PoseidonHashGadget<ConstraintF, P> {
-
-    fn mod_inv_sbox<CS: ConstraintSystem<ConstraintF>>(
-        mut cs: CS,
-        x: &mut FpGadget<ConstraintF>,
-    ) -> Result<(), SynthesisError>
-    {
-        let b = Boolean::alloc(cs.ns(|| "alloc b"), || {
-            let x_val = x.get_value().get()?;
-            if x_val == ConstraintF::zero() {
-                Ok(false)
-            } else {
-                Ok(true)
-            }
-        })?;
-        let y = FpGadget::<ConstraintF>::alloc(cs.ns(|| "alloc y"), || {
-            let x_val = x.get_value().get()?;
-            if x_val == ConstraintF::zero() {
-                Ok(x_val)
-            } else {
-                let inv = x_val.inverse().get()?;
-                Ok(inv)
-            }
-        })?;
-        cs.enforce(
-            || "b=x*y",
-            |lc| &x.variable + lc,
-            |lc| &y.variable + lc,
-            |lc| lc + &b.lc(CS::one(), ConstraintF::one()),
-        );
-        x.conditional_enforce_equal(cs.ns(|| "0=(1-b)*(x-y)"), &y, &b.not())?;
-
-        *x=y;
-        Ok(())
-    }
-
+impl<
+        ConstraintF: PrimeField,
+        P: PoseidonParameters<Fr = ConstraintF>,
+        SB: SBox<Field = ConstraintF, Parameters = P>,
+        SBG: SBoxGadget<ConstraintF, SB>,
+    > PoseidonHashGadget<ConstraintF, P, SB, SBG>
+{
     fn poseidon_perm<CS: ConstraintSystem<ConstraintF>>(
         mut cs: CS,
         state: &mut [FpGadget<ConstraintF>],
-    ) -> Result<(), SynthesisError>
-    {
-
+    ) -> Result<(), SynthesisError> {
         // index that goes over the round constants
         let mut round_cst_idx = 0;
 
-        {
-            // Add initial round constants
-            for d in state.iter_mut() {
-                let rc = P::ROUND_CST[round_cst_idx];
-                (*d).add_constant_in_place(cs.ns(|| format!("add_constant_{}", round_cst_idx)), &rc)?;
-                round_cst_idx += 1;
-            }
-        }
-
         // First full rounds
         for i in 0..P::R_F {
+            // Add the round constants to the state vector
+            for d in state.iter_mut() {
+                // Temporary workaround: hardcoding the round constant and using it
+                // in the following add() constraint, instead of using add_constant(),
+                // helps reducing the R1CS density a little.
+                let rc = FpGadget::<ConstraintF>::from_value(
+                    cs.ns(|| format!("hardcode round constant {}", round_cst_idx)),
+                    &P::ROUND_CST[round_cst_idx],
+                );
+                *d = rc.add(cs.ns(|| format!("add_constant_{}", round_cst_idx)), d)?;
+                round_cst_idx += 1;
+            }
 
             // Apply the S-BOX to each of the elements of the state vector
             for (j, d) in state.iter_mut().enumerate() {
-                Self::mod_inv_sbox(cs.ns(||format!("mod_inv_S-Box_1_{}_{}",i, j)), d)?;
+                SBG::apply(cs.ns(|| format!("S-Box_1_{}_{}", i, j)), d)?;
             }
 
             // Perform the matrix mix
-            Self::matrix_mix (cs.ns(|| format!("poseidon_mix_matrix_first_full_round_{}", i)), state)?;
-
-            // Add the round constants to the state vector
-            for d in state.iter_mut() {
-                let rc = P::ROUND_CST[round_cst_idx];
-                (*d).add_constant_in_place(cs.ns(|| format!("add_constant_1_{}", round_cst_idx)), &rc)?;
-                round_cst_idx += 1;
-            }
-
+            Self::matrix_mix(
+                cs.ns(|| format!("poseidon_mix_matrix_first_full_round_{}", i)),
+                state,
+            )?;
         }
 
         // Partial rounds
         for _i in 0..P::R_P {
-
-            // Apply S-Box only to the first element of the state vector
-            Self::mod_inv_sbox(
-                cs.ns(||format!("mod_inv_S-Box_2_{}_{}",_i, 0)),
-                &mut state[0]
-            )?;
-
-            // Perform the matrix mix
-            Self::matrix_mix (cs.ns(|| format!("poseidon_mix_matrix_partial_round_{}", _i)), state)?;
-
             // Add the round constants to the state vector
             for d in state.iter_mut() {
-                let rc = P::ROUND_CST[round_cst_idx];
-                (*d).add_constant_in_place(cs.ns(|| format!("add_constant_2_{}", round_cst_idx)), &rc)?;
+                // Temporary workaround: hardcoding the round constant and using it
+                // in the following add() constraint, instead of using add_constant(),
+                // helps reducing the R1CS density a little.
+                let rc = FpGadget::<ConstraintF>::from_value(
+                    cs.ns(|| format!("hardcode round constant {}", round_cst_idx)),
+                    &P::ROUND_CST[round_cst_idx],
+                );
+                *d = rc.add(cs.ns(|| format!("add_constant_{}", round_cst_idx)), d)?;
                 round_cst_idx += 1;
             }
 
+            // Apply S-Box only to the first element of the state vector
+            SBG::apply(cs.ns(|| format!("S-Box_2_{}_{}", _i, 0)), &mut state[0])?;
+
+            // Perform the matrix mix
+            Self::matrix_mix(
+                cs.ns(|| format!("poseidon_mix_matrix_partial_round_{}", _i)),
+                state,
+            )?;
         }
 
         // Second full rounds
-        // Process only to R_F -1 iterations. The last iteration does not contain a matrix mix
-        for _i in 0..(P::R_F-1) {
+        for _i in 0..P::R_F {
+            // Add the round constants to the state vector
+            for d in state.iter_mut() {
+                // Temporary workaround: hardcoding the round constant and using it
+                // in the following add() constraint, instead of using add_constant(),
+                // helps reducing the R1CS density a little.
+                let rc = FpGadget::<ConstraintF>::from_value(
+                    cs.ns(|| format!("hardcode round constant {}", round_cst_idx)),
+                    &P::ROUND_CST[round_cst_idx],
+                );
+                *d = rc.add(cs.ns(|| format!("add_constant_{}", round_cst_idx)), d)?;
+                round_cst_idx += 1;
+            }
 
             // Apply the S-BOX to each of the elements of the state vector
             for (j, d) in state.iter_mut().enumerate() {
-                Self::mod_inv_sbox(cs.ns(||format!("mod_inv_S-Box_3_{}_{}",_i, j)), d)?;
+                SBG::apply(cs.ns(|| format!("S-Box_3_{}_{}", _i, j)), d)?;
             }
 
             // Perform the matrix mix
-            Self::matrix_mix (cs.ns(|| format!("poseidon_mix_matrix_second_full_round_{}", _i)), state)?;
-
-            // Add the round constants
-            for d in state.iter_mut() {
-                //let rc = MNT4753Fr::from_str(ROUND_CST[round_cst_idx]).map_err(|_| ()).unwrap();
-                let rc = P::ROUND_CST[round_cst_idx];
-                (*d).add_constant_in_place(cs.ns(|| format!("add_constant_3_{}", round_cst_idx)), &rc)?;
-                round_cst_idx += 1;
-            }
+            Self::matrix_mix(
+                cs.ns(|| format!("poseidon_mix_matrix_second_full_round_{}", _i)),
+                state,
+            )?;
         }
+        Ok(())
+    }
 
-        // Last full round does not perform the matrix_mix
-        {
-            // Apply the S-BOX to each of the elements of the state vector
-            for (j, d) in state.iter_mut().enumerate() {
-                Self::mod_inv_sbox(cs.ns(|| format!("mod_inv_S-Box_4_{}_{}", P::R_F-1, j)), d)?;
-            }
+    // Function that does the dot product for the mix matrix
+    fn dot_prod<CS: ConstraintSystem<ConstraintF>>(
+        mut cs: CS,
+        res: &mut FpGadget<ConstraintF>,
+        state: &mut [FpGadget<ConstraintF>],
+        mut start_idx_cst: usize,
+    ) -> Result<(), SynthesisError> {
+        for x in state.iter() {
+            let elem = x.mul_by_constant(
+                cs.ns(|| format!("partial_product_{}", start_idx_cst)),
+                &P::MDS_CST[start_idx_cst],
+            )?;
+            start_idx_cst += 1;
+            (*res).add_in_place(
+                cs.ns(|| format!("add_partial_product_{}", start_idx_cst)),
+                &elem,
+            )?;
         }
 
         Ok(())
     }
 
     // Function that does the mix matrix
-    // Assumption: t = 3
     fn matrix_mix<CS: ConstraintSystem<ConstraintF>>(
         mut cs: CS,
         state: &mut [FpGadget<ConstraintF>],
-    ) -> Result<(), SynthesisError>
-    {
-
+    ) -> Result<(), SynthesisError> {
         // Check that the length of the state vector is t
         assert_eq!(state.len(), P::T);
 
-        let m_11 = P::MDS_CST[0];
-        let m_12 = P::MDS_CST[1];
-        let m_13 = P::MDS_CST[2];
+        // Destination state vector
+        let mut new_state = Vec::new();
 
-        // scalar multiplication for position 0 of the state vector
-        let mut el_0 = state[0].mul_by_constant(cs.ns(||"partial_product_1_1"), &m_11)?;
-        let elem_1 = state[1].mul_by_constant(cs.ns(||"partial_product_1_2"), &m_12)?;
-        let elem_2 = state[2].mul_by_constant(cs.ns(||"partial_product_1_3"), &m_13)?;
+        // Initialize new destination state vector with zero elements
+        for i in 0..P::T {
+            let elem = FpGadget::<ConstraintF>::from_value(
+                cs.ns(|| format!("hardcode_new_state_elem_{}", i)),
+                &P::ZERO,
+            );
+            new_state.push(elem);
+        }
 
-        // sum of partial products
-        el_0.add_in_place(cs.ns(|| "add_partial_product_1_2"), &elem_1)?;
-        el_0.add_in_place(cs.ns(|| "add_partial_product_1_3"), &elem_2)?;
+        // Performs the dot products
+        let mut idx_cst = 0;
+        for i in 0..P::T {
+            Self::dot_prod(
+                cs.ns(|| format!("poseidon_dot_product_{}", i)),
+                &mut new_state[i],
+                state,
+                idx_cst,
+            )?;
+            idx_cst += P::T;
+        }
 
-        // scalar multiplication for position 1 of the state vector
-        let m_21 = P::MDS_CST[3];
-        let m_22 = P::MDS_CST[4];
-        let m_23 = P::MDS_CST[5];
-
-        // scalar multiplication for position 1 of the state vector
-        let mut el_1 = state[0].mul_by_constant(cs.ns(||"partial_product_2_1"), &m_21)?;
-        let elem_4 = state[1].mul_by_constant(cs.ns(||"partial_product_2_2"), &m_22)?;
-        let elem_5 = state[2].mul_by_constant(cs.ns(||"partial_product_2_3"), &m_23)?;
-
-        // sum of partial products
-        el_1.add_in_place(cs.ns(|| "add_partial_product_2_2"), &elem_4)?;
-        el_1.add_in_place(cs.ns(|| "add_partial_product_2_3"), &elem_5)?;
-
-        // scalar multiplication for the position 2 of the state vector
-        let m_31 = P::MDS_CST[6];
-        let m_32 = P::MDS_CST[7];
-        let m_33 = P::MDS_CST[8];
-
-        // scalar multiplication for position 2 of the state vector
-        let mut el_2 = state[0].mul_by_constant(cs.ns(||"partial_product_3_1"), &m_31)?;
-        let elem_7 = state[1].mul_by_constant(cs.ns(||"partial_product_3_2"), &m_32)?;
-        let elem_8 = state[2].mul_by_constant(cs.ns(||"partial_product_3_3"), &m_33)?;
-
-        // sum of partial products
-        el_2.add_in_place(cs.ns(|| "add_partial_product_3_2"), &elem_7)?;
-        el_2.add_in_place(cs.ns(|| "add_partial_product_3_3"), &elem_8)?;
-
-        state[0] = el_0;
-        state[1] = el_1;
-        state[2] = el_2;
+        // Copy result to the state vector
+        for i in 0..P::T {
+            state[i] = new_state[i].clone();
+        }
 
         Ok(())
     }
 }
 
-impl<ConstraintF, P> FieldBasedHashGadget<PoseidonHash<ConstraintF, P>, ConstraintF> for PoseidonHashGadget<ConstraintF, P>
-    where
-        ConstraintF: PrimeField + MulShort,
-        P:           PoseidonParameters<Fr = ConstraintF>
+impl<ConstraintF, P, SB, SBG> FieldBasedHashGadget<PoseidonHash<ConstraintF, P, SB>, ConstraintF>
+    for PoseidonHashGadget<ConstraintF, P, SB, SBG>
+where
+    ConstraintF: PrimeField,
+    P: PoseidonParameters<Fr = ConstraintF>,
+    SB: SBox<Field = ConstraintF, Parameters = P>,
+    SBG: SBoxGadget<ConstraintF, SB>,
 {
     type DataGadget = FpGadget<ConstraintF>;
 
-    fn check_evaluation_gadget<CS: ConstraintSystem<ConstraintF>>(
+    fn enforce_hash_constant_length<CS: ConstraintSystem<ConstraintF>>(
         mut cs: CS,
         input: &[Self::DataGadget],
     ) -> Result<Self::DataGadget, SynthesisError>
-    // Assumption:
-    //     rate r = 2
+// Assumption:
     //     capacity c = 1
-    //     t = 3
     {
-        let state_0 = FpGadget::<ConstraintF>::from_value(cs.ns(|| "hardcode_state_0"), &P::AFTER_ZERO_PERM[0]);
-        let state_1 = FpGadget::<ConstraintF>::from_value(cs.ns(|| "hardcode_state_1"), &P::AFTER_ZERO_PERM[1]);
-        let state_2 = FpGadget::<ConstraintF>::from_value(cs.ns(|| "hardcode_state_2"), &P::AFTER_ZERO_PERM[2]);
+        if input.is_empty() {
+            return Err(SynthesisError::Other(
+                "Input data array does not contain any data".to_owned(),
+            ));
+        }
 
-        let mut state = [state_0, state_1, state_2];
+        let mut state = Vec::new();
+        for i in 0..P::T {
+            let elem = FpGadget::<ConstraintF>::from_value(
+                cs.ns(|| format!("hardcode_state_{}", i)),
+                &P::AFTER_ZERO_PERM[i],
+            );
+            state.push(elem);
+        }
 
         // calculate the number of cycles to process the input dividing in portions of rate elements
         let num_cycles = input.len() / P::R;
@@ -256,24 +245,25 @@ impl<ConstraintF, P> FieldBasedHashGadget<PoseidonHash<ConstraintF, P>, Constrai
         for i in 0..num_cycles {
             // add the elements to the state vector. Add rate elements
             for j in 0..P::R {
-                state[j].add_in_place(cs.ns(|| format!("add_input_{}_{}", i, j)), &input[input_idx])?;
+                state[j].add_in_place(
+                    cs.ns(|| format!("add_input_{}_{}", i, j)),
+                    &input[input_idx],
+                )?;
                 input_idx += 1;
             }
-            // for application to a 2-1 Merkle tree, add the constant 3 to the third state vector
-            state[P::R].add_constant_in_place(cs.ns(|| format!("add_constant_C2_{}", i)), &P::C2)?;
             // apply permutation after adding the input vector
             Self::poseidon_perm(cs.ns(|| format!("poseidon_perm_{}", i)), &mut state)?;
         }
 
-        // in case the input is not a multiple of the rate process the remainder part padding a zero
-        // in this case add C2 to state[2]
-        //
-        //   rem_input   0       C2
-        // + state[0] state[1] state[2]
-        //
+        // in case the input is not a multiple of the rate, process the remainder part padding zeros
         if rem != 0 {
-            state[0].add_in_place(cs.ns(|| "poseidon_padding_add"), &input[input_idx])?;
-            state[P::R].add_constant_in_place(cs.ns(|| "add_constant_C2_last_chunk"), &P::C2)?;
+            for j in 0..rem {
+                state[j].add_in_place(
+                    cs.ns(|| format!("poseidon_padding_add_{}", j)),
+                    &input[input_idx],
+                )?;
+                input_idx += 1;
+            }
             // apply permutation after adding the input vector
             Self::poseidon_perm(cs.ns(|| "poseidon_padding_perm"), &mut state)?;
         }
@@ -285,86 +275,88 @@ impl<ConstraintF, P> FieldBasedHashGadget<PoseidonHash<ConstraintF, P>, Constrai
 
 #[cfg(test)]
 mod test {
-    use rand::thread_rng;
-    use r1cs_std::test_constraint_system::TestConstraintSystem;
-    use primitives::crh::{
-        FieldBasedHash, MNT4PoseidonHash, MNT6PoseidonHash,
-    };
-    use r1cs_std::fields::fp::FpGadget;
-    use r1cs_std::alloc::AllocGadget;
-    use r1cs_core::ConstraintSystem;
-    use algebra::UniformRand;
-    use super::*;
 
-    use algebra::fields::{
-        mnt4753::Fr as MNT4753Fr,
-        mnt6753::Fr as MNT6753Fr,
-    };
+    use crate::crh::test::constant_length_field_based_hash_gadget_native_test;
+    use algebra::PrimeField;
 
-    type Mnt4FieldGadget = FpGadget<MNT4753Fr>;
-    type Mnt6FieldGadget = FpGadget<MNT6753Fr>;
-
-    #[test]
-    fn crh_mnt4_753_primitive_gadget_test() {
-
-        let mut rng = &mut thread_rng();
-        let mut cs = TestConstraintSystem::<MNT4753Fr>::new();
-
-        let mut vec_elem_4753 = Vec::new();
-        let v1 = MNT4753Fr::rand(&mut rng);
-        let v2 = MNT4753Fr::rand(&mut rng);
-        vec_elem_4753.push(v1);
-        vec_elem_4753.push(v2);
-
-        let primitive_result = MNT4PoseidonHash::evaluate(&vec_elem_4753).unwrap();
-
-        let v1_gadget = Mnt4FieldGadget::alloc(cs.ns(|| "alloc_v1"),|| Ok(v1)).unwrap();
-        let v2_gadget = Mnt4FieldGadget::alloc(cs.ns(|| "alloc_v2"),|| Ok(v2)).unwrap();
-
-        let mut vec_elem_gadget = Vec::new();
-        vec_elem_gadget.push(v1_gadget);
-        vec_elem_gadget.push(v2_gadget);
-
-        let gadget_result =
-            MNT4PoseidonHashGadget::check_evaluation_gadget(
-                cs.ns(||"check_poseidon_gadget"),
-                vec_elem_gadget.as_slice()).unwrap();
-
-        println!("number of constraints total: {}", cs.num_constraints());
-
-        assert_eq!(primitive_result, gadget_result.value.unwrap());
-        assert!(cs.is_satisfied());
+    fn generate_inputs<F: PrimeField>(num: usize) -> Vec<F> {
+        let mut inputs = Vec::with_capacity(num);
+        for i in 1..=num {
+            let input = F::from(i as u32);
+            inputs.push(input);
+        }
+        inputs
     }
 
+    #[cfg(feature = "mnt4_753")]
     #[test]
-    fn crh_mnt6_753_primitive_gadget_test() {
+    fn poseidon_mnt4_753_gadget_native_test() {
+        use crate::MNT4PoseidonHashGadget;
 
-        let mut rng = &mut thread_rng();
-        let mut cs = TestConstraintSystem::<MNT6753Fr>::new();
+        for ins in 1..=3 {
+            constant_length_field_based_hash_gadget_native_test::<_, _, MNT4PoseidonHashGadget>(
+                generate_inputs(ins),
+            );
+        }
+    }
 
-        let mut vec_elem_6753 = Vec::new();
-        let v1 = MNT6753Fr::rand(&mut rng);
-        let v2 = MNT6753Fr::rand(&mut rng);
-        vec_elem_6753.push(v1);
-        vec_elem_6753.push(v2);
+    #[cfg(feature = "mnt6_753")]
+    #[test]
+    fn poseidon_mnt6_753_gadget_native_test() {
+        use crate::MNT6PoseidonHashGadget;
 
-        let primitive_result = MNT6PoseidonHash::evaluate(&vec_elem_6753).unwrap();
+        for ins in 1..=3 {
+            constant_length_field_based_hash_gadget_native_test::<_, _, MNT6PoseidonHashGadget>(
+                generate_inputs(ins),
+            );
+        }
+    }
 
-        let v1_gadget = Mnt6FieldGadget::alloc(cs.ns(|| "alloc_v1"),|| Ok(v1)).unwrap();
-        let v2_gadget = Mnt6FieldGadget::alloc(cs.ns(|| "alloc_v2"),|| Ok(v2)).unwrap();
+    #[cfg(feature = "bn_382")]
+    #[test]
+    fn crh_bn382_fr_primitive_gadget_test() {
+        use crate::BN382FrPoseidonHashGadget;
 
-        let mut vec_elem_gadget = Vec::new();
-        vec_elem_gadget.push(v1_gadget);
-        vec_elem_gadget.push(v2_gadget);
+        for ins in 1..=3 {
+            constant_length_field_based_hash_gadget_native_test::<_, _, BN382FrPoseidonHashGadget>(
+                generate_inputs(ins),
+            );
+        }
+    }
 
-        let gadget_result =
-            MNT6PoseidonHashGadget::check_evaluation_gadget(
-                cs.ns(||"check_poseidon_gadget"),
-                vec_elem_gadget.as_slice()).unwrap();
+    #[cfg(feature = "bn_382")]
+    #[test]
+    fn crh_bn382_fq_primitive_gadget_test() {
+        use crate::BN382FqPoseidonHashGadget;
 
-        println!("number of constraints total: {}", cs.num_constraints());
+        for ins in 1..=3 {
+            constant_length_field_based_hash_gadget_native_test::<_, _, BN382FqPoseidonHashGadget>(
+                generate_inputs(ins),
+            );
+        }
+    }
 
-        assert_eq!(primitive_result, gadget_result.value.unwrap());
-        assert!(cs.is_satisfied());
+    #[cfg(feature = "tweedle")]
+    #[test]
+    fn crh_tweedle_fr_primitive_gadget_test() {
+        use crate::TweedleFrPoseidonHashGadget;
+
+        for ins in 1..=3 {
+            constant_length_field_based_hash_gadget_native_test::<_, _, TweedleFrPoseidonHashGadget>(
+                generate_inputs(ins),
+            );
+        }
+    }
+
+    #[cfg(feature = "tweedle")]
+    #[test]
+    fn crh_tweedle_fq_primitive_gadget_test() {
+        use crate::TweedleFqPoseidonHashGadget;
+
+        for ins in 1..=3 {
+            constant_length_field_based_hash_gadget_native_test::<_, _, TweedleFqPoseidonHashGadget>(
+                generate_inputs(ins),
+            );
+        }
     }
 }

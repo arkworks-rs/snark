@@ -1,6 +1,6 @@
 [package]
 name = "algebra"
-version = "0.2.0"
+version = "0.3.0"
 authors = [
     "Sean Bowe",
     "Alessandro Chiesa",
@@ -9,31 +9,89 @@ authors = [
     "Pratyush Mishra",
     "Howard Wu",
     "Daniele Di Benedetto <daniele@horizenlabs.io>",
-    "Marcelo Kaihara <marcelo@horizenlabs.io>",
-    "Ulrich Haboeck <ulrich@horizenlabs.io>"
+    "Marcelo Kaihara",
+    "Ulrich Haboeck <ulrich@horizenlabs.io>",
+    "Maksym Vereshchak <phoinic@gmail.com>",
+    "Luigi Varriale <luigi@horizenlabs.io>",
+    "cronicc <cronic@horizenlabs.io>"
 ]
 description = "A library for finite fields, elliptic curves and FFTs evaluation over prime finite fields"
 include = ["Cargo.toml", "src", "README.md", "LICENSE-APACHE", "LICENSE-MIT"]
 license = "MIT/Apache-2.0"
 edition = "2018"
+build = "build.rs"
 
 
 ################################# Dependencies ################################
 
 [dependencies]
-byteorder = { version = "1" }
-rand = { version = "0.7" }
-derivative = { version = "1" }
+algebra-derive = { path = "algebra-derive", optional = true }
 
-colored = { version = "1", optional = true }
+bench-utils = { path = "../bench-utils", optional = true }
+byteorder = { version = "1" }
+rand = { version = "0.8.4" }
+derivative = { version = "2", features = ["use_core"] }
+
+colored = { version = "2.0.0", optional = true }
 rayon = { version = "1", optional = true }
 clippy = { version = "*", optional = true }
 
+unroll = "0.1.4"
+
+serde = { version = "1.0.117", features = ["derive"]}
+
 [dev-dependencies]
 blake2 = "0.8.1"
-criterion = "0.2"
-rand_xorshift = { version = "0.2" }
+rand_xorshift = { version = "0.3.0" }
+paste = "1.0"
+criterion = "0.3"
+algebra = { path = "../algebra", features = ["full"] }
 
 [features]
 parallel = [ "rayon" ]
-fft = ["rayon"]
+fft = ["rayon", "derive"]
+n_fold = []
+llvm_asm = []
+derive = ["algebra-derive"]
+
+bls12_377 = []
+bls12_381 = []
+edwards_bls12 = ["bls12_377"]
+edwards_sw6 = ["sw6"]
+jubjub = []
+sw6 = ["bls12_377"]
+mnt4_753 = ["mnt6_753"]
+mnt6_298 = []
+mnt6_753 = ["mnt4_753"]
+bn_382 = []
+tweedle = []
+
+full = [ "bls12_377", "bls12_381", "sw6", "mnt4_753", "mnt6_298", "mnt6_753", "edwards_bls12", "edwards_sw6", "jubjub", "bn_382", "tweedle" ]
+
+[build-dependencies]
+field-assembly = { path = "./field-assembly" }
+rustc_version = "0.4.0"
+
+[[bench]]
+name = "fft_bn382"
+path = "benches/criterion_fft/fft_bn382.rs"
+harness = false
+required-features = ["parallel", "fft", "bench-utils"]
+
+[[bench]]
+name = "fft_tweedle"
+path = "benches/criterion_fft/fft_tweedle.rs"
+harness = false
+required-features = ["parallel", "fft", "bench-utils"]
+
+[[bench]]
+name = "variable_msm_bn382"
+path = "benches/criterion_msm/variable_msm_bn382.rs"
+harness = false
+required-features = ["parallel", "fft", "bench-utils"]
+
+[[bench]]
+name = "variable_msm_tweedle"
+path = "benches/criterion_msm/variable_msm_tweedle.rs"
+harness = false
+required-features = ["parallel", "fft", "bench-utils"]

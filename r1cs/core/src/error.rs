@@ -1,6 +1,4 @@
-use std::fmt;
 use std::io;
-use std::error::Error;
 
 /// This is an error that could occur during circuit synthesis contexts,
 /// such as CRS generation, proving or verification.
@@ -22,6 +20,8 @@ pub enum SynthesisError {
     MalformedVerifyingKey,
     /// During CRS generation, we observed an unconstrained auxiliary variable
     UnconstrainedVariable,
+    /// A generic error, not classifiable in any of the above categories
+    Other(String),
 }
 
 impl From<io::Error> for SynthesisError {
@@ -30,30 +30,32 @@ impl From<io::Error> for SynthesisError {
     }
 }
 
-impl Error for SynthesisError {
-    fn description(&self) -> &str {
-        match *self {
+impl From<Box<dyn std::error::Error>> for SynthesisError {
+    fn from(e: Box<dyn std::error::Error>) -> SynthesisError {
+        SynthesisError::Other(e.to_string())
+    }
+}
+
+impl std::fmt::Display for SynthesisError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
             SynthesisError::AssignmentMissing => {
-                "an assignment for a variable could not be computed"
-            },
-            SynthesisError::DivisionByZero => "division by zero",
-            SynthesisError::Unsatisfiable => "unsatisfiable constraint system",
-            SynthesisError::PolynomialDegreeTooLarge => "polynomial degree is too large",
-            SynthesisError::UnexpectedIdentity => "encountered an identity element in the CRS",
-            SynthesisError::IoError(_) => "encountered an I/O error",
-            SynthesisError::MalformedVerifyingKey => "malformed verifying key",
-            SynthesisError::UnconstrainedVariable => "auxiliary variable was unconstrained",
+                write!(f, "an assignment for a variable could not be computed")
+            }
+            SynthesisError::DivisionByZero => write!(f, "division by zero"),
+            SynthesisError::Unsatisfiable => write!(f, "unsatisfiable constraint system"),
+            SynthesisError::PolynomialDegreeTooLarge => write!(f, "polynomial degree is too large"),
+            SynthesisError::UnexpectedIdentity => {
+                write!(f, "encountered an identity element in the CRS")
+            }
+            SynthesisError::IoError(e) => write!(f, "{:?}", e),
+            SynthesisError::MalformedVerifyingKey => write!(f, "malformed verifying key"),
+            SynthesisError::UnconstrainedVariable => {
+                write!(f, "auxiliary variable was unconstrained")
+            }
+            SynthesisError::Other(e) => write!(f, "{:?}", e),
         }
     }
 }
 
-impl fmt::Display for SynthesisError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
-        if let &SynthesisError::IoError(ref e) = self {
-            write!(f, "I/O error: ")?;
-            e.fmt(f)
-        } else {
-            write!(f, "{}", self.to_string())
-        }
-    }
-}
+impl std::error::Error for SynthesisError {}

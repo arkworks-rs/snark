@@ -12,12 +12,6 @@ use crate::prelude::*;
 
 use std::{borrow::Borrow, marker::PhantomData};
 
-pub mod edwards_bls12;
-pub mod edwards_sw6;
-pub mod jubjub;
-#[cfg(test)]
-mod test;
-
 #[derive(Derivative)]
 #[derivative(Debug, Clone)]
 #[derivative(Debug(bound = "P: TEModelParameters, ConstraintF: Field"))]
@@ -58,15 +52,13 @@ mod montgomery_affine_impl {
         ) -> Result<(P::BaseField, P::BaseField), SynthesisError> {
             let montgomery_point: GroupAffine<P> = if p.y == P::BaseField::one() {
                 GroupAffine::zero()
+            } else if p.x == P::BaseField::zero() {
+                GroupAffine::new(P::BaseField::zero(), P::BaseField::zero())
             } else {
-                if p.x == P::BaseField::zero() {
-                    GroupAffine::new(P::BaseField::zero(), P::BaseField::zero())
-                } else {
-                    let u = (P::BaseField::one() + &p.y)
-                        * &(P::BaseField::one() - &p.y).inverse().unwrap();
-                    let v = u * &p.x.inverse().unwrap();
-                    GroupAffine::new(u, v)
-                }
+                let u =
+                    (P::BaseField::one() + &p.y) * &(P::BaseField::one() - &p.y).inverse().unwrap();
+                let v = u * &p.x.inverse().unwrap();
+                GroupAffine::new(u, v)
             };
 
             Ok((montgomery_point.x, montgomery_point.y))
@@ -98,7 +90,7 @@ mod montgomery_affine_impl {
                         t0.mul_assign(&invy);
 
                         Ok(t0)
-                    },
+                    }
                     None => Err(SynthesisError::DivisionByZero),
                 }
             })?;
@@ -107,7 +99,7 @@ mod montgomery_affine_impl {
 
             let v = F::alloc(cs.ns(|| "v"), || {
                 let mut t0 = self.x.get_value().get()?;
-                let mut t1 = t0.clone();
+                let mut t1 = t0;
                 t0.sub_assign(&P::BaseField::one());
                 t1.add_assign(&P::BaseField::one());
 
@@ -116,7 +108,7 @@ mod montgomery_affine_impl {
                         t0.mul_assign(&t1);
 
                         Ok(t0)
-                    },
+                    }
                     None => Err(SynthesisError::DivisionByZero),
                 }
             })?;
@@ -148,7 +140,7 @@ mod montgomery_affine_impl {
                     Some(d) => {
                         n.mul_assign(&d);
                         Ok(n)
-                    },
+                    }
                     None => Err(SynthesisError::DivisionByZero),
                 }
             })?;
@@ -275,6 +267,15 @@ mod affine_impl {
                 F::zero(cs.ns(|| "zero"))?,
                 F::one(cs.ns(|| "one"))?,
             ))
+        }
+
+        //TODO: Implement this using enforce_verdict
+        #[inline]
+        fn is_zero<CS: ConstraintSystem<ConstraintF>>(
+            &self,
+            _: CS,
+        ) -> Result<Boolean, SynthesisError> {
+            unimplemented!()
         }
 
         /// Optimized constraints for checking Edwards point addition from ZCash
@@ -491,7 +492,7 @@ mod affine_impl {
                 Ok(ge) => {
                     let ge = *ge.borrow();
                     (Ok(ge.x), Ok(ge.y))
-                },
+                }
                 _ => (
                     Err(SynthesisError::AssignmentMissing),
                     Err(SynthesisError::AssignmentMissing),
@@ -527,15 +528,15 @@ mod affine_impl {
             mut cs: CS,
             value_gen: FN,
         ) -> Result<Self, SynthesisError>
-            where
-                FN: FnOnce() -> Result<T, SynthesisError>,
-                T: Borrow<TEAffine<P>>,
+        where
+            FN: FnOnce() -> Result<T, SynthesisError>,
+            T: Borrow<TEAffine<P>>,
         {
             let (x, y) = match value_gen() {
                 Ok(ge) => {
                     let ge = *ge.borrow();
                     (Ok(ge.x), Ok(ge.y))
-                },
+                }
                 _ => (
                     Err(SynthesisError::AssignmentMissing),
                     Err(SynthesisError::AssignmentMissing),
@@ -553,104 +554,81 @@ mod affine_impl {
             mut cs: CS,
             value_gen: FN,
         ) -> Result<Self, SynthesisError>
-            where
-                FN: FnOnce() -> Result<T, SynthesisError>,
-                T: Borrow<TEAffine<P>>,
+        where
+            FN: FnOnce() -> Result<T, SynthesisError>,
+            T: Borrow<TEAffine<P>>,
         {
-            let alloc_and_prime_order_check =
-                |mut cs: r1cs_core::Namespace<_, _>, value_gen: FN| -> Result<Self, SynthesisError> {
-                    let cofactor_weight = BitIterator::new(P::COFACTOR).filter(|b| *b).count();
-                    // If we multiply by r, we actually multiply by r - 2.
-                    let r_minus_1 = (-P::ScalarField::one()).into_repr();
-                    let r_weight = BitIterator::new(&r_minus_1).filter(|b| *b).count();
+            let alloc_and_prime_order_check = |mut cs: r1cs_core::Namespace<_, _>,
+                                               value_gen: FN|
+             -> Result<Self, SynthesisError> {
+                let cofactor_weight = BitIterator::new(P::COFACTOR).filter(|b| *b).count();
+                // If we multiply by r, we actually multiply by r - 2.
+                let r_minus_1 = (-P::ScalarField::one()).into_repr();
+                let r_weight = BitIterator::new(&r_minus_1).filter(|b| *b).count();
 
-                    // We pick the most efficient method of performing the prime order check:
-                    // If the cofactor has lower hamming weight than the scalar field's modulus,
-                    // we first multiply by the inverse of the cofactor, and then, after allocating,
-                    // multiply by the cofactor. This ensures the resulting point has no cofactors
-                    //
-                    // Else, we multiply by the scalar field's modulus and ensure that the result
-                    // is zero.
-                    if cofactor_weight < r_weight {
-                        let ge = Self::alloc(cs.ns(|| "Alloc checked"), || {
-                            value_gen().map(|ge| {
-                                ge.borrow()
-                                    .mul_by_cofactor_inv()
-                            })
-                        })?;
-                        let mut seen_one = false;
-                        let mut result = Self::zero(cs.ns(|| "result"))?;
-                        for (i, b) in BitIterator::new(P::COFACTOR).enumerate() {
-                            let mut cs = cs.ns(|| format!("Iteration {}", i));
+                // We pick the most efficient method of performing the prime order check:
+                // If the cofactor has lower hamming weight than the scalar field's modulus,
+                // we first multiply by the inverse of the cofactor, and then, after allocating,
+                // multiply by the cofactor. This ensures the resulting point has no cofactors
+                //
+                // Else, we multiply by the scalar field's modulus and ensure that the result
+                // is zero.
+                if cofactor_weight < r_weight {
+                    let ge = Self::alloc(cs.ns(|| "Alloc checked"), || {
+                        value_gen().map(|ge| ge.borrow().mul_by_cofactor_inv())
+                    })?;
+                    let mut seen_one = false;
+                    let mut result = Self::zero(cs.ns(|| "result"))?;
+                    for (i, b) in BitIterator::new(P::COFACTOR).enumerate() {
+                        let mut cs = cs.ns(|| format!("Iteration {}", i));
 
-                            let old_seen_one = seen_one;
-                            if seen_one {
-                                result.double_in_place(cs.ns(|| "Double"))?;
-                            } else {
-                                seen_one = b;
-                            }
-
-                            if b {
-                                result = if old_seen_one {
-                                    result.add(cs.ns(|| "Add"), &ge)?
-                                } else {
-                                    ge.clone()
-                                };
-                            }
+                        let old_seen_one = seen_one;
+                        if seen_one {
+                            result.double_in_place(cs.ns(|| "Double"))?;
+                        } else {
+                            seen_one = b;
                         }
-                        Ok(result)
-                    } else {
-                        let ge = Self::alloc(cs.ns(|| "Alloc checked"), value_gen)?;
-                        let mut seen_one = false;
-                        let mut result = Self::zero(cs.ns(|| "result"))?;
-                        // Returns bits in big-endian order
-                        for (i, b) in BitIterator::new(r_minus_1).enumerate() {
-                            let mut cs = cs.ns(|| format!("Iteration {}", i));
 
-                            let old_seen_one = seen_one;
-                            if seen_one {
-                                result.double_in_place(cs.ns(|| "Double"))?;
+                        if b {
+                            result = if old_seen_one {
+                                result.add(cs.ns(|| "Add"), &ge)?
                             } else {
-                                seen_one = b;
-                            }
-
-                            if b {
-                                result = if old_seen_one {
-                                    result.add(cs.ns(|| "Add"), &ge)?
-                                } else {
-                                    ge.clone()
-                                };
-                            }
+                                ge.clone()
+                            };
                         }
-                        let neg_ge = ge.negate(cs.ns(|| "Negate ge"))?;
-                        neg_ge.enforce_equal(cs.ns(|| "Check equals"), &result)?;
-                        Ok(ge)
                     }
-                };
+                    Ok(result)
+                } else {
+                    let ge = Self::alloc(cs.ns(|| "Alloc checked"), value_gen)?;
+                    let mut seen_one = false;
+                    let mut result = Self::zero(cs.ns(|| "result"))?;
+                    // Returns bits in big-endian order
+                    for (i, b) in BitIterator::new(r_minus_1).enumerate() {
+                        let mut cs = cs.ns(|| format!("Iteration {}", i));
 
-            let ge = alloc_and_prime_order_check(
-                cs.ns(|| "alloc and prime order check"),
-                value_gen
-            )?;
+                        let old_seen_one = seen_one;
+                        if seen_one {
+                            result.double_in_place(cs.ns(|| "Double"))?;
+                        } else {
+                            seen_one = b;
+                        }
 
-            let d = P::COEFF_D;
-            let a = P::COEFF_A;
+                        if b {
+                            result = if old_seen_one {
+                                result.add(cs.ns(|| "Add"), &ge)?
+                            } else {
+                                ge.clone()
+                            };
+                        }
+                    }
+                    let neg_ge = ge.negate(cs.ns(|| "Negate ge"))?;
+                    neg_ge.enforce_equal(cs.ns(|| "Check equals"), &result)?;
+                    Ok(ge)
+                }
+            };
 
-            // Check that ax^2 + y^2 = 1 + dx^2y^2: is a cheap check so we do it anyway
-            // We do this by checking that ax^2 - 1 = y^2 * (dx^2 - 1)
-            let x2 = ge.x.square(&mut cs.ns(|| "x^2"))?;
-            let y2 = ge.y.square(&mut cs.ns(|| "y^2"))?;
-
-            let one = P::BaseField::one();
-            let d_x2_minus_one = x2
-                .mul_by_constant(cs.ns(|| "d * x^2"), &d)?
-                .add_constant(cs.ns(|| "d * x^2 - 1"), &one.neg())?;
-
-            let a_x2_minus_one = x2
-                .mul_by_constant(cs.ns(|| "a * x^2"), &a)?
-                .add_constant(cs.ns(|| "a * x^2 - 1"), &one.neg())?;
-
-            d_x2_minus_one.mul_equals(cs.ns(|| "on curve check"), &y2, &a_x2_minus_one)?;
+            let ge =
+                alloc_and_prime_order_check(cs.ns(|| "alloc and prime order check"), value_gen)?;
 
             Ok(ge)
         }
@@ -667,7 +645,7 @@ mod affine_impl {
                 Ok(ge) => {
                     let ge = *ge.borrow();
                     (Ok(ge.x), Ok(ge.y))
-                },
+                }
                 _ => (
                     Err(SynthesisError::AssignmentMissing),
                     Err(SynthesisError::AssignmentMissing),
@@ -700,18 +678,14 @@ mod affine_impl {
     }
 
     impl<P, ConstraintF, F> ConstantGadget<TEAffine<P>, ConstraintF> for AffineGadget<P, ConstraintF, F>
-        where
-            P: TEModelParameters,
-            ConstraintF: Field,
-            F: FieldGadget<P::BaseField, ConstraintF>,
-            Self: GroupGadget<TEAffine<P>, ConstraintF>,
+    where
+        P: TEModelParameters,
+        ConstraintF: Field,
+        F: FieldGadget<P::BaseField, ConstraintF>,
+        Self: GroupGadget<TEAffine<P>, ConstraintF>,
     {
         #[inline]
-        fn from_value<CS: ConstraintSystem<ConstraintF>>(
-            mut cs: CS,
-            value: &TEAffine<P>,
-        ) -> Self
-        {
+        fn from_value<CS: ConstraintSystem<ConstraintF>>(mut cs: CS, value: &TEAffine<P>) -> Self {
             let x = F::from_value(cs.ns(|| "hardcode x"), &value.x);
             let y = F::from_value(cs.ns(|| "hardcode y"), &value.y);
 
@@ -719,7 +693,7 @@ mod affine_impl {
         }
 
         #[inline]
-        fn get_constant(&self) ->TEAffine<P> {
+        fn get_constant(&self) -> TEAffine<P> {
             let x = self.x.get_value().unwrap();
             let y = self.y.get_value().unwrap();
 
@@ -766,6 +740,15 @@ mod projective_impl {
                 F::zero(cs.ns(|| "zero"))?,
                 F::one(cs.ns(|| "one"))?,
             ))
+        }
+
+        //TODO: Implement this using enforce_verdict
+        #[inline]
+        fn is_zero<CS: ConstraintSystem<ConstraintF>>(
+            &self,
+            _: CS,
+        ) -> Result<Boolean, SynthesisError> {
+            unimplemented!()
         }
 
         /// Optimized constraints for checking Edwards point addition from ZCash
@@ -966,7 +949,7 @@ mod projective_impl {
             B: Borrow<Boolean>,
         {
             let scalar_bits_with_base_powers: Vec<_> = scalar_bits_with_base_powers
-                .map(|(bit, base)| (bit.borrow().clone(), base.clone()))
+                .map(|(bit, base)| (*bit.borrow(), *base))
                 .collect();
             let zero = TEProjective::zero();
             for (i, bits_base_powers) in scalar_bits_with_base_powers.chunks(2).enumerate() {
@@ -1034,14 +1017,14 @@ mod projective_impl {
                     match edwards_result {
                         None => {
                             edwards_result = Some(segment_result);
-                        },
+                        }
                         Some(ref mut edwards_result) => {
                             *edwards_result = GroupGadget::<TEAffine<P>, ConstraintF>::add(
                                 &segment_result,
                                 cs.ns(|| "edwards addition"),
                                 edwards_result,
                             )?;
-                        },
+                        }
                     }
 
                     Ok(())
@@ -1049,11 +1032,11 @@ mod projective_impl {
 
             // Compute ∏(h_i^{m_i}) for all i.
             for (segment_i, (segment_bits_chunks, segment_powers)) in
-                scalars.into_iter().zip(bases.iter()).enumerate()
+                scalars.iter().zip(bases.iter()).enumerate()
             {
                 for (i, (bits, base_power)) in segment_bits_chunks
                     .borrow()
-                    .into_iter()
+                    .iter()
                     .zip(segment_powers.borrow().iter())
                     .enumerate()
                 {
@@ -1062,7 +1045,7 @@ mod projective_impl {
                     let mut coords = vec![];
                     for _ in 0..4 {
                         coords.push(acc_power);
-                        acc_power = acc_power + base_power;
+                        acc_power += base_power;
                     }
 
                     let bits = bits.borrow().to_bits(
@@ -1094,7 +1077,7 @@ mod projective_impl {
                         cs.ns(|| format!("x in window {}, {}", segment_i, i)),
                         &precomp,
                         &[bits[0], bits[1]],
-                        &x_coeffs
+                        &x_coeffs,
                     )?;
 
                     let y = F::three_bit_cond_neg_lookup(
@@ -1109,13 +1092,13 @@ mod projective_impl {
                     match result {
                         None => {
                             result = Some(tmp);
-                        },
+                        }
                         Some(ref mut result) => {
                             *result = tmp.add(
                                 cs.ns(|| format!("addition of window {}, {}", segment_i, i)),
                                 result,
                             )?;
-                        },
+                        }
                     }
                 }
 
@@ -1160,7 +1143,7 @@ mod projective_impl {
                 Ok(ge) => {
                     let ge = ge.borrow().into_affine();
                     (Ok(ge.x), Ok(ge.y))
-                },
+                }
                 _ => (
                     Err(SynthesisError::AssignmentMissing),
                     Err(SynthesisError::AssignmentMissing),
@@ -1196,15 +1179,15 @@ mod projective_impl {
             mut cs: CS,
             value_gen: FN,
         ) -> Result<Self, SynthesisError>
-            where
-                FN: FnOnce() -> Result<T, SynthesisError>,
-                T: Borrow<TEProjective<P>>,
+        where
+            FN: FnOnce() -> Result<T, SynthesisError>,
+            T: Borrow<TEProjective<P>>,
         {
             let (x, y) = match value_gen() {
                 Ok(ge) => {
                     let ge = ge.borrow().into_affine();
                     (Ok(ge.x), Ok(ge.y))
-                },
+                }
                 _ => (
                     Err(SynthesisError::AssignmentMissing),
                     Err(SynthesisError::AssignmentMissing),
@@ -1222,106 +1205,86 @@ mod projective_impl {
             mut cs: CS,
             value_gen: FN,
         ) -> Result<Self, SynthesisError>
-            where
-                FN: FnOnce() -> Result<T, SynthesisError>,
-                T: Borrow<TEProjective<P>>,
+        where
+            FN: FnOnce() -> Result<T, SynthesisError>,
+            T: Borrow<TEProjective<P>>,
         {
-            let alloc_and_prime_order_check =
-                |mut cs: r1cs_core::Namespace<_, _>, value_gen: FN| -> Result<Self, SynthesisError> {
-                    let cofactor_weight = BitIterator::new(P::COFACTOR).filter(|b| *b).count();
-                    // If we multiply by r, we actually multiply by r - 2.
-                    let r_minus_1 = (-P::ScalarField::one()).into_repr();
-                    let r_weight = BitIterator::new(&r_minus_1).filter(|b| *b).count();
+            let alloc_and_prime_order_check = |mut cs: r1cs_core::Namespace<_, _>,
+                                               value_gen: FN|
+             -> Result<Self, SynthesisError> {
+                let cofactor_weight = BitIterator::new(P::COFACTOR).filter(|b| *b).count();
+                // If we multiply by r, we actually multiply by r - 2.
+                let r_minus_1 = (-P::ScalarField::one()).into_repr();
+                let r_weight = BitIterator::new(&r_minus_1).filter(|b| *b).count();
 
-                    // We pick the most efficient method of performing the prime order check:
-                    // If the cofactor has lower hamming weight than the scalar field's modulus,
-                    // we first multiply by the inverse of the cofactor, and then, after allocating,
-                    // multiply by the cofactor. This ensures the resulting point has no cofactors
-                    //
-                    // Else, we multiply by the scalar field's modulus and ensure that the result
-                    // is zero.
-                    if cofactor_weight < r_weight {
-                        let ge = Self::alloc(cs.ns(|| "Alloc checked"), || {
-                            value_gen().map(|ge| {
-                                ge.borrow()
-                                    .into_affine()
-                                    .mul_by_cofactor_inv()
-                                    .into_projective()
-                            })
-                        })?;
-                        let mut seen_one = false;
-                        let mut result = Self::zero(cs.ns(|| "result"))?;
-                        for (i, b) in BitIterator::new(P::COFACTOR).enumerate() {
-                            let mut cs = cs.ns(|| format!("Iteration {}", i));
+                // We pick the most efficient method of performing the prime order check:
+                // If the cofactor has lower hamming weight than the scalar field's modulus,
+                // we first multiply by the inverse of the cofactor, and then, after allocating,
+                // multiply by the cofactor. This ensures the resulting point has no cofactors
+                //
+                // Else, we multiply by the scalar field's modulus and ensure that the result
+                // is zero.
+                if cofactor_weight < r_weight {
+                    let ge = Self::alloc(cs.ns(|| "Alloc checked"), || {
+                        value_gen().map(|ge| {
+                            ge.borrow()
+                                .into_affine()
+                                .mul_by_cofactor_inv()
+                                .into_projective()
+                        })
+                    })?;
+                    let mut seen_one = false;
+                    let mut result = Self::zero(cs.ns(|| "result"))?;
+                    for (i, b) in BitIterator::new(P::COFACTOR).enumerate() {
+                        let mut cs = cs.ns(|| format!("Iteration {}", i));
 
-                            let old_seen_one = seen_one;
-                            if seen_one {
-                                result.double_in_place(cs.ns(|| "Double"))?;
-                            } else {
-                                seen_one = b;
-                            }
-
-                            if b {
-                                result = if old_seen_one {
-                                    result.add(cs.ns(|| "Add"), &ge)?
-                                } else {
-                                    ge.clone()
-                                };
-                            }
+                        let old_seen_one = seen_one;
+                        if seen_one {
+                            result.double_in_place(cs.ns(|| "Double"))?;
+                        } else {
+                            seen_one = b;
                         }
-                        Ok(result)
-                    } else {
-                        let ge = Self::alloc(cs.ns(|| "Alloc checked"), value_gen)?;
-                        let mut seen_one = false;
-                        let mut result = Self::zero(cs.ns(|| "result"))?;
-                        // Returns bits in big-endian order
-                        for (i, b) in BitIterator::new(r_minus_1).enumerate() {
-                            let mut cs = cs.ns(|| format!("Iteration {}", i));
 
-                            let old_seen_one = seen_one;
-                            if seen_one {
-                                result.double_in_place(cs.ns(|| "Double"))?;
+                        if b {
+                            result = if old_seen_one {
+                                result.add(cs.ns(|| "Add"), &ge)?
                             } else {
-                                seen_one = b;
-                            }
-
-                            if b {
-                                result = if old_seen_one {
-                                    result.add(cs.ns(|| "Add"), &ge)?
-                                } else {
-                                    ge.clone()
-                                };
-                            }
+                                ge.clone()
+                            };
                         }
-                        let neg_ge = ge.negate(cs.ns(|| "Negate ge"))?;
-                        neg_ge.enforce_equal(cs.ns(|| "Check equals"), &result)?;
-                        Ok(ge)
                     }
-                };
+                    Ok(result)
+                } else {
+                    let ge = Self::alloc(cs.ns(|| "Alloc checked"), value_gen)?;
+                    let mut seen_one = false;
+                    let mut result = Self::zero(cs.ns(|| "result"))?;
+                    // Returns bits in big-endian order
+                    for (i, b) in BitIterator::new(r_minus_1).enumerate() {
+                        let mut cs = cs.ns(|| format!("Iteration {}", i));
 
-            let ge = alloc_and_prime_order_check(
-                cs.ns(|| "alloc and prime order check"),
-                value_gen
-            )?;
+                        let old_seen_one = seen_one;
+                        if seen_one {
+                            result.double_in_place(cs.ns(|| "Double"))?;
+                        } else {
+                            seen_one = b;
+                        }
 
-            let d = P::COEFF_D;
-            let a = P::COEFF_A;
+                        if b {
+                            result = if old_seen_one {
+                                result.add(cs.ns(|| "Add"), &ge)?
+                            } else {
+                                ge.clone()
+                            };
+                        }
+                    }
+                    let neg_ge = ge.negate(cs.ns(|| "Negate ge"))?;
+                    neg_ge.enforce_equal(cs.ns(|| "Check equals"), &result)?;
+                    Ok(ge)
+                }
+            };
 
-            // Check that ax^2 + y^2 = 1 + dx^2y^2: is a cheap check so we do it anyway
-            // We do this by checking that ax^2 - 1 = y^2 * (dx^2 - 1)
-            let x2 = ge.x.square(&mut cs.ns(|| "x^2"))?;
-            let y2 = ge.y.square(&mut cs.ns(|| "y^2"))?;
-
-            let one = P::BaseField::one();
-            let d_x2_minus_one = x2
-                .mul_by_constant(cs.ns(|| "d * x^2"), &d)?
-                .add_constant(cs.ns(|| "d * x^2 - 1"), &one.neg())?;
-
-            let a_x2_minus_one = x2
-                .mul_by_constant(cs.ns(|| "a * x^2"), &a)?
-                .add_constant(cs.ns(|| "a * x^2 - 1"), &one.neg())?;
-
-            d_x2_minus_one.mul_equals(cs.ns(|| "on curve check"), &y2, &a_x2_minus_one)?;
+            let ge =
+                alloc_and_prime_order_check(cs.ns(|| "alloc and prime order check"), value_gen)?;
 
             Ok(ge)
         }
@@ -1338,7 +1301,7 @@ mod projective_impl {
                 Ok(ge) => {
                     let ge = ge.borrow().into_affine();
                     (Ok(ge.x), Ok(ge.y))
-                },
+                }
                 _ => (
                     Err(SynthesisError::AssignmentMissing),
                     Err(SynthesisError::AssignmentMissing),
@@ -1370,19 +1333,19 @@ mod projective_impl {
         }
     }
 
-    impl<P, ConstraintF, F> ConstantGadget<TEProjective<P>, ConstraintF> for AffineGadget<P, ConstraintF, F>
-        where
-            P: TEModelParameters,
-            ConstraintF: Field,
-            F: FieldGadget<P::BaseField, ConstraintF>,
-            Self: GroupGadget<TEProjective<P>, ConstraintF>,
+    impl<P, ConstraintF, F> ConstantGadget<TEProjective<P>, ConstraintF>
+        for AffineGadget<P, ConstraintF, F>
+    where
+        P: TEModelParameters,
+        ConstraintF: Field,
+        F: FieldGadget<P::BaseField, ConstraintF>,
+        Self: GroupGadget<TEProjective<P>, ConstraintF>,
     {
         #[inline]
         fn from_value<CS: ConstraintSystem<ConstraintF>>(
             mut cs: CS,
             value: &TEProjective<P>,
-        ) -> Self
-        {
+        ) -> Self {
             let value = value.into_affine();
             let x = F::from_value(cs.ns(|| "hardcode x"), &value.x);
             let y = F::from_value(cs.ns(|| "hardcode y"), &value.y);
@@ -1391,11 +1354,10 @@ mod projective_impl {
         }
 
         #[inline]
-        fn get_constant(&self) ->TEProjective<P> {
-            let value_proj = TEAffine::<P>::new(
-                self.x.get_value().unwrap(),
-                self.y.get_value().unwrap(),
-            ).into_projective();
+        fn get_constant(&self) -> TEProjective<P> {
+            let value_proj =
+                TEAffine::<P>::new(self.x.get_value().unwrap(), self.y.get_value().unwrap())
+                    .into_projective();
             let x = value_proj.x;
             let y = value_proj.y;
             let t = value_proj.t;
@@ -1435,60 +1397,47 @@ where
     ConstraintF: Field,
     F: FieldGadget<P::BaseField, ConstraintF>,
 {
-}
+    fn is_eq<CS: ConstraintSystem<ConstraintF>>(
+        &self,
+        mut cs: CS,
+        other: &Self,
+    ) -> Result<Boolean, SynthesisError> {
+        let b0 = self.x.is_eq(cs.ns(|| "x"), &other.x)?;
+        let b1 = self.y.is_eq(cs.ns(|| "y"), &other.y)?;
+        Boolean::and(cs.ns(|| "x AND y"), &b0, &b1)
+    }
 
-impl<P, ConstraintF, F> ConditionalEqGadget<ConstraintF> for AffineGadget<P, ConstraintF, F>
-where
-    P: TEModelParameters,
-    ConstraintF: Field,
-    F: FieldGadget<P::BaseField, ConstraintF>,
-{
     #[inline]
     fn conditional_enforce_equal<CS: ConstraintSystem<ConstraintF>>(
         &self,
         mut cs: CS,
         other: &Self,
-        condition: &Boolean,
+        should_enforce: &Boolean,
     ) -> Result<(), SynthesisError> {
-        self.x.conditional_enforce_equal(
-            &mut cs.ns(|| "X Coordinate Conditional Equality"),
-            &other.x,
-            condition,
-        )?;
-        self.y.conditional_enforce_equal(
-            &mut cs.ns(|| "Y Coordinate Conditional Equality"),
-            &other.y,
-            condition,
-        )?;
+        self.x
+            .conditional_enforce_equal(cs.ns(|| "x"), &other.x, should_enforce)?;
+        self.y
+            .conditional_enforce_equal(cs.ns(|| "y"), &other.y, should_enforce)?;
         Ok(())
     }
 
-    fn cost() -> usize {
-        2 * <F as ConditionalEqGadget<ConstraintF>>::cost()
-    }
-}
-
-impl<P, ConstraintF, F> NEqGadget<ConstraintF> for AffineGadget<P, ConstraintF, F>
-where
-    P: TEModelParameters,
-    ConstraintF: Field,
-    F: FieldGadget<P::BaseField, ConstraintF>,
-{
     #[inline]
-    fn enforce_not_equal<CS: ConstraintSystem<ConstraintF>>(
+    fn conditional_enforce_not_equal<CS: ConstraintSystem<ConstraintF>>(
         &self,
         mut cs: CS,
         other: &Self,
+        should_enforce: &Boolean,
     ) -> Result<(), SynthesisError> {
-        self.x
-            .enforce_not_equal(&mut cs.ns(|| "X Coordinate Inequality"), &other.x)?;
-        self.y
-            .enforce_not_equal(&mut cs.ns(|| "Y Coordinate Inequality"), &other.y)?;
-        Ok(())
-    }
-
-    fn cost() -> usize {
-        2 * <F as NEqGadget<ConstraintF>>::cost()
+        let is_equal = self.is_eq(cs.ns(|| "is_eq(self, other)"), other)?;
+        Boolean::and(
+            cs.ns(|| "is_equal AND should_enforce"),
+            &is_equal,
+            should_enforce,
+        )?
+        .enforce_equal(
+            cs.ns(|| "is_equal AND should_enforce == false"),
+            &Boolean::Constant(false),
+        )
     }
 }
 
@@ -1548,3 +1497,64 @@ where
     }
 }
 
+#[cfg(test)]
+#[allow(dead_code)]
+pub(crate) fn test<ConstraintF, P, GG>()
+where
+    ConstraintF: Field,
+    P: TEModelParameters,
+    GG: GroupGadget<TEAffine<P>, ConstraintF, Value = TEAffine<P>>,
+{
+    use crate::{
+        boolean::AllocatedBit, groups::test::group_test, prelude::*,
+        test_constraint_system::TestConstraintSystem,
+    };
+    use algebra::{Group, PrimeField, UniformRand};
+    use rand::{thread_rng, Rng};
+
+    group_test::<ConstraintF, TEAffine<P>, GG>();
+
+    let mut cs = TestConstraintSystem::new();
+
+    let a: TEAffine<P> = UniformRand::rand(&mut thread_rng());
+    let gadget_a = GG::alloc(&mut cs.ns(|| "a"), || Ok(a)).unwrap();
+    // Check mul_bits
+    let scalar: <TEAffine<P> as Group>::ScalarField = UniformRand::rand(&mut thread_rng());
+    let native_result = a.mul(&scalar);
+
+    let mut scalar: Vec<bool> = BitIterator::new(scalar.into_repr()).collect();
+    // Get the scalar bits into little-endian form.
+    scalar.reverse();
+    let input = Vec::<Boolean>::alloc(cs.ns(|| "Input"), || Ok(scalar)).unwrap();
+    let zero = GG::zero(cs.ns(|| "zero")).unwrap();
+    let result = gadget_a
+        .mul_bits(cs.ns(|| "mul_bits"), &zero, input.iter())
+        .unwrap();
+    let gadget_value = result.get_value().expect("Gadget_result failed");
+    assert_eq!(native_result, gadget_value);
+
+    assert!(cs.is_satisfied());
+
+    // Test the cost of allocation, conditional selection, and point addition.
+    let mut cs = TestConstraintSystem::new();
+
+    let bit = AllocatedBit::alloc(&mut cs.ns(|| "bool"), || Ok(true))
+        .unwrap()
+        .into();
+
+    let mut rng = thread_rng();
+    let a: TEAffine<P> = rng.gen();
+    let b: TEAffine<P> = rng.gen();
+    let gadget_a = GG::alloc(&mut cs.ns(|| "a"), || Ok(a)).unwrap();
+    let gadget_b = GG::alloc(&mut cs.ns(|| "b"), || Ok(b)).unwrap();
+    let alloc_cost = cs.num_constraints();
+    let _ =
+        GG::conditionally_select(&mut cs.ns(|| "cond_select"), &bit, &gadget_a, &gadget_b).unwrap();
+    let cond_select_cost = cs.num_constraints() - alloc_cost;
+
+    let _ = gadget_a.add(&mut cs.ns(|| "ab"), &gadget_b).unwrap();
+    let add_cost = cs.num_constraints() - cond_select_cost - alloc_cost;
+    assert_eq!(cond_select_cost, <GG as CondSelectGadget<_>>::cost());
+    assert_eq!(add_cost, GG::cost_of_add());
+    assert!(cs.is_satisfied());
+}

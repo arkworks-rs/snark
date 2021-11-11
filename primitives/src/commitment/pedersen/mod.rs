@@ -1,4 +1,4 @@
-use crate::Error;
+use crate::{CryptoError, Error};
 use algebra::{
     bytes::ToBytes, groups::Group, BitIterator, Field, FpParameters, PrimeField, ToConstraintField,
     UniformRand,
@@ -16,14 +16,17 @@ use crate::crh::{
     FixedLengthCRH,
 };
 
-#[derive(Clone)]
+use serde::{Deserialize, Serialize};
+
+#[derive(Clone, Serialize, Deserialize)]
+#[serde(bound(deserialize = "G: Group"))]
 pub struct PedersenParameters<G: Group> {
     pub randomness_generator: Vec<G>,
-    pub generators:           Vec<Vec<G>>,
+    pub generators: Vec<Vec<G>>,
 }
 
 pub struct PedersenCommitment<G: Group, W: PedersenWindow> {
-    group:  PhantomData<G>,
+    group: PhantomData<G>,
     window: PhantomData<W>,
 }
 
@@ -35,6 +38,8 @@ pub struct PedersenCommitment<G: Group, W: PedersenWindow> {
     Eq(bound = "G: Group"),
     Default(bound = "G: Group")
 )]
+#[derive(Serialize, Deserialize)]
+#[serde(transparent)]
 pub struct PedersenRandomness<G: Group>(pub G::ScalarField);
 
 impl<G: Group> UniformRand for PedersenRandomness<G> {
@@ -81,7 +86,9 @@ impl<G: Group, W: PedersenWindow> CommitmentScheme for PedersenCommitment<G, W> 
         let commit_time = start_timer!(|| "PedersenCOMM::Commit");
         // If the input is too long, return an error.
         if input.len() > W::WINDOW_SIZE * W::NUM_WINDOWS {
-            panic!("incorrect input length: {:?}", input.len());
+            Err(Box::new(CryptoError::Other(
+                format!("incorrect input length: {:?}", input.len()).to_owned(),
+            )))?
         }
         // Pad the input to the necessary length.
         let mut padded_input = Vec::with_capacity(input.len());
@@ -94,7 +101,16 @@ impl<G: Group, W: PedersenWindow> CommitmentScheme for PedersenCommitment<G, W> 
             }
             input = padded_input.as_slice();
         }
-        assert_eq!(parameters.generators.len(), W::NUM_WINDOWS);
+        if parameters.generators.len() != W::NUM_WINDOWS {
+            Err(Box::new(CryptoError::Other(
+                format!(
+                    "Number of generators: {} not enough for the selected num windows: {}",
+                    parameters.generators.len(),
+                    W::NUM_WINDOWS
+                )
+                .to_owned(),
+            )))?
+        }
 
         // Invoke Pedersen CRH here, to prevent code duplication.
 

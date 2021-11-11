@@ -1,5 +1,5 @@
-use primitives::CommitmentScheme;
 use algebra::Field;
+use primitives::CommitmentScheme;
 use r1cs_core::{ConstraintSystem, SynthesisError};
 use r1cs_std::prelude::*;
 use std::fmt::Debug;

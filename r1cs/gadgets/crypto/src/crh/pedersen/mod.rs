@@ -1,6 +1,6 @@
-use primitives::crh::pedersen::{PedersenCRH, PedersenParameters, PedersenWindow};
 use crate::FixedLengthCRHGadget;
 use algebra::{Field, Group};
+use primitives::crh::pedersen::{PedersenCRH, PedersenParameters, PedersenWindow};
 use r1cs_core::{ConstraintSystem, SynthesisError};
 use r1cs_std::prelude::*;
 use std::{borrow::Borrow, marker::PhantomData};
@@ -15,18 +15,18 @@ pub struct PedersenCRHGadgetParameters<
     ConstraintF: Field,
     GG: GroupGadget<G, ConstraintF>,
 > {
-    params:   PedersenParameters<G>,
+    params: PedersenParameters<G>,
     _group_g: PhantomData<GG>,
-    _engine:  PhantomData<ConstraintF>,
-    _window:  PhantomData<W>,
+    _engine: PhantomData<ConstraintF>,
+    _window: PhantomData<W>,
 }
 
 pub struct PedersenCRHGadget<G: Group, ConstraintF: Field, GG: GroupGadget<G, ConstraintF>> {
-    #[doc(hideen)]
+    #[doc(hidden)]
     _group: PhantomData<*const G>,
-    #[doc(hideen)]
+    #[doc(hidden)]
     _group_gadget: PhantomData<*const GG>,
-    #[doc(hideen)]
+    #[doc(hidden)]
     _engine: PhantomData<ConstraintF>,
 }
 
@@ -54,8 +54,20 @@ where
                 padded_input.push(UInt8::constant(0u8));
             }
         }
-        assert_eq!(padded_input.len() * 8, W::WINDOW_SIZE * W::NUM_WINDOWS);
-        assert_eq!(parameters.params.generators.len(), W::NUM_WINDOWS);
+        if padded_input.len() * 8 != W::WINDOW_SIZE * W::NUM_WINDOWS {
+            return Err(SynthesisError::Other(
+                "padded input length verification failed".to_owned(),
+            ));
+        }
+        if parameters.params.generators.len() != W::NUM_WINDOWS {
+            return Err(SynthesisError::Other(format!(
+                "Incorrect pp of size {:?}x{:?} for window params {:?}x{:?}",
+                parameters.params.generators[0].len(),
+                parameters.params.generators.len(),
+                W::WINDOW_SIZE,
+                W::NUM_WINDOWS
+            )));
+        }
 
         // Allocate new variable for the result.
         let input_in_bits: Vec<_> = padded_input
@@ -114,15 +126,12 @@ mod test {
     use algebra::fields::bls12_381::fr::Fr;
     use rand::{thread_rng, Rng};
 
-    use primitives::crh::pedersen::{PedersenCRH, PedersenWindow};
-    use crate::crh::{
-        pedersen::PedersenCRHGadget,
-        FixedLengthCRH, FixedLengthCRHGadget,
-    };
+    use crate::crh::{pedersen::PedersenCRHGadget, FixedLengthCRH, FixedLengthCRHGadget};
     use algebra::curves::{jubjub::JubJubProjective as JubJub, ProjectiveCurve};
+    use primitives::crh::pedersen::{PedersenCRH, PedersenWindow};
     use r1cs_core::ConstraintSystem;
     use r1cs_std::{
-        groups::curves::twisted_edwards::jubjub::JubJubGadget, prelude::*,
+        instantiated::jubjub::JubJubGadget, prelude::*,
         test_constraint_system::TestConstraintSystem,
     };
 

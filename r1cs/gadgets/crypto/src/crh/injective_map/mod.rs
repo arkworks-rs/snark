@@ -1,8 +1,8 @@
-use std::{fmt::Debug, marker::PhantomData};
 use primitives::crh::{
     injective_map::{InjectiveMap, PedersenCRHCompressor, TECompressor},
     pedersen::PedersenWindow,
 };
+use std::{fmt::Debug, marker::PhantomData};
 
 use crate::crh::{
     pedersen::{PedersenCRHGadget, PedersenCRHGadgetParameters},
@@ -97,9 +97,9 @@ where
     GG: GroupGadget<G, ConstraintF>,
     IG: InjectiveMapGadget<G, I, ConstraintF, GG>,
 {
-    _compressor:        PhantomData<I>,
+    _compressor: PhantomData<I>,
     _compressor_gadget: PhantomData<IG>,
-    _crh:               PedersenCRHGadget<G, ConstraintF, GG>,
+    _crh: PedersenCRHGadget<G, ConstraintF, GG>,
 }
 
 impl<G, I, ConstraintF, GG, IG, W> FixedLengthCRHGadget<PedersenCRHCompressor<G, I, W>, ConstraintF>

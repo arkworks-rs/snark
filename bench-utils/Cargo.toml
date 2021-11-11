@@ -1,6 +1,6 @@
 [package]
 name = "bench-utils"
-version = "0.2.0"
+version = "0.3.0"
 authors = [
     "Sean Bowe",
     "Alessandro Chiesa",
@@ -9,8 +9,11 @@ authors = [
     "Pratyush Mishra",
     "Howard Wu",
     "Daniele Di Benedetto <daniele@horizenlabs.io>",
-    "Marcelo Kaihara <marcelo@horizenlabs.io>",
-    "Ulrich Haboeck <ulrich@horizenlabs.io>"
+    "Marcelo Kaihara",
+    "Ulrich Haboeck <ulrich@horizenlabs.io>",
+    "Maksym Vereshchak <phoinic@gmail.com>",
+    "Luigi Varriale <luigi@horizenlabs.io>",
+    "cronicc <cronic@horizenlabs.io>"
 ]
 description = "A helper library for profiling performance"
 include = ["Cargo.toml", "src", "README.md", "LICENSE-APACHE", "LICENSE-MIT"]
@@ -20,7 +23,7 @@ edition = "2018"
 ################################# Dependencies ################################
 
 [dependencies]
-colored = { version = "1", optional = true }
+colored = { version = "2.0.0", optional = true }
 
 [features]
 print-trace = [ "colored" ]
