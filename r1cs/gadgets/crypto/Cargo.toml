@@ -23,9 +23,9 @@ edition = "2018"
 ################################# Dependencies ################################
 
 [dependencies]
-algebra = { git = "https://github.com/HorizenOfficial/ginger-lib", tag = "0.3.0", features = [ "parallel" ] }
+algebra = { git = "https://github.com/HorizenOfficial/ginger-lib", tag = "0.3.1", features = [ "parallel" ] }
 primitives = {path = "../../../primitives"}
-r1cs-core = { git = "https://github.com/HorizenOfficial/ginger-lib", tag = "0.3.0" }
+r1cs-core = { git = "https://github.com/HorizenOfficial/ginger-lib", tag = "0.3.1" }
 r1cs-std = { path = "../std"}
 proof-systems = { path = "../../../proof-systems", features = ["groth16", "gm17"], optional = true }
 bench-utils = { path = "../../../bench-utils" }
@@ -55,6 +55,6 @@ llvm_asm = ["algebra/llvm_asm"]
 
 [dev-dependencies]
 rand_xorshift = { version = "=0.3.0" }
-algebra = { git = "https://github.com/HorizenOfficial/ginger-lib", tag = "0.3.0", features = ["bls12_377", "bls12_381", "sw6", "bn_382"] }
+algebra = { git = "https://github.com/HorizenOfficial/ginger-lib", tag = "0.3.1", features = ["bls12_377", "bls12_381", "sw6", "bn_382"] }
 r1cs-std = { path = "../std", features = ["jubjub", "edwards_sw6", "bls12_377", "mnt4_753", "mnt6_753", "bn_382", "tweedle"] }
 r1cs-crypto = { path = "../crypto", features = ["mnt4_753", "mnt6_753", "bn_382", "tweedle"] }

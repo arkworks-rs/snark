@@ -23,7 +23,7 @@ edition = "2018"
 ################################# Dependencies ################################
 
 [dependencies]
-algebra = { git = "https://github.com/HorizenOfficial/ginger-lib", tag = "0.3.0", features = ["parallel"] }
+algebra = { git = "https://github.com/HorizenOfficial/ginger-lib", tag = "0.3.1", features = ["parallel"] }
 bench-utils = { path = "../bench-utils" }
 
 digest = { version = "=0.8.1", optional = true }
@@ -53,7 +53,7 @@ bn_382 = ["algebra/bn_382"]
 tweedle = ["algebra/tweedle"]
 
 [dev-dependencies]
-algebra = { git = "https://github.com/HorizenOfficial/ginger-lib", tag = "0.3.0", features = ["edwards_sw6", "jubjub", "sw6", "bls12_377"] }
+algebra = { git = "https://github.com/HorizenOfficial/ginger-lib", tag = "0.3.1", features = ["edwards_sw6", "jubjub", "sw6", "bls12_377"] }
 primitives = { path = "../primitives", features = ["mnt4_753", "mnt6_753", "bn_382", "tweedle"] }
 
 criterion = "=0.3.5"
