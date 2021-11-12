@@ -1,6 +1,6 @@
 [package]
 name = "bench-utils"
-version = "0.3.0"
+version = "0.3.1"
 authors = [
     "Sean Bowe",
     "Alessandro Chiesa",
@@ -23,7 +23,7 @@ edition = "2018"
 ################################# Dependencies ################################
 
 [dependencies]
-colored = { version = "2.0.0", optional = true }
+colored = { version = "=2.0.0", optional = true }
 
 [features]
 print-trace = [ "colored" ]

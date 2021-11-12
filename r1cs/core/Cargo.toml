@@ -1,6 +1,6 @@
 [package]
 name = "r1cs-core"
-version = "0.3.0"
+version = "0.3.1"
 authors = [
     "Sean Bowe",
     "Alessandro Chiesa",
@@ -22,4 +22,4 @@ license = "MIT/Apache-2.0"
 
 [dependencies]
 algebra = { git = "https://github.com/HorizenOfficial/ginger-lib", tag = "0.3.0" }
-smallvec = { version = "1.6.1" }
+smallvec = { version = "=1.7.0" }

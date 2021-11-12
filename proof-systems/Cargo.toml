@@ -1,6 +1,6 @@
 [package]
 name = "proof-systems"
-version = "0.3.0"
+version = "0.3.1"
 authors = [
     "Sean Bowe",
     "Alessandro Chiesa",
@@ -32,19 +32,19 @@ poly-commit = { git = "https://github.com/HorizenLabs/poly-commit", tag = "0.2.0
 
 r1cs-std = { path = "../r1cs/gadgets/std", optional = true }
 
-rand = { version = "0.8.4" }
-rayon = { version = "1" }
-smallvec = { version = "1.6.1" }
-byteorder = { version = "1" }
-digest = { version = "0.8", optional = true }
-serde = { version = "1.0.117", features = ["derive"]}
-derivative = { version = "2.2.0", optional = true }
+rand = { version = "=0.8.4" }
+rayon = { version = "=1.5.1" }
+smallvec = { version = "=1.7.0" }
+byteorder = { version = "=1.4.3" }
+digest = { version = "=0.8.1", optional = true }
+serde = { version = "=1.0.130", features = ["derive"]}
+derivative = { version = "=2.2.0", optional = true }
 
 [dev-dependencies]
-csv = { version = "1" }
-criterion = "0.3"
-rand_xorshift = { version = "0.3.0" }
-blake2 = { version = "0.8.1", default-features = false }
+csv = { version = "=1.1.6" }
+criterion = "=0.3.5"
+rand_xorshift = { version = "=0.3.0" }
+blake2 = { version = "=0.8.1", default-features = false }
 
 algebra = { git = "https://github.com/HorizenOfficial/ginger-lib", tag = "0.3.0", features = ["full", "parallel", "fft"] }
 r1cs-crypto = { path = "../r1cs/gadgets/crypto", features = ["nizk"] }
