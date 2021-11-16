@@ -1,6 +1,6 @@
 [package]
 name = "r1cs-std"
-version = "0.3.0"
+version = "0.3.1"
 authors = [
     "Sean Bowe",
     "Alessandro Chiesa",
@@ -23,11 +23,11 @@ license = "MIT/Apache-2.0"
 ################################# Dependencies ################################
 
 [dependencies]
-algebra = { git = "https://github.com/HorizenOfficial/ginger-lib", tag = "0.3.0" }
-r1cs-core = { git = "https://github.com/HorizenOfficial/ginger-lib", tag = "0.3.0" }
-derivative = "2.2.0"
-radix_trie = "0.2.1"
-rand = { version = "0.8.4" }
+algebra = { git = "https://github.com/HorizenOfficial/ginger-lib", tag = "0.3.1" }
+r1cs-core = { git = "https://github.com/HorizenOfficial/ginger-lib", tag = "0.3.1" }
+derivative = "=2.2.0"
+radix_trie = "=0.2.1"
+rand = { version = "=0.8.4" }
 
 [features]
 llvm_asm = ["algebra/llvm_asm"]
@@ -44,5 +44,5 @@ mnt6_753 = [ "algebra/mnt6_753" ]
 tweedle = [ "algebra/tweedle" ]
 
 [dev-dependencies]
-rand_xorshift = { version = "0.3.0" }
-algebra = { git = "https://github.com/HorizenOfficial/ginger-lib", tag = "0.3.0", features = ["bls12_381", "jubjub"] }
+rand_xorshift = { version = "=0.3.0" }
+algebra = { git = "https://github.com/HorizenOfficial/ginger-lib", tag = "0.3.1", features = ["bls12_381", "jubjub"] }
