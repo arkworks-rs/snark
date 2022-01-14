@@ -1053,4 +1053,40 @@ mod tests {
         assert_eq!(matrices.c[2], vec![(two, 1), (two, 2)]);
         Ok(())
     }
+
+    #[test]
+    fn matrix_generation_outlined() -> crate::r1cs::Result<()> {
+        let cs = ConstraintSystem::<Fr>::new_ref();
+        cs.set_optimization_goal(OptimizationGoal::Weight);
+        let two = Fr::one() + Fr::one();
+        let a = cs.new_input_variable(|| Ok(Fr::one()))?;
+        let b = cs.new_witness_variable(|| Ok(Fr::one()))?;
+        let c = cs.new_witness_variable(|| Ok(two))?;
+        cs.enforce_constraint(lc!() + a, lc!() + (two, b), lc!() + c)?;
+
+        let d = cs.new_lc(lc!() + a + b)?;
+        cs.enforce_constraint(lc!() + a, lc!() + d, lc!() + d)?;
+
+        let e = cs.new_lc(lc!() + d + d)?;
+        cs.enforce_constraint(lc!() + Variable::One, lc!() + e, lc!() + e)?;
+
+        cs.finalize();
+        assert!(cs.is_satisfied().is_ok());
+        let matrices = cs.to_matrices().unwrap();
+        assert_eq!(matrices.a[0], vec![(Fr::one(), 1)]);
+        assert_eq!(matrices.b[0], vec![(two, 2)]);
+        assert_eq!(matrices.c[0], vec![(Fr::one(), 3)]);
+
+        assert_eq!(matrices.a[1], vec![(Fr::one(), 1)]);
+        // Notice here how the variable allocated for d is outlined
+        // compared to the example in previous test case.
+        // We are optimising for weight: there are less non-zero elements.
+        assert_eq!(matrices.b[1], vec![(Fr::one(), 4)]);
+        assert_eq!(matrices.c[1], vec![(Fr::one(), 4)]);
+
+        assert_eq!(matrices.a[2], vec![(Fr::one(), 0)]);
+        assert_eq!(matrices.b[2], vec![(two, 4)]);
+        assert_eq!(matrices.c[2], vec![(two, 4)]);
+        Ok(())
+    }
 }
