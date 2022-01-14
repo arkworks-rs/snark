@@ -31,17 +31,17 @@ impl fmt::Display for SynthesisError {
             SynthesisError::MissingCS => write!(f, "the constraint system was `None`"),
             SynthesisError::AssignmentMissing => {
                 write!(f, "an assignment for a variable could not be computed")
-            }
+            },
             SynthesisError::DivisionByZero => write!(f, "division by zero"),
             SynthesisError::Unsatisfiable => write!(f, "unsatisfiable constraint system"),
             SynthesisError::PolynomialDegreeTooLarge => write!(f, "polynomial degree is too large"),
             SynthesisError::UnexpectedIdentity => {
                 write!(f, "encountered an identity element in the CRS")
-            }
+            },
             SynthesisError::MalformedVerifyingKey => write!(f, "malformed verifying key"),
             SynthesisError::UnconstrainedVariable => {
                 write!(f, "auxiliary variable was unconstrained")
-            }
+            },
         }
     }
 }

@@ -639,7 +639,7 @@ impl<F: Field> ConstraintSystem<F> {
                     self.lc_assignment_cache.borrow_mut().insert(idx, value);
                     Some(value)
                 }
-            }
+            },
         }
     }
 }
@@ -1023,7 +1023,7 @@ impl<F: Field> ConstraintSystemRef<F> {
 #[cfg(test)]
 mod tests {
     use crate::r1cs::*;
-    use ark_ff::{One, field_new};
+    use ark_ff::{field_new, One};
     use ark_test_curves::bls12_381::Fr;
 
     #[test]
