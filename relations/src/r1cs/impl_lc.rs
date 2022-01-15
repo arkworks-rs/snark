@@ -228,16 +228,16 @@ where
             Ordering::Greater => {
                 new_vec.push((push_fn(other[j].0), other[j].1));
                 j += 1;
-            }
+            },
             Ordering::Less => {
                 new_vec.push(*self_cur);
                 i += 1;
-            }
+            },
             Ordering::Equal => {
                 new_vec.push((combine_fn(self_cur.0, other_cur.0), self_cur.1));
                 i += 1;
                 j += 1;
-            }
+            },
         };
     }
     new_vec.extend_from_slice(&cur[i..]);
