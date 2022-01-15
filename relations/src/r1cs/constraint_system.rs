@@ -1023,7 +1023,7 @@ impl<F: Field> ConstraintSystemRef<F> {
 #[cfg(test)]
 mod tests {
     use crate::r1cs::*;
-    use ark_ff::{field_new, One};
+    use ark_ff::One;
     use ark_test_curves::bls12_381::Fr;
 
     #[test]
@@ -1097,9 +1097,9 @@ mod tests {
     fn matrix_generation_example() -> crate::r1cs::Result<()> {
         let cs = ConstraintSystem::<Fr>::new_ref();
         // helper definitions
-        let three = field_new!(Fr, "3");
-        let five = field_new!(Fr, "5");
-        let nine = field_new!(Fr, "9");
+        let three = Fr::from(3u8);
+        let five = Fr::from(5u8);
+        let nine = Fr::from(9u8);
         // There will be six variables in the system, in the order governed by adding
         // them to the constraint system (Note that the CS is initialised with
         // `Variable::One` in the first position implicitly).
