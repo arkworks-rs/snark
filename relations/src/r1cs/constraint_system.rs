@@ -1106,7 +1106,7 @@ mod tests {
         // Note also that the all public variables will always be placed before all witnesses
         //
         // Variable::One
-        // Variable::Instance(5)
+        // Variable::Instance(35)
         // Variable::Witness(3) ( == x )
         // Variable::Witness(9) ( == sym_1 )
         // Variable::Witness(27) ( == y )
