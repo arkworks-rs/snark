@@ -10,7 +10,7 @@ keywords = ["zero-knowledge", "cryptography", "zkSNARK", "SNARK", "constraint-sy
 categories = ["cryptography"]
 include = ["Cargo.toml", "src", "README.md", "LICENSE-APACHE", "LICENSE-MIT"]
 license = "MIT/Apache-2.0"
-edition = "2018"
+edition = "2021"
 
 [dependencies]
 ark-ff = { version = "^0.3.0", default-features = false }
@@ -19,7 +19,8 @@ tracing = { version = "0.1", default-features = false }
 tracing-subscriber = { version = "0.2", default-features = false, optional = true }
 
 [dev-dependencies]
-ark-test-curves = { version = "^0.3.0", default-features = false, features = [ "bls12_381_scalar_field" ] }
+# change back to bls12_381_scalar_field later
+ark-test-curves = { version = "^0.3.0", default-features = false, features = [ "bls12_381_curve" ] }
 
 [features]
 default = []

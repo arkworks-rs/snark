@@ -8,6 +8,7 @@ use ark_std::{
     cell::{Ref, RefCell, RefMut},
     collections::BTreeMap,
     format,
+    ops::Mul,
     rc::Rc,
     string::String,
     vec,
@@ -340,7 +341,11 @@ impl<F: Field> ConstraintSystem<F> {
                     let lc = transformed_lc_map
                         .get(&lc_index)
                         .expect("should be inlined");
-                    transformed_lc.extend((lc * coeff).0.into_iter());
+                    transformed_lc.extend(
+                        <&LinearCombination<F> as Mul<F>>::mul(lc, coeff)
+                            .0
+                            .into_iter(),
+                    );
 
                     // Delete linear combinations that are no longer used.
                     //
