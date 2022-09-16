@@ -15,5 +15,5 @@ edition = "2021"
 [dependencies]
 ark-ff = { version = "^0.3.0", default-features = false }
 ark-std = { version = "^0.3.0", default-features = false }
-ark-serialize = { version = "^0.3.0", features = ["derive"], default-features = false }
+ark-serialize = { version = "^0.3.0", default-features = false }
 ark-relations = { version = "^0.3.0", path = "../relations", default-features = false }
