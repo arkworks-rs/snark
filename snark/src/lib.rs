@@ -12,6 +12,7 @@
 
 use ark_ff::PrimeField;
 use ark_relations::r1cs::ConstraintSynthesizer;
+use ark_serialize::{CanonicalDeserialize, CanonicalSerialize};
 use ark_std::fmt::Debug;
 use ark_std::rand::{CryptoRng, RngCore};
 
@@ -19,18 +20,18 @@ use ark_std::rand::{CryptoRng, RngCore};
 pub trait SNARK<F: PrimeField> {
     /// The information required by the prover to produce a proof for a specific
     /// circuit *C*.
-    type ProvingKey: Clone;
+    type ProvingKey: Clone + CanonicalSerialize + CanonicalDeserialize;
 
     /// The information required by the verifier to check a proof for a specific
     /// circuit *C*.
-    type VerifyingKey: Clone;
+    type VerifyingKey: Clone + CanonicalSerialize + CanonicalDeserialize;
 
     /// The proof output by the prover.
-    type Proof: Clone;
+    type Proof: Clone + CanonicalSerialize + CanonicalDeserialize;
 
     /// This contains the verification key, but preprocessed to enable faster
     /// verification.
-    type ProcessedVerifyingKey: Clone;
+    type ProcessedVerifyingKey: Clone + CanonicalSerialize + CanonicalDeserialize;
 
     /// Errors encountered during setup, proving, or verification.
     type Error: 'static + ark_std::error::Error;
