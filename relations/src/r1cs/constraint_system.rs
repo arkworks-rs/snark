@@ -315,7 +315,7 @@ impl<F: Field> ConstraintSystem<F> {
         ) -> (usize, Option<Vec<F>>),
     ) {
         // `transformed_lc_map` stores the transformed linear combinations.
-        let mut transformed_lc_map = BTreeMap::new();
+        let mut transformed_lc_map = BTreeMap::<_, LinearCombination<F>>::new();
         let mut num_times_used = self.lc_num_times_used(false);
 
         // This loop goes through all the LCs in the map, starting from
