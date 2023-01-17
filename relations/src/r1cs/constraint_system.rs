@@ -1071,7 +1071,7 @@ mod tests {
         cs.enforce_constraint(lc!() + Variable::One, lc!() + e, lc!() + e)?;
 
         cs.finalize();
-        assert!(cs.is_satisfied().is_ok());
+        assert!(cs.is_satisfied().unwrap());
         let matrices = cs.to_matrices().unwrap();
         assert_eq!(matrices.a[0], vec![(Fr::one(), 1)]);
         assert_eq!(matrices.b[0], vec![(two, 2)]);
@@ -1129,7 +1129,7 @@ mod tests {
         )?;
 
         cs.finalize();
-        assert!(cs.is_satisfied().is_ok());
+        assert!(cs.is_satisfied().unwrap());
         let matrices = cs.to_matrices().unwrap();
         // There are four gates(constraints), each generating a row.
         // Resulting matrices:
