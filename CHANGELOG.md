@@ -7,6 +7,7 @@
 ### Features
 
 ### Improvements
+- [\#373](https://github.com/arkworks-rs/snark/pull/373) Update `tracing-subscriber` dependency from 0.2 to 0.3.
 
 ### Bug fixes
 
