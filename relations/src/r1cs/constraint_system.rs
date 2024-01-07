@@ -736,7 +736,7 @@ impl<F: Field> Drop for Namespace<F> {
         if let Some(id) = self.id.as_ref() {
             tracing::dispatcher::get_default(|dispatch| dispatch.exit(id))
         }
-        drop(&mut self.inner)
+        let _ = self.inner;
     }
 }
 
