@@ -1091,7 +1091,7 @@ mod tests {
     }
 
     /// Example meant to follow as closely as possible the excellent R1CS
-    /// write-up by [Vitalik Buterin](https://vitalik.ca/general/2016/12/10/qap.html)
+    /// write-up by [Vitalik Buterin](https://vitalik.eth.limo/general/2016/12/10/qap.html)
     /// and demonstrate how to construct such matrices in arkworks.
     #[test]
     fn matrix_generation_example() -> crate::r1cs::Result<()> {
