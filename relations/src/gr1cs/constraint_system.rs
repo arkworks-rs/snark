@@ -1,0 +1,660 @@
+use super::{
+    local_predicate::{polynomial_constraint::R1CS_PREDICATE_LABEL, LocalPredicate},
+    Constraint, ConstraintSystemRef, Label, OptimizationGoal, SynthesisMode,
+};
+#[cfg(feature = "std")]
+use crate::gr1cs::ConstraintTrace;
+use crate::gr1cs::{LcIndex, LinearCombination, Matrix, SynthesisError, Variable};
+use ark_ff::Field;
+use ark_std::{
+    any::{Any, TypeId},
+    boxed::Box,
+    cell::{Ref, RefCell, RefMut},
+    collections::BTreeMap,
+    format,
+    iterable::Iterable,
+    rc::Rc,
+    string::{String, ToString},
+    vec::{self, Vec},
+};
+
+///////////////////////////////////////////////////////////////////////////////////////
+
+/// An Rank-One `ConstraintSystem`. Enforces constraints of the form
+/// `L_i(⟨M_{i,1}, z⟩ , ⟨M_{i,2}, z⟩ , ..., ⟨M_{i,t_i}, z⟩)=0`, where L_i is a
+/// local predicate, and  `M_{i,j}`s are linear combinations over variables, and
+/// `z` is the concrete assignment to these variables. refer to //TODO: Paper Url
+#[derive(Debug, Clone)]
+pub struct ConstraintSystem<F: Field> {
+    /// The mode in which the constraint system is operating. `self` can either
+    /// be in setup mode (i.e., `self.mode == SynthesisMode::Setup`) or in
+    /// proving mode (i.e., `self.mode == SynthesisMode::Prove`). If we are
+    /// in proving mode, then we have the additional option of whether or
+    /// not to construct the A, B, and C matrices of the constraint system
+    mode: SynthesisMode,
+
+    /// The number of variables that are "public inputs" to the constraint
+    /// system.
+    num_instance_variables: usize,
+
+    /// The number of variables that are "private inputs" to the constraint
+    /// system.
+    num_witness_variables: usize,
+
+    /// The number of linear combinations
+    num_linear_combinations: usize,
+
+    /// The parameter we aim to minimize in this constraint system (either the
+    /// number of constraints or their total weight).
+    optimization_goal: OptimizationGoal,
+
+    /// Assignments to the public input variables. This is empty if `self.mode
+    /// == SynthesisMode::Setup`.
+    instance_assignment: Vec<F>,
+
+    /// Assignments to the private input variables. This is empty if `self.mode
+    /// == SynthesisMode::Setup`.
+    witness_assignment: Vec<F>,
+
+    /// Map for gadgets to cache computation results.
+    cache_map: Rc<RefCell<BTreeMap<TypeId, Box<dyn Any>>>>,
+
+    /// A data structure to store the linear combinations. We use map because
+    /// it's easier to inline and outline the linear combinations.
+    lc_map: BTreeMap<LcIndex, LinearCombination<F>>,
+
+    /// A map from the the local predicate labels to the local predicates
+    local_predicates: BTreeMap<Label, LocalPredicate<F>>,
+
+    /// A cache for the linear combination assignments. It shows evaluation
+    /// result of each linear combination
+    lc_assignment_cache: Rc<RefCell<BTreeMap<LcIndex, F>>>,
+
+    /// data structure to store the traces for each predicate
+    #[cfg(feature = "std")]
+    pub predicate_traces: BTreeMap<Label, Vec<Option<ConstraintTrace>>>,
+}
+
+impl<F: Field> Default for ConstraintSystem<F> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl<F: Field> ConstraintSystem<F> {
+    pub fn new() -> Self {
+        Self {
+            num_instance_variables: 1,
+            num_witness_variables: 0,
+            num_linear_combinations: 0,
+            local_predicates: BTreeMap::new(),
+            instance_assignment: vec![F::one()],
+            witness_assignment: Vec::new(),
+            cache_map: Rc::new(RefCell::new(BTreeMap::new())),
+            lc_map: BTreeMap::new(),
+            lc_assignment_cache: Rc::new(RefCell::new(BTreeMap::new())),
+            mode: SynthesisMode::Prove {
+                construct_matrices: true,
+            },
+            optimization_goal: OptimizationGoal::Constraints,
+            #[cfg(feature = "std")]
+            predicate_traces: BTreeMap::new(),
+        }
+    }
+
+    /// Create a new `ConstraintSystemRef<F>`.
+    pub fn new_ref() -> ConstraintSystemRef<F> {
+        ConstraintSystemRef::new(Self::new())
+    }
+
+    /// Returns the number of constraints which is the sum of the number of
+    /// constraints in each local predicate.
+    pub fn num_constraints(&self) -> usize {
+        self.local_predicates
+            .values()
+            .map(|p| p.num_constraints())
+            .sum()
+    }
+
+    /// Returns the number of instance variables.
+    pub fn num_instance_variables(&self) -> usize {
+        self.num_instance_variables
+    }
+
+    /// Returns the number of witness variables.
+    pub fn num_witness_variables(&self) -> usize {
+        self.num_witness_variables
+    }
+
+    /// Returns the number of local predicates
+    pub fn num_local_predicates(&self) -> usize {
+        self.local_predicates.len()
+    }
+
+    /// Enforce a constraint in the constraint system. It takes a local
+    /// predicate name and enforces a vector of linear combinations of the
+    /// length of the arity of the local predicate enforces the constraint.
+    #[inline]
+    pub fn enforce_constraint(
+        &mut self,
+        local_predicate_label: &str,
+        lc_vec: Vec<LinearCombination<F>>,
+    ) -> crate::gr1cs::Result<()> {
+        if !self.local_predicates.contains_key(local_predicate_label) {
+            return Err(SynthesisError::PredicateNotFound);
+        }
+        if self.should_construct_matrices() {
+            let constraint = self.new_lc_vec(lc_vec)?;
+            self.local_predicates
+                .get_mut(local_predicate_label)
+                .unwrap()
+                .enforce_constraint(constraint)?;
+        }
+        #[cfg(feature = "std")]
+        {
+            let trace = ConstraintTrace::capture();
+            match self.predicate_traces.get_mut(local_predicate_label) {
+                Some(traces) => traces.push(trace),
+                None => (),
+            }
+        }
+        Ok(())
+    }
+
+    /// Enforce an r1cs constraint in the constraint system. It takes a, b, and
+    /// c and enforces `a * b = c`. If R1CS predicate does not exist in the
+    /// constraint system, It will create one. This function is a special case
+    /// of `enforce_constraint` and is used as the legacy R1CS API to be bacward
+    /// compatible with R1CS gadgets
+    #[inline]
+    pub(super) fn enforce_r1cs_constraint(
+        &mut self,
+        a: LinearCombination<F>,
+        b: LinearCombination<F>,
+        c: LinearCombination<F>,
+        cs: ConstraintSystemRef<F>,
+    ) -> crate::gr1cs::Result<()> {
+        if !self.local_predicates.contains_key(R1CS_PREDICATE_LABEL) {
+            self.register_predicate(
+                R1CS_PREDICATE_LABEL,
+                LocalPredicate::build_r1cs_predicate(cs),
+            )?;
+        }
+        self.enforce_constraint(R1CS_PREDICATE_LABEL, vec![a, b, c])
+        // if self.should_construct_matrices() {
+        //     let constraints = self.new_lc_vec(vec![a, b, c])?;
+        //     self.local_predicates
+        //         .get_mut(R1CS_PREDICATE_LABEL)
+        //         .unwrap()
+        //         .enforce_constraint(constraints)?;
+        // }
+        // Ok(())
+    }
+
+    /// Add a new vector of linear combinations to the constraint system.
+    pub fn new_lc_vec(
+        &mut self,
+        lc_vec: Vec<LinearCombination<F>>,
+    ) -> crate::gr1cs::Result<Constraint> {
+        let mut constraints: Constraint = Vec::new();
+        for lc in lc_vec {
+            let var = self.new_lc(lc)?;
+            match var {
+                Variable::SymbolicLc(index) => constraints.push(index),
+                _ => return Err(SynthesisError::UnexpectedVariable),
+            }
+        }
+        Ok(constraints)
+    }
+
+    // TODO: Check whether It's worth it to deduplicate the linear combinations
+    // Reduces the memory but each time we need to check the map
+    #[inline]
+    pub fn new_lc(&mut self, lc: LinearCombination<F>) -> crate::gr1cs::Result<Variable> {
+        for (this_lc_ind, this_lc) in self.lc_map.iter() {
+            if lc == *this_lc {
+                return Ok(Variable::SymbolicLc(*this_lc_ind));
+            }
+        }
+        let index = LcIndex(self.num_linear_combinations);
+        self.lc_map.insert(index, lc);
+        self.num_linear_combinations += 1;
+        Ok(Variable::SymbolicLc(index))
+    }
+
+    /// Set `self.mode` to `mode`.
+    pub fn set_mode(&mut self, mode: SynthesisMode) {
+        self.mode = mode;
+    }
+
+    /// Check whether `self.mode == SynthesisMode::Setup`.
+    /// Returns true if 1- There is an underlying ConstraintSystem and
+    /// 2- It's in setup mode
+    pub fn is_in_setup_mode(&self) -> bool {
+        self.mode == SynthesisMode::Setup
+    }
+
+    /// Check whether this constraint system aims to optimize weight,
+    /// number of constraints, or neither.
+    pub fn optimization_goal(&self) -> OptimizationGoal {
+        self.optimization_goal
+    }
+
+    /// Check whether this constraint system is new, i.e., it is just created
+    fn is_new(&self) -> bool {
+        self.num_instance_variables == 1
+            && self.num_witness_variables == 0
+            && self.num_constraints() == 0
+            && self.num_linear_combinations == 0
+    }
+
+    /// Specify whether this constraint system should aim to optimize weight,
+    /// number of constraints, or neither.
+    pub fn set_optimization_goal(&mut self, goal: OptimizationGoal) {
+        assert!(self.is_new());
+        self.optimization_goal = goal;
+    }
+
+    /// Check whether or not `self` will construct matrices.
+    pub fn should_construct_matrices(&self) -> bool {
+        match self.mode {
+            SynthesisMode::Setup => true,
+            SynthesisMode::Prove { construct_matrices } => construct_matrices,
+        }
+    }
+
+    /// Obtain a variable representing a new public instance input
+    /// This function takes a closure, this closure returns `Result<F>`
+    /// Internally, this function calls new_input_variable of the constraint
+    /// system to which it's pointing
+    #[inline]
+    pub fn new_input_variable<Func>(&mut self, f: Func) -> crate::utils::Result<Variable>
+    where
+        Func: FnOnce() -> crate::utils::Result<F>,
+    {
+        let index = self.num_instance_variables;
+        self.num_instance_variables += 1;
+
+        if !self.is_in_setup_mode() {
+            self.instance_assignment.push(f()?);
+        }
+        Ok(Variable::Instance(index))
+    }
+
+    /// Obtain a variable representing a new private witness input.
+    #[inline]
+    pub fn new_witness_variable<Func>(&mut self, f: Func) -> crate::utils::Result<Variable>
+    where
+        Func: FnOnce() -> crate::utils::Result<F>,
+    {
+        let index = self.num_witness_variables;
+        self.num_witness_variables += 1;
+
+        if !self.is_in_setup_mode() {
+            self.witness_assignment.push(f()?);
+        }
+        Ok(Variable::Witness(index))
+    }
+
+    /// Register a local predicate in the constraint system with a given label.
+    pub fn register_predicate(
+        &mut self,
+        predicate_label: &str,
+        predicate: LocalPredicate<F>,
+    ) -> crate::utils::Result<()> {
+        self.local_predicates
+            .insert(predicate_label.to_string(), predicate);
+        #[cfg(feature = "std")]
+        {
+            self.predicate_traces
+                .insert(predicate_label.to_string(), Vec::new());
+        }
+        Ok(())
+    }
+
+    /// Obtain the assignment corresponding to the `Variable` `v`.
+    pub fn assigned_value(&self, v: Variable) -> Option<F> {
+        match v {
+            Variable::One => Some(F::one()),
+            Variable::Zero => Some(F::zero()),
+            Variable::Witness(idx) => self.witness_assignment.get(idx).copied(),
+            Variable::Instance(idx) => self.instance_assignment.get(idx).copied(),
+            Variable::SymbolicLc(idx) => {
+                let value = self.lc_assignment_cache.borrow().get(&idx).copied();
+                if value.is_some() {
+                    value
+                } else {
+                    let value = self.eval_lc(idx)?;
+                    self.lc_assignment_cache.borrow_mut().insert(idx, value);
+                    Some(value)
+                }
+            },
+        }
+    }
+
+    /// Evaluate the linear combination `lc` with the assigned values and return
+    /// the result.
+    fn eval_lc(&self, lc: LcIndex) -> Option<F> {
+        let lc = self.lc_map.get(&lc)?;
+        let mut acc = F::zero();
+        for (coeff, var) in lc.iter() {
+            acc += *coeff * self.assigned_value(*var)?;
+        }
+        Some(acc)
+    }
+
+    /// If `self` is satisfied, outputs `Ok(true)`.
+    /// If `self` is unsatisfied, outputs `Ok(false)`.
+    /// If `self.is_in_setup_mode()` or if `self == None`, outputs `Err(())`.
+    pub fn is_satisfied(&self) -> crate::utils::Result<bool> {
+        self.which_predicate_is_unsatisfied().map(|s| s.is_none())
+    }
+
+    /// If `self` is satisfied, outputs `Ok(None)`.
+    /// If `self` is unsatisfied, outputs `Some(s,i)`, where `s` is the label of
+    /// the unsatisfied local prediacate and  `i` is the index of
+    /// the first unsatisfied constraint in that local predicate.
+    /// If `self.is_in_setup_mode()` or `self == None`, outputs `Err(())`.
+    pub fn which_predicate_is_unsatisfied(&self) -> crate::utils::Result<Option<String>> {
+        if self.is_in_setup_mode() {
+            Err(SynthesisError::AssignmentMissing)
+        } else {
+            for (label, predicate) in self.local_predicates.iter() {
+                if let Some(unsatisfied_constraint) = predicate.which_constraint_is_unsatisfied() {
+                    let mut trace: String = "".to_string();
+                    #[cfg(feature = "std")]
+                    {
+                        trace = self
+                            .predicate_traces
+                            .get(label)
+                            .unwrap()
+                            .get(unsatisfied_constraint)
+                            .unwrap()
+                            .as_ref()
+                            .map_or_else(
+                                || {
+                                    eprintln!(
+                                        "Constraint trace requires enabling `ConstraintLayer`"
+                                    );
+                                    format!("{} - {}", label.clone(), unsatisfied_constraint)
+                                },
+                                |t| format!("{}", t),
+                            );
+                    }
+                    #[cfg(not(feature = "std"))]
+                    {
+                        trace = format!("{} - {}", label.clone(), unsatisfied_constraint);
+                    }
+                    return Ok(Some(trace));
+                }
+            }
+            Ok(None)
+        }
+    }
+
+    /// Finalize the constraint system (either by outlining or inlining,
+    /// if an optimization goal is set).
+    pub fn finalize(&mut self) {
+        match self.optimization_goal {
+            OptimizationGoal::None => self.inline_all_lcs(),
+            OptimizationGoal::Constraints => self.inline_all_lcs(),
+            OptimizationGoal::Weight => self.outline_lcs(),
+        };
+    }
+
+    /// Naively inlines symbolic linear combinations into the linear
+    /// combinations that use them.
+    ///
+    /// Useful for standard pairing-based SNARKs where addition gates are cheap.
+    /// For example, in the SNARKs such as [\[Groth16\]](https://eprint.iacr.org/2016/260) and
+    /// [\[Groth-Maller17\]](https://eprint.iacr.org/2017/540), addition gates
+    /// do not contribute to the size of the multi-scalar multiplication, which
+    /// is the dominating cost.
+    pub fn inline_all_lcs(&mut self) {
+        // Only inline when a matrix representing R1CS is needed.
+        if !self.should_construct_matrices() {
+            return;
+        }
+
+        // A dummy closure is used, which means that
+        // - it does not modify the inlined LC.
+        // - it does not add new witness variables.
+        self.transform_lc_map(&mut |_, _, _| (0, None));
+    }
+
+    /// If a `SymbolicLc` is used in more than one location and has sufficient
+    /// length, this method makes a new variable for that `SymbolicLc`, adds
+    /// a constraint ensuring the equality of the variable and the linear
+    /// combination, and then uses that variable in every location the
+    /// `SymbolicLc` is used.
+    ///
+    /// Useful for SNARKs like [\[Marlin\]](https://eprint.iacr.org/2019/1047) or
+    /// [\[Fractal\]](https://eprint.iacr.org/2019/1076), where addition gates
+    /// are not cheap.
+    fn outline_lcs(&mut self) {
+        // Only inline when a matrix representing R1CS is needed.
+        if !self.should_construct_matrices() {
+            return;
+        }
+
+        // Store information about new witness variables created
+        // for outlining. New constraints will be added after the
+        // transformation of the LC map.
+        let mut new_witness_linear_combinations = Vec::new();
+        let mut new_witness_indices = Vec::new();
+
+        // It goes through all the LCs in the map, starting from
+        // the early ones, and decides whether or not to dedicate a witness
+        // variable for this LC.
+        //
+        // If true, the LC is replaced with 1 * this witness variable.
+        // Otherwise, the LC is inlined.
+        //
+        // Each iteration first updates the LC according to outlinings in prior
+        // iterations, and then sees if it should be outlined, and if so adds
+        // the outlining to the map.
+        //
+        self.transform_lc_map(&mut |cs, num_times_used, inlined_lc| {
+            let mut should_dedicate_a_witness_variable = false;
+            let mut new_witness_index = None;
+            let mut new_witness_assignment = Vec::new();
+
+            // Check if it is worthwhile to dedicate a witness variable.
+            let this_used_times = num_times_used + 1;
+            let this_len = inlined_lc.len();
+
+            // Cost with no outlining = `lc_len * number of usages`
+            // Cost with outlining is one constraint for `(lc_len) * 1 = {new variable}` and
+            // using that single new variable in each of the prior usages.
+            // This has total cost `number_of_usages + lc_len + 2`
+            if this_used_times * this_len > this_used_times + 2 + this_len {
+                should_dedicate_a_witness_variable = true;
+            }
+
+            // If it is worthwhile to dedicate a witness variable,
+            if should_dedicate_a_witness_variable {
+                // Add a new witness (the value of the linear combination).
+                // This part follows the same logic of `new_witness_variable`.
+                let witness_index = cs.num_witness_variables;
+                new_witness_index = Some(witness_index);
+
+                // Compute the witness assignment.
+                if !cs.is_in_setup_mode() {
+                    let mut acc = F::zero();
+                    for (coeff, var) in inlined_lc.iter() {
+                        acc += *coeff * &cs.assigned_value(*var).unwrap();
+                    }
+                    new_witness_assignment.push(acc);
+                }
+
+                // Add a new constraint for this new witness.
+                new_witness_linear_combinations.push(inlined_lc.clone());
+                new_witness_indices.push(witness_index);
+
+                // Replace the linear combination with (1 * this new witness).
+                *inlined_lc = LinearCombination::from(Variable::Witness(witness_index));
+            }
+            // Otherwise, the LC remains unchanged.
+
+            // Return information about new witness variables.
+            if new_witness_index.is_some() {
+                (1, Some(new_witness_assignment))
+            } else {
+                (0, None)
+            }
+        });
+
+        // Add the constraints for the newly added witness variables.
+        for (new_witness_linear_combination, new_witness_variable) in
+            new_witness_linear_combinations
+                .iter()
+                .zip(new_witness_indices.iter())
+        {
+            // Add a new constraint
+            self.enforce_r1cs_constraint(
+                new_witness_linear_combination.clone(),
+                LinearCombination::from(Variable::one()),
+                LinearCombination::from(Variable::Witness(*new_witness_variable)),
+                ConstraintSystemRef::new(self.clone()),
+            )
+            .unwrap();
+        }
+    }
+
+    /// Transform the map of linear combinations.
+    /// Specifically, allow the creation of additional witness assignments.
+    ///
+    /// This method is used as a subroutine of `inline_all_lcs` and
+    /// `outline_lcs`.
+    ///
+    /// The transformer function is given a references of this constraint system
+    /// (&self), number of times used, and a mutable reference of the linear
+    /// combination to be transformed.     (&ConstraintSystem<F>, usize,
+    /// &mut LinearCombination<F>)
+    ///
+    /// The transformer function returns the number of new witness variables
+    /// needed and a vector of new witness assignments (if not in the setup
+    /// mode).
+    pub fn transform_lc_map(
+        &mut self,
+        transformer: &mut dyn FnMut(
+            &ConstraintSystem<F>,
+            usize,
+            &mut LinearCombination<F>,
+        ) -> (usize, Option<Vec<F>>),
+    ) {
+        // `transformed_lc_map` stores the transformed linear combinations.
+        let mut transformed_lc_map = BTreeMap::<_, LinearCombination<F>>::new();
+        let mut num_times_used = self.lc_num_times_used(false);
+
+        // This loop goes through all the LCs in the map, starting from
+        // the early ones. The transformer function is applied to the
+        // inlined LC, where new witness variables can be created.
+        for (&index, lc) in &self.lc_map {
+            let mut transformed_lc = LinearCombination::new();
+
+            // Inline the LC, unwrapping symbolic LCs that may constitute it,
+            // and updating them according to transformations in prior iterations.
+            for &(coeff, var) in lc.iter() {
+                if var.is_lc() {
+                    let lc_index = var.get_lc_index().expect("should be lc");
+
+                    // If `var` is a `SymbolicLc`, fetch the corresponding
+                    // inlined LC, and substitute it in.
+                    //
+                    // We have the guarantee that `lc_index` must exist in
+                    // `new_lc_map` since a LC can only depend on other
+                    // LCs with lower indices, which we have transformed.
+                    //
+                    let lc = transformed_lc_map
+                        .get(&lc_index)
+                        .expect("should be inlined");
+                    transformed_lc.extend((lc * coeff).0.into_iter());
+
+                    // Delete linear combinations that are no longer used.
+                    //
+                    // Deletion is safe for both outlining and inlining:
+                    // * Inlining: the LC is substituted directly into all use sites, and so once it
+                    //   is fully inlined, it is redundant.
+                    //
+                    // * Outlining: the LC is associated with a new variable `w`, and a new
+                    //   constraint of the form `lc_data * 1 = w`, where `lc_data` is the actual
+                    //   data in the linear combination. Furthermore, we replace its entry in
+                    //   `new_lc_map` with `(1, w)`. Once `w` is fully inlined, then we can delete
+                    //   the entry from `new_lc_map`
+                    //
+                    num_times_used[lc_index.0] -= 1;
+                    if num_times_used[lc_index.0] == 0 {
+                        // This lc is not used any more, so remove it.
+                        transformed_lc_map.remove(&lc_index);
+                    }
+                } else {
+                    // Otherwise, it's a concrete variable and so we
+                    // substitute it in directly.
+                    transformed_lc.push((coeff, var));
+                }
+            }
+            transformed_lc.compactify();
+
+            // Call the transformer function.
+            let (num_new_witness_variables, new_witness_assignments) =
+                transformer(&self, num_times_used[index.0], &mut transformed_lc);
+
+            // Insert the transformed LC.
+            transformed_lc_map.insert(index, transformed_lc);
+
+            // Update the witness counter.
+            self.num_witness_variables += num_new_witness_variables;
+
+            // Supply additional witness assignments if not in the
+            // setup mode and if new witness variables are created.
+            if !self.is_in_setup_mode() && num_new_witness_variables > 0 {
+                assert!(new_witness_assignments.is_some());
+                if let Some(new_witness_assignments) = new_witness_assignments {
+                    assert_eq!(new_witness_assignments.len(), num_new_witness_variables);
+                    self.witness_assignment
+                        .extend_from_slice(&new_witness_assignments);
+                }
+            }
+        }
+        // Replace the LC map.
+        self.lc_map = transformed_lc_map;
+    }
+
+    /// Count the number of times each linear combination is used.
+    fn lc_num_times_used(&self, count_sinks: bool) -> Vec<usize> {
+        let mut num_times_used = vec![0; self.lc_map.len()];
+
+        // Iterate over every lc in constraint system
+        for (index, lc) in self.lc_map.iter() {
+            num_times_used[index.0] += count_sinks as usize;
+
+            // Increment the counter for each lc that this lc has a direct dependency on.
+            for &(_, var) in lc.iter() {
+                if var.is_lc() {
+                    let lc_index = var.get_lc_index().expect("should be lc");
+                    num_times_used[lc_index.0] += 1;
+                }
+            }
+        }
+        num_times_used
+    }
+
+    pub fn to_matrices(&self) -> crate::gr1cs::Result<BTreeMap<Label, Vec<Matrix<F>>>> {
+        let mut matrices = BTreeMap::new();
+        for (label, predicate) in self.local_predicates.iter() {
+            matrices.insert(label.clone(), predicate.to_matrices());
+        }
+        Ok(matrices)
+    }
+
+    /// Get the linear combination corresponding to the given `lc_index`.
+    /// TODO: This function should return a reference to the linear combination
+    /// and not clone it.
+    pub fn get_lc(&self, lc_index: LcIndex) -> crate::gr1cs::Result<LinearCombination<F>> {
+        self.lc_map
+            .get(&lc_index)
+            .cloned()
+            .ok_or(SynthesisError::LcNotFound)
+    }
+}

@@ -15,4 +15,5 @@
 #[macro_use]
 extern crate ark_std;
 
-pub mod r1cs;
+pub mod gr1cs;
+pub mod utils;

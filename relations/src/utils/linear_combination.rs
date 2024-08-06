@@ -1,6 +1,5 @@
 #![allow(clippy::suspicious_arithmetic_impl)]
 
-use crate::r1cs::{LinearCombination, Variable};
 use ark_ff::Field;
 use ark_std::{
     ops::{Add, AddAssign, Deref, DerefMut, Mul, MulAssign, Neg, Sub},
@@ -8,12 +7,22 @@ use ark_std::{
     vec::Vec,
 };
 
+use super::variable::Variable;
+
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Debug)]
+/// An opaque counter for symbolic linear combinations.
+pub struct LcIndex(pub usize);
+
+/// A linear combination of variables according to associated coefficients.
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub struct LinearCombination<F: Field>(pub Vec<(F, Variable)>);
+
 /// Generate a `LinearCombination` from arithmetic expressions involving
 /// `Variable`s.
 #[macro_export]
 macro_rules! lc {
     () => {
-        $crate::r1cs::LinearCombination::zero()
+        $crate::gr1cs::LinearCombination::zero()
     };
 }
 
