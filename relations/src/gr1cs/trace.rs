@@ -11,7 +11,7 @@ use tracing_subscriber::{
     registry::LookupSpan,
 };
 
-/// A subscriber [`Layer`] that enables capturing a trace of R1CS constraint
+/// A subscriber [`Layer`] that enables capturing a trace of GR1CS constraint
 /// generation.
 ///
 /// [`Layer`]: https://docs.rs/tracing-subscriber/0.2.10/tracing_subscriber/layer/trait.Layer.html
@@ -29,10 +29,10 @@ pub struct ConstraintLayer<S> {
 #[derive(PartialEq, Eq, Ord, PartialOrd, Hash, Debug)]
 pub enum TracingMode {
     /// Instructs `ConstraintLayer` to filter out any spans that *do not* have
-    /// `target == "r1cs"`.
+    /// `target == "gr1cs"`.
     OnlyConstraints,
     /// Instructs `ConstraintLayer` to filter out any spans that *do* have
-    /// `target == "r1cs"`.
+    /// `target == "gr1cs"`.
     NoConstraints,
     /// Instructs `ConstraintLayer` to not filter out any spans.
     All,
@@ -51,8 +51,8 @@ where
 {
     fn enabled(&self, metadata: &Metadata<'_>, _ctx: layer::Context<'_, S>) -> bool {
         match self.mode {
-            TracingMode::OnlyConstraints => metadata.target() == "r1cs",
-            TracingMode::NoConstraints => metadata.target() != "r1cs",
+            TracingMode::OnlyConstraints => metadata.target() == "gr1cs",
+            TracingMode::NoConstraints => metadata.target() != "gr1cs",
             TracingMode::All => true,
         }
     }
@@ -81,10 +81,10 @@ where
     /// Returns a new `ConstraintLayer`.
     ///
     /// If `mode == TracingMode::OnlyConstraints`, the resulting layer will
-    /// filter out any spans whose `target != "r1cs"`.
+    /// filter out any spans whose `target != "gr1cs"`.
     ///
     /// If `mode == TracingMode::NoConstraints`, the resulting layer will
-    /// filter out any spans whose `target == "r1cs"`.
+    /// filter out any spans whose `target == "gr1cs"`.
     ///
     /// Finally, if `mode == TracingMode::All`, the resulting layer will
     /// not filter out any spans.
@@ -156,14 +156,14 @@ macro_rules! try_bool {
     }};
 }
 
-/// A captured trace of [`tracing`] spans that have `target = "r1cs"`.
+/// A captured trace of [`tracing`] spans that have `target = "gr1cs"`.
 ///
 /// This type can be thought of as a relative of
 /// [`std::backtrace::Backtrace`][`Backtrace`].
 /// However, rather than capturing the current call stack when it is
 /// constructed, a `ConstraintTrace` instead captures the current [span] and its
 /// [parents]. It allows inspection of the constraints that are left unsatisfied
-/// by a particular witness assignment to an R1CS instance.
+/// by a particular witness assignment to an GR1CS instance.
 ///
 /// # Formatting
 ///
@@ -171,10 +171,10 @@ macro_rules! try_bool {
 /// trace similarly to how Rust formats panics. For example:
 ///
 /// ```text
-///    0: r1cs-std::bits::something
-///           at r1cs-std/src/bits/test.rs:42
-///    1: r1cs-std::bits::another_thing
-///           at r1cs-std/src/bits/test.rs:15
+///    0: gr1cs-std::bits::something
+///           at gr1cs-std/src/bits/test.rs:42
+///    1: gr1cs-std::bits::another_thing
+///           at gr1cs-std/src/bits/test.rs:15
 /// ```
 ///
 /// [`tracing`]: https://docs.rs/tracing
@@ -193,7 +193,7 @@ impl ConstraintTrace {
     ///
     /// # Examples
     /// ```rust
-    /// use ark_relations::r1cs::ConstraintTrace;
+    /// use ark_relations::gr1cs::ConstraintTrace;
     ///
     /// pub struct MyError {
     ///     trace: Option<ConstraintTrace>,
@@ -203,7 +203,7 @@ impl ConstraintTrace {
     /// # fn some_error_condition() -> bool { true }
     ///
     /// pub fn my_function(arg: &str) -> Result<(), MyError> {
-    ///     let _span = tracing::info_span!(target: "r1cs", "In my_function");
+    ///     let _span = tracing::info_span!(target: "gr1cs", "In my_function");
     ///     let _guard = _span.enter();
     ///     if some_error_condition() {
     ///         return Err(MyError {
@@ -254,7 +254,7 @@ impl ConstraintTrace {
     pub fn path(&self) -> Vec<TraceStep> {
         let mut path = Vec::new();
         self.with_spans(|metadata, _| {
-            if metadata.target() == "r1cs" {
+            if metadata.target() == "gr1cs" {
                 let n = metadata.name();
                 let step = metadata
                     .module_path()
@@ -286,7 +286,7 @@ impl fmt::Display for ConstraintTrace {
         let mut span = 0;
 
         self.with_spans(|metadata, _| {
-            if metadata.target() != "r1cs" {
+            if metadata.target() != "gr1cs" {
                 return true;
             }
             if span > 0 {

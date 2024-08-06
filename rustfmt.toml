@@ -6,4 +6,4 @@ match_block_trailing_comma = true
 use_field_init_shorthand = true
 edition = "2018"
 condense_wildcard_suffixes = true
-merge_imports = true
+imports_granularity="Crate"
