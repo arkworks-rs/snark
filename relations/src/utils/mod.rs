@@ -1,10 +1,15 @@
-use ark_std::vec::Vec;
 use error::SynthesisError;
-use linear_combination::LcIndex;
 
+/// Different errors and error messages used in the library.
 pub mod error;
+
+/// Tools to work with linear combinations.
 pub mod linear_combination;
+
+/// Tools to work with matrices.
 pub mod matrix;
+
+/// Tools to work with variables.
 pub mod variable;
 
 /// A result type specialized to `SynthesisError`.

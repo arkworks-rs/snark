@@ -1,5 +1,9 @@
+//! This module contains the implementation of the `ConstraintSystem` struct.
+//! a constraint system contains multiple local predicate constraint systems,
+//! each of which enforce have seperate predicates and constraints. For more infomation about the terminology and the structure of the constraint system, refer to https://eprint.iacr.org/2024/1245
+
 use super::{
-    local_predicate::{polynomial_constraint::R1CS_PREDICATE_LABEL, LocalPredicate},
+    local_predicate::{polynomial_constraint::R1CS_PREDICATE_LABEL, PredicateConstraintSystem},
     Constraint, ConstraintSystemRef, Label, OptimizationGoal, SynthesisMode,
 };
 #[cfg(feature = "std")]
@@ -9,21 +13,18 @@ use ark_ff::Field;
 use ark_std::{
     any::{Any, TypeId},
     boxed::Box,
-    cell::{Ref, RefCell, RefMut},
+    cell::RefCell,
     collections::BTreeMap,
     format,
-    iterable::Iterable,
     rc::Rc,
     string::{String, ToString},
-    vec::{self, Vec},
+    vec::Vec,
 };
-
 ///////////////////////////////////////////////////////////////////////////////////////
 
-/// An Rank-One `ConstraintSystem`. Enforces constraints of the form
-/// `L_i(⟨M_{i,1}, z⟩ , ⟨M_{i,2}, z⟩ , ..., ⟨M_{i,t_i}, z⟩)=0`, where L_i is a
-/// local predicate, and  `M_{i,j}`s are linear combinations over variables, and
-/// `z` is the concrete assignment to these variables. refer to //TODO: Paper Url
+/// A GR1CS `ConstraintSystem`. Enforces constraints of the form  
+/// `L_i(⟨M_{i,1}, z⟩ , ⟨M_{i,2}, z⟩ , ..., ⟨M_{i,t_i}, z⟩)=0`
+/// More Information: https://eprint.iacr.org/2024/1245
 #[derive(Debug, Clone)]
 pub struct ConstraintSystem<F: Field> {
     /// The mode in which the constraint system is operating. `self` can either
@@ -64,7 +65,7 @@ pub struct ConstraintSystem<F: Field> {
     lc_map: BTreeMap<LcIndex, LinearCombination<F>>,
 
     /// A map from the the local predicate labels to the local predicates
-    local_predicates: BTreeMap<Label, LocalPredicate<F>>,
+    local_predicates: BTreeMap<Label, PredicateConstraintSystem<F>>,
 
     /// A cache for the linear combination assignments. It shows evaluation
     /// result of each linear combination
@@ -82,6 +83,8 @@ impl<F: Field> Default for ConstraintSystem<F> {
 }
 
 impl<F: Field> ConstraintSystem<F> {
+    /// Create a new and empty `ConstraintSystem<F>`.
+    /// Note that no local predicate is registered yet
     pub fn new() -> Self {
         Self {
             num_instance_variables: 1,
@@ -177,7 +180,7 @@ impl<F: Field> ConstraintSystem<F> {
         if !self.local_predicates.contains_key(R1CS_PREDICATE_LABEL) {
             self.register_predicate(
                 R1CS_PREDICATE_LABEL,
-                LocalPredicate::build_r1cs_predicate(cs),
+                PredicateConstraintSystem::new_r1cs_predicate(cs),
             )?;
         }
         self.enforce_constraint(R1CS_PREDICATE_LABEL, vec![a, b, c])
@@ -194,28 +197,27 @@ impl<F: Field> ConstraintSystem<F> {
     /// Add a new vector of linear combinations to the constraint system.
     pub fn new_lc_vec(
         &mut self,
-        lc_vec: Vec<LinearCombination<F>>,
+        lc_vec: impl IntoIterator<Item = LinearCombination<F>>,
     ) -> crate::gr1cs::Result<Constraint> {
-        let mut constraints: Constraint = Vec::new();
-        for lc in lc_vec {
-            let var = self.new_lc(lc)?;
-            match var {
-                Variable::SymbolicLc(index) => constraints.push(index),
-                _ => return Err(SynthesisError::UnexpectedVariable),
-            }
-        }
+        let constraints: Vec<LcIndex> = lc_vec
+            .into_iter()
+            .map(|lc| {
+                let var = self.new_lc(lc)?;
+                match var {
+                    Variable::SymbolicLc(index) => Ok(index),
+                    _ => Err(SynthesisError::UnexpectedVariable),
+                }
+            })
+            .collect::<Result<Vec<LcIndex>, SynthesisError>>()?;
+
         Ok(constraints)
     }
 
-    // TODO: Check whether It's worth it to deduplicate the linear combinations
-    // Reduces the memory but each time we need to check the map
+    /// Adds a new linear combination to the constraint system.
+    /// If the linear combination is already in the map, return the
+    /// corresponding index (using bimap)
     #[inline]
     pub fn new_lc(&mut self, lc: LinearCombination<F>) -> crate::gr1cs::Result<Variable> {
-        for (this_lc_ind, this_lc) in self.lc_map.iter() {
-            if lc == *this_lc {
-                return Ok(Variable::SymbolicLc(*this_lc_ind));
-            }
-        }
         let index = LcIndex(self.num_linear_combinations);
         self.lc_map.insert(index, lc);
         self.num_linear_combinations += 1;
@@ -300,7 +302,7 @@ impl<F: Field> ConstraintSystem<F> {
     pub fn register_predicate(
         &mut self,
         predicate_label: &str,
-        predicate: LocalPredicate<F>,
+        predicate: PredicateConstraintSystem<F>,
     ) -> crate::utils::Result<()> {
         self.local_predicates
             .insert(predicate_label.to_string(), predicate);
@@ -335,7 +337,7 @@ impl<F: Field> ConstraintSystem<F> {
     /// Evaluate the linear combination `lc` with the assigned values and return
     /// the result.
     fn eval_lc(&self, lc: LcIndex) -> Option<F> {
-        let lc = self.lc_map.get(&lc)?;
+        let lc: &LinearCombination<F> = self.lc_map.get(&lc)?;
         let mut acc = F::zero();
         for (coeff, var) in lc.iter() {
             acc += *coeff * self.assigned_value(*var)?;
@@ -364,26 +366,21 @@ impl<F: Field> ConstraintSystem<F> {
                     let mut trace: String = "".to_string();
                     #[cfg(feature = "std")]
                     {
-                        trace = self
-                            .predicate_traces
-                            .get(label)
-                            .unwrap()
-                            .get(unsatisfied_constraint)
-                            .unwrap()
+                        trace = self.predicate_traces[label][unsatisfied_constraint]
                             .as_ref()
                             .map_or_else(
                                 || {
                                     eprintln!(
                                         "Constraint trace requires enabling `ConstraintLayer`"
                                     );
-                                    format!("{} - {}", label.clone(), unsatisfied_constraint)
+                                    format!("{} - {unsatisfied_constraint}", &label)
                                 },
-                                |t| format!("{}", t),
+                                |t| format!("{t}"),
                             );
                     }
                     #[cfg(not(feature = "std"))]
                     {
-                        trace = format!("{} - {}", label.clone(), unsatisfied_constraint);
+                        trace = format!("{} - {unsatisfied_constraint}", label.clone());
                     }
                     return Ok(Some(trace));
                 }
@@ -482,7 +479,7 @@ impl<F: Field> ConstraintSystem<F> {
                 if !cs.is_in_setup_mode() {
                     let mut acc = F::zero();
                     for (coeff, var) in inlined_lc.iter() {
-                        acc += *coeff * &cs.assigned_value(*var).unwrap();
+                        acc += *coeff * cs.assigned_value(*var).unwrap();
                     }
                     new_witness_assignment.push(acc);
                 }
@@ -598,7 +595,7 @@ impl<F: Field> ConstraintSystem<F> {
 
             // Call the transformer function.
             let (num_new_witness_variables, new_witness_assignments) =
-                transformer(&self, num_times_used[index.0], &mut transformed_lc);
+                transformer(self, num_times_used[index.0], &mut transformed_lc);
 
             // Insert the transformed LC.
             transformed_lc_map.insert(index, transformed_lc);
@@ -640,6 +637,8 @@ impl<F: Field> ConstraintSystem<F> {
         num_times_used
     }
 
+    /// Get the matrices corresponding to the local predicates.and the
+    /// corresponding set of matrices
     pub fn to_matrices(&self) -> crate::gr1cs::Result<BTreeMap<Label, Vec<Matrix<F>>>> {
         let mut matrices = BTreeMap::new();
         for (label, predicate) in self.local_predicates.iter() {

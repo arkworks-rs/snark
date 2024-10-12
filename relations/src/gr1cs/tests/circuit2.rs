@@ -1,17 +1,13 @@
 use ark_ff::Field;
-use ark_poly::{
-    multivariate::{SparsePolynomial, SparseTerm, Term},
-    DenseMVPolynomial,
-};
+
 use ark_std::{
     collections::BTreeMap,
     string::ToString,
-    vec::{self, Vec},
+    vec::Vec,
 };
 
 use crate::{
     gr1cs::{
-        local_predicate::{self, ConstraintType, LocalPredicate},
         ConstraintSynthesizer, ConstraintSystemRef,
     },
     lc,
@@ -57,7 +53,7 @@ impl<F: Field> Circuit2<F> {
     }
 }
 impl<F: Field + core::convert::From<i8>> ConstraintSynthesizer<F> for Circuit2<F> {
-    fn generate_constraints(self, mut cs: ConstraintSystemRef<F>) -> crate::utils::Result<()> {
+    fn generate_constraints(self, cs: ConstraintSystemRef<F>) -> crate::utils::Result<()> {
         // Variable declarations -> Instance variables + Witness variables
         let two = F::one() + F::one();
 

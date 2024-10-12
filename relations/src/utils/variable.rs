@@ -18,10 +18,12 @@ pub enum Variable {
 }
 
 impl Variable {
+    /// Create a `new` Zero instance variable.
     pub fn zero() -> Variable {
         Variable::Zero
     }
 
+    /// Create a `new` One instance variable.
     #[inline]
     pub fn one() -> Variable {
         Variable::One

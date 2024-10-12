@@ -21,10 +21,13 @@ pub enum SynthesisError {
     MalformedVerifyingKey,
     /// During CRS generation, we observed an unconstrained auxiliary variable
     UnconstrainedVariable,
-
+    /// The string does not match to any predicate
     PredicateNotFound,
+    /// The predicate expects a different arity
     ArityMismatch,
+    /// The LcIndex provided does not correspond to any Linear Combination
     LcNotFound,
+    /// The variable type is not expected for the operation
     UnexpectedVariable
 }
 

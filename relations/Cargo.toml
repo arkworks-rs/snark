@@ -26,3 +26,10 @@ ark-test-curves = { version = "0.4.0", default-features = false, features = [ "b
 [features]
 default = []
 std = [ "ark-std/std", "ark-ff/std", "tracing-subscriber", "tracing/std" ]
+
+[patch.crates-io]
+ark-ff = { git = "https://github.com/arkworks-rs/algebra/" }
+ark-std = { git = "https://github.com/arkworks-rs/std/" }
+ark-ec = { git = "https://github.com/arkworks-rs/algebra/" }
+ark-poly = { git = "https://github.com/arkworks-rs/algebra/" }
+ark-serialize = { git = "https://github.com/arkworks-rs/algebra/" }

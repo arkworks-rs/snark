@@ -1,17 +1,13 @@
 use ark_ff::Field;
-use ark_poly::{
-    multivariate::{SparsePolynomial, SparseTerm, Term},
-    DenseMVPolynomial,
-};
 use ark_std::{
     collections::BTreeMap,
     string::ToString,
-    vec::{self, Vec},
+    vec::Vec,
 };
 
 use crate::{
     gr1cs::{
-        local_predicate::{self, ConstraintType, LocalPredicate},
+        local_predicate::PredicateConstraintSystem,
         ConstraintSynthesizer, ConstraintSystemRef,
     },
     lc,
@@ -83,12 +79,12 @@ impl<F: Field + core::convert::From<i8>> ConstraintSynthesizer<F> for Circuit1<F
         let w4 = cs.new_witness_variable(|| Ok(self.w4)).unwrap();
         let w5 = cs.new_witness_variable(|| Ok(self.w5)).unwrap();
         let w6 = cs.new_witness_variable(|| Ok(self.w6)).unwrap();
-        let w7 = cs.new_witness_variable(|| Ok(self.w7)).unwrap();
+        let _w7 = cs.new_witness_variable(|| Ok(self.w7)).unwrap();
         let w8 = cs.new_witness_variable(|| Ok(self.w8)).unwrap();
 
         // Local predicate declarations -> Polynomial predicates
 
-        let local_predicate_a = LocalPredicate::new_polynomial_predicate(
+        let local_predicate_a = PredicateConstraintSystem::new_polynomial_predicate(
             cs.clone(),
             4,
             vec![
@@ -97,7 +93,7 @@ impl<F: Field + core::convert::From<i8>> ConstraintSynthesizer<F> for Circuit1<F
                 (F::from(-1i8), vec![(3, 1)]),
             ],
         );
-        let local_predicate_b = LocalPredicate::new_polynomial_predicate(
+        let local_predicate_b = PredicateConstraintSystem::new_polynomial_predicate(
             cs.clone(),
             3,
             vec![
@@ -107,7 +103,7 @@ impl<F: Field + core::convert::From<i8>> ConstraintSynthesizer<F> for Circuit1<F
             ],
         );
 
-        let local_predicate_c = LocalPredicate::new_polynomial_predicate(
+        let local_predicate_c = PredicateConstraintSystem::new_polynomial_predicate(
             cs.clone(),
             3,
             vec![

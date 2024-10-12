@@ -1,3 +1,8 @@
+//! This module contains the implementation of a sharef reference to
+//! `ConstraintSystem` struct. Refer to the `ConstraintSystem` struct for the
+//! inner struct. Most of the functions of `ConstraintSystemRef` are just
+//! wrappers around the functions of `ConstraintSystem`.
+
 use ark_std::collections::BTreeMap;
 use core::cell::{Ref, RefCell, RefMut};
 
@@ -5,8 +10,9 @@ use ark_ff::Field;
 use ark_std::{rc::Rc, string::String, vec::Vec};
 
 use super::{
-    constraint_system::ConstraintSystem, local_predicate::LocalPredicate, Constraint, Label,
-    LcIndex, LinearCombination, Matrix, OptimizationGoal, SynthesisError, SynthesisMode, Variable,
+    constraint_system::ConstraintSystem, local_predicate::PredicateConstraintSystem,
+    Label, LcIndex, LinearCombination, Matrix, OptimizationGoal, SynthesisError, SynthesisMode,
+    Variable,
 };
 
 /// A shared reference to a constraint system that can be stored in high level
@@ -91,15 +97,12 @@ impl<F: Field> ConstraintSystemRef<F> {
         b: LinearCombination<F>,
         c: LinearCombination<F>,
     ) -> crate::gr1cs::Result<()> {
-        self.call_on_mut_inner(|cs| cs.enforce_r1cs_constraint(a, b, c,self.clone()))
+        self.call_on_mut_inner(|cs| cs.enforce_r1cs_constraint(a, b, c, self.clone()))
     }
 
     /// Obtain a variable representing a linear combination.
     #[inline]
-    pub fn new_lc(
-        &self,
-        lc: LinearCombination<F>,
-    ) -> crate::gr1cs::Result<Variable> {
+    pub fn new_lc(&self, lc: LinearCombination<F>) -> crate::gr1cs::Result<Variable> {
         self.call_on_mut_inner(|cs| cs.new_lc(lc))
     }
     /// Set `self.mode` to `mode`.
@@ -188,7 +191,7 @@ impl<F: Field> ConstraintSystemRef<F> {
     pub fn register_predicate(
         &mut self,
         predicate_label: &str,
-        predicate: LocalPredicate<F>,
+        predicate: PredicateConstraintSystem<F>,
     ) -> crate::utils::Result<()> {
         self.call_on_mut_inner(|cs| cs.register_predicate(predicate_label, predicate))
     }
@@ -304,63 +307,69 @@ impl<F: Field> ConstraintSystemRef<F> {
         self.inner().map(|cs| cs.borrow_mut())
     }
 
+    /// Get the matrices corresponding to the local predicates.and the
+    /// corresponding set of matrices
     pub fn to_matrices(&self) -> crate::gr1cs::Result<BTreeMap<Label, Vec<Matrix<F>>>> {
         self.call_on_inner(|cs| cs.to_matrices())
     }
 
+
+    /// Get the linear combination corresponding to the given `lc_index`.
+    /// TODO: This function should return a reference to the linear combination
+    /// and not clone it.
     pub fn get_lc(&self, lc_index: LcIndex) -> crate::utils::Result<LinearCombination<F>> {
         self.call_on_inner(|cs| cs.get_lc(lc_index))
     }
 
-// TODO: Implement this function
-// /// Get trace information about all constraints in the system
-// pub fn constraint_names(&self) -> Option<Vec<String>> {
-//     #[cfg(feature = "std")]
-//     {
-//         self.inner().and_then(|cs| {
-//             cs.borrow()
-//                 .constraint_traces
-//                 .iter()
-//                 .map(|trace| {
-//                     let mut constraint_path = String::new();
-//                     let mut prev_module_path = "";
-//                     let mut prefixes = ark_std::collections::BTreeSet::new();
-//                     for step in trace.as_ref()?.path() {
-//                         let module_path = if prev_module_path == step.module_path {
-//                             prefixes.insert(step.module_path.to_string());
-//                             String::new()
-//                         } else {
-//                             let mut parts = step
-//                                 .module_path
-//                                 .split("::")
-//                                 .filter(|&part| part != "r1cs_std" && part != "constraints");
-//                             let mut path_so_far = String::new();
-//                             for part in parts.by_ref() {
-//                                 if path_so_far.is_empty() {
-//                                     path_so_far += part;
-//                                 } else {
-//                                     path_so_far += &["::", part].join("");
-//                                 }
-//                                 if prefixes.contains(&path_so_far) {
-//                                     continue;
-//                                 } else {
-//                                     prefixes.insert(path_so_far.clone());
-//                                     break;
-//                                 }
-//                             }
-//                             parts.collect::<Vec<_>>().join("::") + "::"
-//                         };
-//                         prev_module_path = step.module_path;
-//                         constraint_path += &["/", &module_path, step.name].join("");
-//                     }
-//                     Some(constraint_path)
-//                 })
-//                 .collect::<Option<Vec<_>>>()
-//         })
-//     }
-//     #[cfg(not(feature = "std"))]
-//     {
-//         None
-//     }
-// }
+    // TODO: Implement this function
+    // /// Get trace information about all constraints in the system
+    // pub fn constraint_names(&self) -> Option<Vec<String>> {
+    //     #[cfg(feature = "std")]
+    //     {
+    //         self.inner().and_then(|cs| {
+    //             cs.borrow()
+    //                 .constraint_traces
+    //                 .iter()
+    //                 .map(|trace| {
+    //                     let mut constraint_path = String::new();
+    //                     let mut prev_module_path = "";
+    //                     let mut prefixes = ark_std::collections::BTreeSet::new();
+    //                     for step in trace.as_ref()?.path() {
+    //                         let module_path = if prev_module_path ==
+    // step.module_path {                             
+    // prefixes.insert(step.module_path.to_string());                           
+    // String::new()                         } else {
+    //                             let mut parts = step
+    //                                 .module_path
+    //                                 .split("::")
+    //                                 .filter(|&part| part != "r1cs_std" && part !=
+    // "constraints");                             let mut path_so_far =
+    // String::new();                             for part in parts.by_ref() {
+    //                                 if path_so_far.is_empty() {
+    //                                     path_so_far += part;
+    //                                 } else {
+    //                                     path_so_far += &["::", part].join("");
+    //                                 }
+    //                                 if prefixes.contains(&path_so_far) {
+    //                                     continue;
+    //                                 } else {
+    //                                     prefixes.insert(path_so_far.clone());
+    //                                     break;
+    //                                 }
+    //                             }
+    //                             parts.collect::<Vec<_>>().join("::") + "::"
+    //                         };
+    //                         prev_module_path = step.module_path;
+    //                         constraint_path += &["/", &module_path,
+    // step.name].join("");                     }
+    //                     Some(constraint_path)
+    //                 })
+    //                 .collect::<Option<Vec<_>>>()
+    //         })
+    //     }
+    //     #[cfg(not(feature = "std"))]
+    //     {
+    //         None
+    //     }
+    // }
 }
