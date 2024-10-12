@@ -10,9 +10,8 @@ use ark_ff::Field;
 use ark_std::{rc::Rc, string::String, vec::Vec};
 
 use super::{
-    constraint_system::ConstraintSystem, local_predicate::PredicateConstraintSystem,
-    Label, LcIndex, LinearCombination, Matrix, OptimizationGoal, SynthesisError, SynthesisMode,
-    Variable,
+    constraint_system::ConstraintSystem, local_predicate::PredicateConstraintSystem, Label,
+    LcIndex, LinearCombination, Matrix, OptimizationGoal, SynthesisError, SynthesisMode, Variable,
 };
 
 /// A shared reference to a constraint system that can be stored in high level
@@ -44,6 +43,18 @@ impl<F: Field> ConstraintSystemRef<F> {
     #[inline]
     pub fn new(inner: ConstraintSystem<F>) -> Self {
         Self::CS(Rc::new(RefCell::new(inner)))
+    }
+
+    /// Returns the instance assignment of the constraint system
+    /// TODO:Fix the panic
+    pub fn instance_assignment(&self) -> Ref<[F]> {
+        match self {
+            ConstraintSystemRef::None => panic!(),
+            ConstraintSystemRef::CS(cs) => {
+                // Borrow the RefCell immutably and map to instance_assignment slice
+                Ref::map(cs.borrow(), |cs_inner| cs_inner.instance_assignment())
+            },
+        }
     }
 
     /// Returns the number of constraints which is the sum of the number of
@@ -313,7 +324,6 @@ impl<F: Field> ConstraintSystemRef<F> {
         self.call_on_inner(|cs| cs.to_matrices())
     }
 
-
     /// Get the linear combination corresponding to the given `lc_index`.
     /// TODO: This function should return a reference to the linear combination
     /// and not clone it.
@@ -336,8 +346,8 @@ impl<F: Field> ConstraintSystemRef<F> {
     //                     let mut prefixes = ark_std::collections::BTreeSet::new();
     //                     for step in trace.as_ref()?.path() {
     //                         let module_path = if prev_module_path ==
-    // step.module_path {                             
-    // prefixes.insert(step.module_path.to_string());                           
+    // step.module_path {
+    // prefixes.insert(step.module_path.to_string());
     // String::new()                         } else {
     //                             let mut parts = step
     //                                 .module_path
