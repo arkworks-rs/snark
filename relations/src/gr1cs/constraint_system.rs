@@ -110,6 +110,11 @@ impl<F: Field> ConstraintSystem<F> {
         ConstraintSystemRef::new(Self::new())
     }
 
+    /// Returns the instance assignment of the constraint system
+    pub fn instance_assignment(&self) -> &[F] {
+        &self.instance_assignment
+    }
+        
     /// Returns the number of constraints which is the sum of the number of
     /// constraints in each local predicate.
     pub fn num_constraints(&self) -> usize {
