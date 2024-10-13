@@ -115,6 +115,15 @@ impl<F: Field> ConstraintSystem<F> {
         &self.instance_assignment
     }
 
+    /// Returns the number of constraints in each local predicate
+    pub fn predicate_num_constraints(&self) -> BTreeMap<Label, usize> {
+        let mut predicate_num_constraints = BTreeMap::new();
+        for (label, predicate) in self.local_predicates.iter() {
+            predicate_num_constraints.insert(label.clone(), predicate.num_constraints());
+        }
+        predicate_num_constraints
+    }
+
     /// Returns the number of constraints which is the sum of the number of
     /// constraints in each local predicate.
     pub fn num_constraints(&self) -> usize {
@@ -125,7 +134,7 @@ impl<F: Field> ConstraintSystem<F> {
     }
 
     /// Returns the maximum arity of the local predicates.
-    /// Maximum arity is the arity of the stacked local predicates
+    /// Maximum arity is used when stacking the local predicates as Garuda does
     pub fn max_arity(&self) -> usize {
         self.local_predicates
             .values()

@@ -58,10 +58,16 @@ impl<F: Field> ConstraintSystemRef<F> {
     }
 
     /// Returns the maximum arity of the local predicates.
-    /// Maximum arity is the arity of the stacked local predicates
+    /// Maximum arity is used when stacking the local predicates as Garuda does
     pub fn max_arity(&self) -> usize {
         self.inner().map_or(0, |cs| cs.borrow().max_arity())
+    }
 
+    /// Returns the number of constraints in each local predicate
+    pub fn predicate_num_constraints(&self) -> BTreeMap<Label, usize> {
+        self.inner().map_or(BTreeMap::new(), |cs| {
+            cs.borrow().predicate_num_constraints()
+        })
     }
 
     /// Returns the number of constraints which is the sum of the number of
