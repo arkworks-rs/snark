@@ -57,6 +57,13 @@ impl<F: Field> ConstraintSystemRef<F> {
         }
     }
 
+    /// Returns the maximum arity of the local predicates.
+    /// Maximum arity is the arity of the stacked local predicates
+    pub fn max_arity(&self) -> usize {
+        self.inner().map_or(0, |cs| cs.borrow().max_arity())
+
+    }
+
     /// Returns the number of constraints which is the sum of the number of
     /// constraints in each local predicate.    #[inline]
     pub fn num_constraints(&self) -> usize {

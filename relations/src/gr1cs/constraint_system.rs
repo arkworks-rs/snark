@@ -114,7 +114,7 @@ impl<F: Field> ConstraintSystem<F> {
     pub fn instance_assignment(&self) -> &[F] {
         &self.instance_assignment
     }
-        
+
     /// Returns the number of constraints which is the sum of the number of
     /// constraints in each local predicate.
     pub fn num_constraints(&self) -> usize {
@@ -122,6 +122,16 @@ impl<F: Field> ConstraintSystem<F> {
             .values()
             .map(|p| p.num_constraints())
             .sum()
+    }
+
+    /// Returns the maximum arity of the local predicates.
+    /// Maximum arity is the arity of the stacked local predicates
+    pub fn max_arity(&self) -> usize {
+        self.local_predicates
+            .values()
+            .map(|p| p.get_arity())
+            .max()
+            .unwrap_or(0)
     }
 
     /// Returns the number of instance variables.
