@@ -1,6 +1,6 @@
 use ark_circom::{CircomBuilder, CircomConfig};
 use ark_ff::PrimeField;
-use ark_relations::r1cs::{constraint_system::ConstraintSynthesizer, ConstraintSystem};
+use ark_relations::r1cs::{ConstraintSynthesizer, ConstraintSystem};
 use ark_std::path::Path;
 
 pub fn read_constraint_system<F: PrimeField>(
