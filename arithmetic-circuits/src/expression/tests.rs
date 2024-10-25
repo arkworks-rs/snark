@@ -40,7 +40,7 @@ fn test_same_reference() {
     match curious_result.0.deref() {
         ExpressionInner::Mul(_, right) => {
             assert_eq!(right.pointer(), original_f1.pointer())
-        }
+        },
         _ => panic!("Expected a multiplication expression"),
     }
 }

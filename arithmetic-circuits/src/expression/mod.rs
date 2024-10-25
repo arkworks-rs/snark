@@ -78,16 +78,16 @@ impl<F: PrimeField> Expression<F> {
             match node {
                 Node::Variable(label) => {
                     nodes.push(Node::Variable(label));
-                }
+                },
                 Node::Constant(value) => {
                     nodes.push(Node::Constant(value));
-                }
+                },
                 Node::Add(a, b) => {
                     nodes.push(Node::Add(ptr_to_idx[&a], ptr_to_idx[&b]));
-                }
+                },
                 Node::Mul(a, b) => {
                     nodes.push(Node::Mul(ptr_to_idx[&a], ptr_to_idx[&b]));
-                }
+                },
             }
         }
 
@@ -120,10 +120,10 @@ impl<F: PrimeField> Expression<F> {
         match &*self.0 {
             ExpressionInner::Variable(label) => {
                 nodes.insert(self.pointer(), (nodes.len(), Node::Variable(label.clone())));
-            }
+            },
             ExpressionInner::Constant(value) => {
                 nodes.insert(self.pointer(), (nodes.len(), Node::Constant(*value)));
-            }
+            },
             ExpressionInner::Add(a, b) => {
                 nodes.insert(
                     self.pointer(),
@@ -131,7 +131,7 @@ impl<F: PrimeField> Expression<F> {
                 );
                 a.update_map(nodes);
                 b.update_map(nodes);
-            }
+            },
             ExpressionInner::Mul(a, b) => {
                 nodes.insert(
                     self.pointer(),
@@ -139,7 +139,7 @@ impl<F: PrimeField> Expression<F> {
                 );
                 a.update_map(nodes);
                 b.update_map(nodes);
-            }
+            },
         }
     }
 
@@ -281,10 +281,10 @@ impl<F: PrimeField> Display for Expression<F> {
             ExpressionInner::Constant(value) => write!(f, "Constant({:?})<{}>", value, hash),
             ExpressionInner::Add(a, b) => {
                 write!(f, "Add({}, {})<{}>", a.pointer(), b.pointer(), hash)
-            }
+            },
             ExpressionInner::Mul(a, b) => {
                 write!(f, "Mul({}, {})<{}>", a.pointer(), b.pointer(), hash)
-            }
+            },
         }
     }
 }
