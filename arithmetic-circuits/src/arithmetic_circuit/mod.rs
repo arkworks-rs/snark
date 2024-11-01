@@ -9,8 +9,10 @@ use ark_std::{
     convert::From,
     format,
     iter::{IntoIterator, Iterator},
-    option::Option,
-    option::Option::{None, Some},
+    option::{
+        Option,
+        Option::{None, Some},
+    },
     panic,
     prelude::rust_2021::{derive, Debug},
     string::{String, ToString},
@@ -47,7 +49,8 @@ pub enum Node<F> {
 pub struct ArithmeticCircuit<F: PrimeField> {
     /// List of nodes of the circuit
     pub nodes: Vec<Node<F>>,
-    /// Hash map of constants defined in the circuit in order to avoid duplication
+    /// Hash map of constants defined in the circuit in order to avoid
+    /// duplication
     pub constants: BTreeMap<F, usize>,
     /// Map from variable labels to node indices
     pub variables: BTreeMap<String, usize>,

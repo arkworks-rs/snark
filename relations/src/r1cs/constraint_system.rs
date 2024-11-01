@@ -176,7 +176,8 @@ impl<F: Field> ConstraintSystem<F> {
     /// Specify whether this constraint system should aim to optimize weight,
     /// number of constraints, or neither.
     pub fn set_optimization_goal(&mut self, goal: OptimizationGoal) {
-        // `set_optimization_goal` should only be executed before any constraint or value is created.
+        // `set_optimization_goal` should only be executed before any constraint or
+        // value is created.
         assert_eq!(self.num_instance_variables, 1);
         assert_eq!(self.num_witness_variables, 0);
         assert_eq!(self.num_constraints, 0);
@@ -297,15 +298,17 @@ impl<F: Field> ConstraintSystem<F> {
     /// Transform the map of linear combinations.
     /// Specifically, allow the creation of additional witness assignments.
     ///
-    /// This method is used as a subroutine of `inline_all_lcs` and `outline_lcs`.
+    /// This method is used as a subroutine of `inline_all_lcs` and
+    /// `outline_lcs`.
     ///
-    /// The transformer function is given a references of this constraint system (&self),
-    /// number of times used, and a mutable reference of the linear combination to be transformed.
-    ///     (&ConstraintSystem<F>, usize, &mut LinearCombination<F>)
+    /// The transformer function is given a references of this constraint system
+    /// (&self), number of times used, and a mutable reference of the linear
+    /// combination to be transformed.     (&ConstraintSystem<F>, usize,
+    /// &mut LinearCombination<F>)
     ///
-    /// The transformer function returns the number of new witness variables needed
-    /// and a vector of new witness assignments (if not in the setup mode).
-    ///     (usize, Option<Vec<F>>)
+    /// The transformer function returns the number of new witness variables
+    /// needed and a vector of new witness assignments (if not in the setup
+    /// mode).     (usize, Option<Vec<F>>)
     pub fn transform_lc_map(
         &mut self,
         transformer: &mut dyn FnMut(
@@ -1103,7 +1106,8 @@ mod tests {
         // There will be six variables in the system, in the order governed by adding
         // them to the constraint system (Note that the CS is initialised with
         // `Variable::One` in the first position implicitly).
-        // Note also that the all public variables will always be placed before all witnesses
+        // Note also that the all public variables will always be placed before all
+        // witnesses
         //
         // Variable::One
         // Variable::Instance(35)
@@ -1134,7 +1138,8 @@ mod tests {
         // There are four gates(constraints), each generating a row.
         // Resulting matrices:
         // (Note how 2nd & 3rd columns are swapped compared to the online example.
-        // This results from an implementation detail of placing all Variable::Instances(_) first.
+        // This results from an implementation detail of placing all
+        // Variable::Instances(_) first.
         //
         // A
         // [0, 0, 1, 0, 0, 0]
