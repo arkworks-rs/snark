@@ -1,11 +1,22 @@
-use ark_std::{collections::HashMap, fmt::Display};
-use num_bigint::BigUint;
-
-use ark_ff::{BigInteger, PrimeField};
+//! This module contains the core functionality for arithmetic circuits.
+use ark_ff::{BigInteger, BigInteger256, PrimeField};
 use ark_relations::r1cs::{ConstraintMatrices, ConstraintSystem};
-
-#[cfg(any(feature = "examples", test))]
-pub mod examples;
+use ark_std::{
+    assert,
+    clone::Clone,
+    cmp::PartialEq,
+    collections::BTreeMap,
+    convert::From,
+    format,
+    iter::{IntoIterator, Iterator},
+    option::Option,
+    option::Option::{None, Some},
+    panic,
+    prelude::rust_2021::{derive, Debug},
+    string::{String, ToString},
+    unreachable,
+    vec::Vec,
+};
 
 #[cfg(test)]
 mod tests;
@@ -23,8 +34,8 @@ pub enum Node<F> {
     /// Addition gate with indices of its left and right input within a larger
     /// circuit
     Add(usize, usize),
-    // Multiplication gate with indices of its left and right input within a
-    // larger circuit
+    /// Multiplication gate with indices of its left and right input within a
+    /// larger circuit
     Mul(usize, usize),
 }
 
@@ -34,13 +45,13 @@ pub enum Node<F> {
 /// directed acyclic graph where nodes are either variables, constants, or
 /// gates for addition and multiplication.
 pub struct ArithmeticCircuit<F: PrimeField> {
-    // List of nodes of the circuit
+    /// List of nodes of the circuit
     pub nodes: Vec<Node<F>>,
-    // Hash map of constants defined in the circuit in order to avoid duplication
-    pub constants: HashMap<F, usize>,
-    // Map from variable labels to node indices
-    pub variables: HashMap<String, usize>,
-    // Big-endian bit decomposition of F::MODULUS - 1, without initial zeros
+    /// Hash map of constants defined in the circuit in order to avoid duplication
+    pub constants: BTreeMap<F, usize>,
+    /// Map from variable labels to node indices
+    pub variables: BTreeMap<String, usize>,
+    /// Big-endian bit decomposition of F::MODULUS - 1, without initial zeros
     pub(crate) unit_group_bits: Option<Vec<bool>>,
 }
 
@@ -49,8 +60,8 @@ impl<F: PrimeField> ArithmeticCircuit<F> {
     pub fn new() -> Self {
         Self {
             nodes: Vec::new(),
-            constants: HashMap::new(),
-            variables: HashMap::new(),
+            constants: BTreeMap::new(),
+            variables: BTreeMap::new(),
             unit_group_bits: Option::None,
         }
     }
@@ -122,17 +133,14 @@ impl<F: PrimeField> ArithmeticCircuit<F> {
         self.new_variable_with_label(&format!("var_{}", self.num_variables()))
     }
 
+    /// Creates `num` new variables
     pub fn new_variables(&mut self, num: usize) -> Vec<usize> {
         (0..num).map(|_| self.new_variable()).collect()
     }
 
+    /// Returns the index of the variable with label `label`
     pub fn get_variable(&self, label: &str) -> usize {
         *self.variables.get(label).expect("Variable not in circuit")
-    }
-
-    /// Adds the two nodes without checking that they are in the circuit
-    fn add_unchecked(&mut self, left: usize, right: usize) -> usize {
-        self.push_node(Node::Add(left, right))
     }
 
     /// Adds the two nodes, checking that they are in the circuit
@@ -175,7 +183,7 @@ impl<F: PrimeField> ArithmeticCircuit<F> {
     }
 
     /// Computes node^exponent, where exponent is a BigUint
-    pub fn pow_bigint(&mut self, node: usize, exponent: BigUint) -> usize {
+    pub fn pow_bigint(&mut self, node: usize, exponent: BigInteger256) -> usize {
         assert!(
             node < self.num_nodes(),
             "Base node ({node}) not in the circuit (which contains {} nodes)",
@@ -183,9 +191,9 @@ impl<F: PrimeField> ArithmeticCircuit<F> {
         );
 
         let binary_decomposition = exponent
-            .to_radix_be(2)
+            .to_bits_be()
             .into_iter()
-            .map(|b| b == 1)
+            .map(|b| b)
             .skip_while(|b| !b)
             .collect::<Vec<_>>();
 
@@ -194,7 +202,7 @@ impl<F: PrimeField> ArithmeticCircuit<F> {
 
     /// Computes node^exponent, where exponent is a usize
     pub fn pow(&mut self, node: usize, exponent: usize) -> usize {
-        self.pow_bigint(node, exponent.into())
+        self.pow_bigint(node, BigInteger256::from(exponent as u64))
     }
 
     // Standard square-and-multiply. The first bit is always one, so we can
@@ -456,7 +464,9 @@ impl<F: PrimeField> ArithmeticCircuit<F> {
         self.evaluate_node_with_labels(vars, self.last())
     }
 
-    fn print_evaluation_trace(&self, var_assignment: Vec<(usize, F)>, node: usize) {
+    /// Prints the evaluation trace for a given variable assignment and node
+    #[cfg(feature = "std")]
+    pub fn print_evaluation_trace(&self, var_assignment: Vec<(usize, F)>, node: usize) {
         println!("Arithmetic circuit with {} nodes:", self.num_nodes());
 
         let evaluations = self.evaluation_trace(var_assignment, node);
@@ -476,7 +486,9 @@ impl<F: PrimeField> ArithmeticCircuit<F> {
         }
     }
 
-    fn print_evaluation_trace_multioutput(
+    /// Similar to `print_evaluation_trace`, but allowing for multiple outputs
+    #[cfg(feature = "std")]
+    pub fn print_evaluation_trace_multioutput(
         &self,
         var_assignment: Vec<(usize, F)>,
         outputs: &Vec<usize>,
@@ -577,6 +589,7 @@ impl<F: PrimeField> ArithmeticCircuit<F> {
     }
 }
 
+#[cfg(feature = "std")]
 impl<F: PrimeField> Display for Node<F> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -588,6 +601,7 @@ impl<F: PrimeField> Display for Node<F> {
     }
 }
 
+#[cfg(feature = "std")]
 impl<F: PrimeField> Display for ArithmeticCircuit<F> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         writeln!(f, "Arithmetic circuit with {} nodes:", self.num_nodes())?;
@@ -602,12 +616,12 @@ impl<F: PrimeField> Display for ArithmeticCircuit<F> {
 // Discards duplicated constants and updates all gate relations accordingly
 pub(crate) fn filter_constants<F: PrimeField>(
     nodes: &Vec<Node<F>>,
-) -> (Vec<Node<F>>, HashMap<F, usize>) {
+) -> (Vec<Node<F>>, BTreeMap<F, usize>) {
     // Map of unique constants mapping sending value to final position
-    let mut constants = HashMap::new();
+    let mut constants = BTreeMap::new();
 
     // Mapping from original indices to post-constant-removal indices
-    let mut filtered_indices = HashMap::new();
+    let mut filtered_indices = BTreeMap::new();
 
     let mut removed_constants = 0;
 

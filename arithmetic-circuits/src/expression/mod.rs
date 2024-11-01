@@ -1,16 +1,18 @@
+//! This module contains the core functionality for arithmetic expressions.
 use crate::arithmetic_circuit::{filter_constants, ArithmeticCircuit, Node};
 use ark_ff::PrimeField;
 use ark_std::{
-    collections::HashMap,
-    fmt::Display,
-    iter::{Product, Sum},
+    clone::Clone,
+    collections::BTreeMap,
+    convert::{AsRef, From},
+    iter::{FromIterator, IntoIterator, Iterator, Product, Sum},
     ops::{Add, AddAssign, Mul, MulAssign, Neg, Sub, SubAssign},
+    option::Option::{None, Some},
     rc::Rc,
+    string::{String, ToString},
+    vec::Vec,
 };
 use itertools::Itertools;
-
-#[cfg(any(feature = "examples", test))]
-pub mod examples;
 
 #[cfg(test)]
 mod tests;
@@ -78,13 +80,13 @@ impl<F: PrimeField> Expression<F> {
 
     /// Converts the expression into an `ArithmeticCircuit`.
     pub fn to_arithmetic_circuit(&self) -> ArithmeticCircuit<F> {
-        let mut nodes = HashMap::new();
+        let mut nodes = BTreeMap::new();
         self.update_map(&mut nodes);
 
         let ptr_to_idx = nodes
             .iter()
             .map(|(ptr, (idx, _))| (*ptr, nodes.len() - idx - 1))
-            .collect::<HashMap<_, _>>();
+            .collect::<BTreeMap<_, _>>();
 
         let sorted_nodes = nodes
             .into_iter()
@@ -112,7 +114,7 @@ impl<F: PrimeField> Expression<F> {
 
         let (nodes, constants) = filter_constants(&nodes);
 
-        let variables = HashMap::from_iter(nodes.iter().enumerate().filter_map(|(i, node)| {
+        let variables = BTreeMap::from_iter(nodes.iter().enumerate().filter_map(|(i, node)| {
             if let Node::Variable(label) = node {
                 Some((label.clone(), i))
             } else {
@@ -132,7 +134,7 @@ impl<F: PrimeField> Expression<F> {
         self.0.as_ref() as *const _ as usize
     }
 
-    fn update_map(&self, nodes: &mut HashMap<usize, (usize, Node<F>)>) {
+    fn update_map(&self, nodes: &mut BTreeMap<usize, (usize, Node<F>)>) {
         if nodes.contains_key(&self.pointer()) {
             return;
         }
@@ -297,6 +299,7 @@ impl<F: PrimeField> Product for Expression<F> {
     }
 }
 
+#[cfg(feature = "std")]
 impl<F: PrimeField> Display for Expression<F> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let hash = self.pointer();

@@ -14,18 +14,16 @@ edition.workspace = true
 [dependencies]
 ark-std.workspace = true
 ark-ff.workspace = true
-ark-ec = { version = "0.5.0-alpha", default-features = false }
-ark-circom = { git = "https://github.com/arkworks-rs/circom-compat", branch = "release-0.5" }
 ark-relations = { version = "0.5.0-alpha", default-features = false }
-ark-bn254 = { version = "0.5.0-alpha", default-features = false, features = [ "curve" ] }
-ark-bls12-377 = { version = "0.5.0-alpha", default-features = false, features = [ "curve" ] }
-itertools = "0.13.0"
-num-bigint = "0.4.0"
+itertools = { version = "0.13.0", default-features = false }
 
 [dev-dependencies]
 tokio = { version = "1", features = [ "full" ] }
+ark-ec = { version = "0.5.0-alpha", default-features = false }
+ark-circom = { git = "https://github.com/arkworks-rs/circom-compat", branch = "release-0.5" }
+ark-bn254 = { version = "0.5.0-alpha", default-features = false, features = [ "curve" ] }
+ark-bls12-377 = { version = "0.5.0-alpha", default-features = false, features = [ "curve" ] }
 
 [features]
-default = []
-std = [ "ark-ff/std", "ark-ec/std", "ark-std/std", "ark-relations/std" ]
-examples = [ "std" ]
+default = [ "itertools/use_alloc" ]
+std = [ "ark-ff/std", "ark-ec/std", "ark-std/std", "ark-relations/std", "itertools/use_alloc" ]
