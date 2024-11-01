@@ -5,6 +5,7 @@ use ark_std::{
     clone::Clone,
     collections::BTreeMap,
     convert::{AsRef, From},
+    fmt::{Display, Formatter, Result},
     iter::{FromIterator, IntoIterator, Iterator, Product, Sum},
     ops::{Add, AddAssign, Mul, MulAssign, Neg, Sub, SubAssign},
     option::Option::{None, Some},
@@ -299,9 +300,8 @@ impl<F: PrimeField> Product for Expression<F> {
     }
 }
 
-#[cfg(feature = "std")]
 impl<F: PrimeField> Display for Expression<F> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
         let hash = self.pointer();
         match &*self.0 {
             ExpressionInner::Variable(label) => write!(f, "Variable({})<{}>", label, hash),

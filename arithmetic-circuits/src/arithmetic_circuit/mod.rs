@@ -7,6 +7,7 @@ use ark_std::{
     cmp::PartialEq,
     collections::BTreeMap,
     convert::From,
+    fmt::{Display, Formatter, Result},
     format,
     iter::{IntoIterator, Iterator},
     option::{
@@ -592,9 +593,8 @@ impl<F: PrimeField> ArithmeticCircuit<F> {
     }
 }
 
-#[cfg(feature = "std")]
 impl<F: PrimeField> Display for Node<F> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
         match self {
             Node::Variable(label) => write!(f, "{}", label),
             Node::Constant(c) => write!(f, "Constant({})", c),
@@ -604,9 +604,8 @@ impl<F: PrimeField> Display for Node<F> {
     }
 }
 
-#[cfg(feature = "std")]
 impl<F: PrimeField> Display for ArithmeticCircuit<F> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
         writeln!(f, "Arithmetic circuit with {} nodes:", self.num_nodes())?;
 
         for (index, node) in self.nodes.iter().enumerate() {
