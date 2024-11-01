@@ -1,22 +1,22 @@
 [package]
 name = "ark-snark"
-version = "0.5.0-alpha.0"
-authors = [ "arkworks contributors" ]
+version.workspace = true
+authors.workspace = true
 description = "A library for SNARK traits"
-homepage = "https://arkworks.rs"
-repository = "https://github.com/arkworks-rs/snark"
+homepage.workspace = true
+repository.workspace = true
 documentation = "https://docs.rs/ark-snark/"
 keywords = ["zero-knowledge", "cryptography", "zkSNARK", "SNARK"]
 categories = ["cryptography"]
 include = ["Cargo.toml", "src", "README.md", "LICENSE-APACHE", "LICENSE-MIT"]
-license = "MIT/Apache-2.0"
-edition = "2021"
+license.workspace = true
+edition.workspace = true
 
 [dependencies]
-ark-ff = { version = "0.5.0-alpha", default-features = false }
-ark-std = { version = "0.5.0-alpha", default-features = false }
-ark-serialize = { version = "0.5.0-alpha", default-features = false }
-ark-relations = { version = "0.5.0-alpha", path = "../relations", default-features = false }
+ark-ff.workspace = true
+ark-std.workspace = true
+ark-serialize.workspace = true
+ark-relations = { version = "0.5", path = "../relations", default-features = false }
 
 [features]
 std = [ "ark-std/std", "ark-ff/std", "ark-serialize/std" ]
