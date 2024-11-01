@@ -21,23 +21,6 @@ mod tests;
 /// let y = Expression::Variable("y");
 /// let output = y.pow(2) - x.pow(3) + 1
 
-/// Syntax summary:
-/// - Expression::variable(id) creates a variable with the given ID.
-///
-/// - Expression::constant(value) creates a constant with the given F value.
-///
-/// - +, - and * are overloaded to mean addition, subtraction a nd multiplication of expressions
-///   Their assigning counterparts +=, -=, *= are also overloaded.
-///
-/// - Constants in the form of F can be used as operands on the right-hand side only.
-///   This is due to the implementation for i32 from the next point.
-///   E.g.: F::from(3) * exp, F::ONE * exp, and exp * F::from(3) are all valid
-///   However, 3 * exp, -5 * exp, and exp * 3 are not.
-///
-/// - Constants in the form of i32 (where F: From<i32>) can be used as operands on the left-hand side only.
-///   This is due to i32 and PrimeField both being foreign types.
-///   E.g. 1 + exp and -5 * exp are both valid, equivalent to F::from(1) + exp and F::from(-5) * exp, respectively.
-///   However, exp + 1, exp - 3 and exp * -5 are not.
 enum ExpressionInner<F: PrimeField> {
     Variable(String),
     Constant(F),
@@ -45,19 +28,55 @@ enum ExpressionInner<F: PrimeField> {
     Mul(Expression<F>, Expression<F>),
 }
 
-// New type pattern necessary so that we can implement operators such as +,
-// which we can't directly do on the foreign type Rc<ExpressionInner<F>>
+/// Represents an arithmetic expression over a field F. An expression is a
+/// combination of products and sums of constants and variables. It is
+/// represented as a pointer to an `ExpressionInner<F>`, which is a
+/// reference-counted enum that can be one of the following:
+/// - Variable(String): a variable with a given label.
+/// - Constant(F): a constant value in the field F.
+/// - Add(Expression<F>, Expression<F>): the sum of two expressions.
+/// - Mul(Expression<F>, Expression<F>): the product of two expressions.
+///
+/// Expressions expose a user-friendly way to construct arithmetic circuits,
+/// with syntax along the lines of:
+/// let x = Expression::Variable("x");
+/// let y = Expression::Variable("y");
+/// let output = y.pow(2) - x.pow(3) + 1
+///
+/// Syntax summary:
+/// - Expression::variable(id) creates a variable with the given ID.
+///
+/// - Expression::constant(value) creates a constant with the given F value.
+///
+/// - +, - and * are overloaded to mean addition, subtraction a nd
+///   multiplication of expressions Their assigning counterparts +=, -=, *= are
+///   also overloaded.
+///
+/// - Constants in the form of F can be used as operands on the right-hand side
+///   only. This is due to the implementation for i32 from the next point. E.g.:
+///   F::from(3) * exp, F::ONE * exp, and exp * F::from(3) are all valid
+///   However, 3 * exp, -5 * exp, and exp * 3 are not.
+///
+/// - Constants in the form of i32 (where F: From<i32>) can be used as operands
+///   on the left-hand side only. This is due to i32 and PrimeField both being
+///   foreign types. E.g. 1 + exp and -5 * exp are both valid, equivalent to
+///   F::from(1) + exp and F::from(-5) * exp, respectively. However, exp + 1,
+///   exp - 3 and exp * -5 are not.
 pub struct Expression<F: PrimeField>(Rc<ExpressionInner<F>>);
 
 impl<F: PrimeField> Expression<F> {
+    /// Creates an expression representing a constant value.
     pub fn constant(value: F) -> Self {
         Expression(Rc::new(ExpressionInner::Constant(value)))
     }
 
+    /// Creates an expression representing a variable with a given label.
+    /// The label must be unique.
     pub fn variable(label: &str) -> Self {
         Expression(Rc::new(ExpressionInner::Variable(label.to_string())))
     }
 
+    /// Converts the expression into an `ArithmeticCircuit`.
     pub fn to_arithmetic_circuit(&self) -> ArithmeticCircuit<F> {
         let mut nodes = HashMap::new();
         self.update_map(&mut nodes);
@@ -143,10 +162,13 @@ impl<F: PrimeField> Expression<F> {
         }
     }
 
+    /// Computes the scalar product of two vectors of expressions.
     pub fn scalar_product(a: Vec<Expression<F>>, b: Vec<Expression<F>>) -> Expression<F> {
         a.into_iter().zip(b).map(|(a, b)| a * b).sum()
     }
 
+    /// Computes the scalar product of a sparse vector of field elements and a
+    /// vector of expressions.
     pub fn sparse_scalar_product(a: &Vec<(F, usize)>, b: &Vec<Expression<F>>) -> Expression<F> {
         a.iter()
             .map(|(a, i)| b[*i].clone() * *a)
@@ -155,6 +177,8 @@ impl<F: PrimeField> Expression<F> {
             .sum()
     }
 
+    /// Computes the power of an expression using a square-and-multiply
+    /// strategy.
     pub fn pow(self, rhs: usize) -> Self {
         if rhs == 0 {
             return self;

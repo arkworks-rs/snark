@@ -3,11 +3,13 @@ use ark_bls12_377::Fq as FqBLS;
 use ark_bn254::Fr as FrBN;
 use ark_ff::Field;
 
-// Defining equation of BLS12-377: y^2 = x^3 + 1 (over Fq)
+/// Generates the arithmetic circuit for the BLS12-377 elliptic curve.
+///
+/// The curve is defined by the equation:
+/// 1 + (1 + x^3 - y^2) = 1
 pub fn generate_bls12_377_circuit() -> ArithmeticCircuit<FqBLS> {
     let mut circuit = ArithmeticCircuit::new();
 
-    // Ligero circuits must start with a constant 1
     let one = circuit.constant(FqBLS::ONE);
 
     let x = circuit.new_variable_with_label("x");
@@ -17,32 +19,15 @@ pub fn generate_bls12_377_circuit() -> ArithmeticCircuit<FqBLS> {
     let minus_y_squared = circuit.minus(y_squared);
     let x_cubed = circuit.pow(x, 3);
 
-    // Ligero will prove x^3 + 1 - y^2 + 1 = 1 Note that one could compute the
-    // left-hand side as x^3 + 2 - y^2 in order to save one addition gate
     circuit.add_nodes([x_cubed, one, minus_y_squared, one]);
     circuit
-
-    // n_i = 2, s = 8
-
-    // Original circuit
-    //     0: Constant(1)
-    //     1: Variable
-    //     2: Variable
-    //     3: node(2) * node(2)
-    //     4: Constant(21888242871839275222246405745257275088696311157297823662689037894645226208582)
-    //     5: node(4) * node(3)
-    //     6: node(1) * node(1)
-    //     7: node(6) * node(1)
-    //     8: node(7) + node(0)
-    //     9: node(8) + node(5)
-    //     10: node(9) + node(0)
 }
 
+/// Generates the arithmetic circuit for the lemniscate curve defined by:
 /// (x^2 + y^2)^2 - 120x^2 + 80y^2 + 1 = 1
 pub fn generate_lemniscate_circuit() -> ArithmeticCircuit<FrBN> {
     let mut circuit = ArithmeticCircuit::new();
 
-    // Ligero circuits must start with a constant 1
     let one = circuit.constant(FrBN::ONE);
 
     let x = circuit.new_variable();
@@ -67,10 +52,10 @@ pub fn generate_lemniscate_circuit() -> ArithmeticCircuit<FrBN> {
     circuit
 }
 
+/// Generates the arithmetic circuit for the determinant of a 3x3 matrix.
 pub fn generate_3_by_3_determinant_circuit() -> ArithmeticCircuit<FrBN> {
     let mut circuit = ArithmeticCircuit::new();
 
-    // Ligero circuits must start with a constant 1
     let one = circuit.constant(FrBN::ONE);
 
     let vars = circuit.new_variables(9);

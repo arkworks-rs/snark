@@ -2,6 +2,10 @@ use super::Expression;
 use ark_bls12_377::Fq;
 use ark_bn254::Fr;
 
+/// Generates the expression for the BLS12-377 elliptic curve.
+///
+/// The curve is defined by the equation:
+/// 1 + (1 + x^3 - y^2) = 1
 pub fn generate_bls12_377_expression() -> Expression<Fq> {
     let x = Expression::variable("x");
     let y = Expression::variable("y");
@@ -9,6 +13,7 @@ pub fn generate_bls12_377_expression() -> Expression<Fq> {
     1 + (1 + x.pow(3) - y.pow(2))
 }
 
+/// Generates the expression for the lemniscate curve defined by:
 /// (x^2 + y^2)^2 - 120x^2 + 80y^2 + 1 = 1
 pub fn generate_lemniscate_expression() -> Expression<Fr> {
     let x = Expression::variable("x");
@@ -17,6 +22,7 @@ pub fn generate_lemniscate_expression() -> Expression<Fr> {
     1 + (x.clone().pow(2) + y.clone().pow(2)).pow(2) - 120 * x.pow(2) + 80 * y.pow(2)
 }
 
+/// Generates the expression for the determinant of a 3x3 matrix.
 pub fn generate_3_by_3_determinant_expression() -> Expression<Fr> {
     let matrix = (0..3)
         .map(|i| {

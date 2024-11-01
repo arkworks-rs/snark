@@ -10,6 +10,8 @@ pub mod examples;
 #[cfg(test)]
 mod tests;
 
+/// Represents a node in an arithmetic circuit. A node is either a variable, a
+/// constant, or a gate.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Node<F> {
     /// Variable set individually for each execution
@@ -27,6 +29,10 @@ pub enum Node<F> {
 }
 
 #[derive(Debug, Clone, PartialEq)]
+
+/// Represents an arithmetic circuit over a field F. An arithmetic circuit is a
+/// directed acyclic graph where nodes are either variables, constants, or
+/// gates for addition and multiplication.
 pub struct ArithmeticCircuit<F: PrimeField> {
     // List of nodes of the circuit
     pub nodes: Vec<Node<F>>,
@@ -39,32 +45,7 @@ pub struct ArithmeticCircuit<F: PrimeField> {
 }
 
 impl<F: PrimeField> ArithmeticCircuit<F> {
-    pub fn num_nodes(&self) -> usize {
-        self.nodes.len()
-    }
-
-    pub fn num_constants(&self) -> usize {
-        self.constants.len()
-    }
-
-    pub fn num_variables(&self) -> usize {
-        self.variables.len()
-    }
-
-    pub fn last(&self) -> usize {
-        self.nodes.len() - 1
-    }
-
-    pub fn num_gates(&self) -> usize {
-        self.nodes
-            .iter()
-            .filter(|node| match node {
-                Node::Add(_, _) | Node::Mul(_, _) => true,
-                _ => false,
-            })
-            .count()
-    }
-
+    /// Creates a new, empty arithmetic circuit.
     pub fn new() -> Self {
         Self {
             nodes: Vec::new(),
@@ -72,6 +53,37 @@ impl<F: PrimeField> ArithmeticCircuit<F> {
             variables: HashMap::new(),
             unit_group_bits: Option::None,
         }
+    }
+
+    /// Returns the number of nodes in the circuit.
+    pub fn num_nodes(&self) -> usize {
+        self.nodes.len()
+    }
+
+    /// Returns the number of constants in the circuit.
+    pub fn num_constants(&self) -> usize {
+        self.constants.len()
+    }
+
+    /// Returns the number of variables in the circuit.
+    pub fn num_variables(&self) -> usize {
+        self.variables.len()
+    }
+
+    /// Returns the index of the last node in the circuit.
+    pub fn last(&self) -> usize {
+        self.nodes.len() - 1
+    }
+
+    /// Returns the number of addition and multiplication gates in the circuit.
+    pub fn num_gates(&self) -> usize {
+        self.nodes
+            .iter()
+            .filter(|node| match node {
+                Node::Add(..) | Node::Mul(..) => true,
+                _ => false,
+            })
+            .count()
     }
 
     /// Returns existing constant with value `value` if it exists, or creates a
@@ -90,7 +102,6 @@ impl<F: PrimeField> ArithmeticCircuit<F> {
     ///
     /// # Panics
     /// Panics if the circuit already contains a variable with name `var_N`
-    //
     // Receiving &str to ease caller syntax
     pub fn new_variable_with_label(&mut self, label: &str) -> usize {
         let index = self.push_node(Node::Variable(label.to_string()));
@@ -202,7 +213,8 @@ impl<F: PrimeField> ArithmeticCircuit<F> {
         current
     }
 
-    /// Computes the node x^(F::MODULUS - 1), which is 0 if x = 0 and 1 otherwise
+    /// Computes the node x^(F::MODULUS - 1), which is 0 if x = 0 and 1
+    /// otherwise
     pub fn indicator(&mut self, node: usize) -> usize {
         let unit_group_bits = self
             .unit_group_bits
@@ -226,8 +238,8 @@ impl<F: PrimeField> ArithmeticCircuit<F> {
     }
 
     /// Computes the scalar product of two vectors of nodes. Does NOT perform
-    /// optimisations by, for instance, skipping multiplication of the form 1 * x
-    /// or 0 * x, or omitting addition of zero terms.
+    /// optimisations by, for instance, skipping multiplication of the form 1 *
+    /// x or 0 * x, or omitting addition of zero terms.
     pub fn scalar_product(
         &mut self,
         left: impl IntoIterator<Item = usize>,
@@ -265,8 +277,8 @@ impl<F: PrimeField> ArithmeticCircuit<F> {
                 let right_value = node_assignments[*right].unwrap();
 
                 node_assignments[node_index] = Some(match node {
-                    Node::Add(_, _) => left_value + right_value,
-                    Node::Mul(_, _) => left_value * right_value,
+                    Node::Add(..) => left_value + right_value,
+                    Node::Mul(..) => left_value * right_value,
                     _ => unreachable!(),
                 });
             },
@@ -275,10 +287,13 @@ impl<F: PrimeField> ArithmeticCircuit<F> {
 
     // ************************ Evaluation functions ***************************
 
-    // Evaluate all nodes required to compute the output node, returning the
-    // full vector of intermediate node values. Nodes not involved in the
-    // computation (and not passed as part of the variable assignment) are left
-    // as None
+    /// Evaluate all nodes required to compute the output node, returning the
+    /// full vector of intermediate node values. Nodes not involved in the
+    /// computation (and not passed as part of the variable assignment) are left
+    /// as None
+    ///
+    /// # Panics
+    /// Panics if a variable index is not found in the circuit.
     pub fn evaluation_trace(&self, vars: Vec<(usize, F)>, node: usize) -> Vec<Option<F>> {
         let mut node_assignments = self
             .nodes
@@ -308,6 +323,11 @@ impl<F: PrimeField> ArithmeticCircuit<F> {
         node_assignments
     }
 
+    /// Similar to `evaluation_trace`, but using variable labels instead of
+    /// node indices.
+    ///
+    /// # Panics
+    /// Panics if a variable label is not found in the circuit.
     pub fn evaluation_trace_with_labels(
         &self,
         vars: Vec<(&str, F)>,
@@ -321,10 +341,15 @@ impl<F: PrimeField> ArithmeticCircuit<F> {
         self.evaluation_trace(vars, node)
     }
 
-    // Evaluate all nodes required to compute all output nodes, returning the
-    // full vector of intermediate node values. Nodes not involved in the
-    // computation (and not passed as part of the variable assignment) are left
-    // as None
+    /// Similar to `evaluation_trace`, but evaluating multiple output nodes.
+    /// This function is useful for evaluating constraints, in the case of
+    /// rank-1 constraints, this corresponds to evaluating the constraint for
+    /// multiple different assignments to the instance and witness variables
+    /// simultaneously. Returns a vector of `Option<F>` values which are `Some`
+    /// if the node is set, and `None` otherwise.
+    ///
+    /// # Panics
+    /// Panics if a variable label is not found in the circuit.
     pub fn evaluation_trace_multioutput(
         &self,
         vars: Vec<(usize, F)>,
@@ -360,6 +385,11 @@ impl<F: PrimeField> ArithmeticCircuit<F> {
         node_assignments
     }
 
+    /// Similar to `evaluation_trace_multioutput`, but using variable labels
+    /// instead of node indices.
+    ///
+    /// # Panics
+    /// Panics if a variable label is not found in the circuit.
     pub fn evaluation_trace_multioutput_with_labels(
         &self,
         vars: Vec<(&str, F)>,
@@ -373,14 +403,25 @@ impl<F: PrimeField> ArithmeticCircuit<F> {
         self.evaluation_trace_multioutput(vars, outputs)
     }
 
+    /// Evaluates a single node, returning the value of the node.
+    ///
+    /// # Panics
+    /// Panics if the node is not assigned a value.
     pub fn evaluate_node(&self, vars: Vec<(usize, F)>, node: usize) -> F {
         self.evaluation_trace(vars, node)[node].unwrap()
     }
 
+    /// Similar to `evaluate_node`, but using variable labels instead of node
+    /// indices.
+    ///
+    /// # Panics
+    /// Panics if the node is not assigned a value.
     pub fn evaluate_node_with_labels(&self, vars: Vec<(&str, F)>, node: usize) -> F {
         self.evaluation_trace_with_labels(vars, node)[node].unwrap()
     }
 
+    /// Similar to `evaluation_trace_multioutput`, but returning the values of
+    /// only the output nodes.
     pub fn evaluate_multioutput(&self, vars: Vec<(usize, F)>, outputs: &Vec<usize>) -> Vec<F> {
         self.evaluation_trace_multioutput(vars, outputs)
             .into_iter()
@@ -389,6 +430,8 @@ impl<F: PrimeField> ArithmeticCircuit<F> {
             .collect()
     }
 
+    /// Similar to `evaluate_multioutput`, but using variable labels instead of
+    /// node indices.
     pub fn evaluate_multioutput_with_labels(
         &self,
         vars: Vec<(&str, F)>,
@@ -401,10 +444,14 @@ impl<F: PrimeField> ArithmeticCircuit<F> {
             .collect()
     }
 
+    /// Evaluates the circuit at the last node, returning the value of the last
+    /// node.
     pub fn evaluate(&self, vars: Vec<(usize, F)>) -> F {
         self.evaluate_node(vars, self.last())
     }
 
+    /// Similar to `evaluate`, but using variable labels instead of node
+    /// indices.
     pub fn evaluate_with_labels(&self, vars: Vec<(&str, F)>) -> F {
         self.evaluate_node_with_labels(vars, self.last())
     }
@@ -455,6 +502,13 @@ impl<F: PrimeField> ArithmeticCircuit<F> {
 
     // ************************ Compilation functions **************************
 
+    /// Compiles an R1CS constraint system into an arithmetic circuit. The
+    /// R1CS constraint system is parsed row by row, and each row is compiled
+    /// into a sequence of addition and multiplication gates. The output of the
+    /// function is a tuple containing the compiled circuit and a vector of
+    /// indices corresponding to the output nodes. Given a valid assignment to
+    /// the variables, the values of the output nodes will be one iff the
+    /// constraint is satisfied.
     pub fn from_constraint_system(cs: &ConstraintSystem<F>) -> (Self, Vec<usize>) {
         let ConstraintMatrices { a, b, c, .. } = cs.to_matrices().unwrap();
 
@@ -597,8 +651,8 @@ pub(crate) fn filter_constants<F: PrimeField>(
                         _ => *filtered_indices.get(right).unwrap(),
                     };
                     match node {
-                        Node::Add(_, _) => Some(Node::Add(updated_left, updated_right)),
-                        Node::Mul(_, _) => Some(Node::Mul(updated_left, updated_right)),
+                        Node::Add(..) => Some(Node::Add(updated_left, updated_right)),
+                        Node::Mul(..) => Some(Node::Mul(updated_left, updated_right)),
                         _ => unreachable!(),
                     }
                 },
