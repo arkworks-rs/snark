@@ -1,15 +1,15 @@
 [package]
 name = "ark-arithmetic-circuits"
-version = "0.5.0-alpha.0"
-authors = [ "arkworks contributors" ]
+version.workspace = true
+authors.workspace = true
 description = "A library for arithmetic circuits"
-homepage = "https://arkworks.rs"
-repository = "https://github.com/arkworks-rs/snark"
+homepage.workspace = true
+repository.workspace = true
 keywords = ["zero-knowledge", "cryptography", "arithmetic-circuits"]
 categories = ["cryptography"]
 include = ["Cargo.toml", "src", "README.md", "LICENSE-APACHE", "LICENSE-MIT"]
-license = "MIT/Apache-2.0"
-edition = "2021"
+license.workspace = true
+edition.workspace = true
 
 [dependencies]
 ark-std.workspace = true
@@ -24,9 +24,6 @@ num-bigint = "0.4.0"
 
 [dev-dependencies]
 tokio = { version = "1", features = [ "full" ] }
-
-[patch.crates-io]
-ark-relations = { path = "../relations" }
 
 [features]
 default = []

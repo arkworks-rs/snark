@@ -19,5 +19,5 @@ ark-serialize.workspace = true
 ark-relations = { version = "0.5", path = "../relations", default-features = false }
 
 [features]
+default = []
 std = [ "ark-std/std", "ark-ff/std", "ark-serialize/std" ]
-default = [ "std" ]
