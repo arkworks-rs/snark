@@ -2,12 +2,67 @@ use ark_bls12_377::{Fq, G1Affine};
 use ark_bn254::Fr;
 use ark_ec::short_weierstrass::Affine;
 use ark_ff::{Field, UniformRand};
-use ark_std::{collections::HashMap, ops::Deref, test_rng};
+use ark_std::{collections::BTreeMap, ops::Deref, test_rng};
 use itertools::Itertools;
 
-use crate::{arithmetic_circuit::Node, expression::examples::*};
+use crate::arithmetic_circuit::Node;
 
 use super::{Expression, ExpressionInner};
+
+/// Generates the expression for the BLS12-377 elliptic curve.
+///
+/// The curve is defined by the equation:
+/// 1 + (1 + x^3 - y^2) = 1
+fn generate_bls12_377_expression() -> Expression<Fq> {
+    let x = Expression::variable("x");
+    let y = Expression::variable("y");
+
+    1 + (1 + x.pow(3) - y.pow(2))
+}
+
+/// Generates the expression for the lemniscate curve defined by:
+/// (x^2 + y^2)^2 - 120x^2 + 80y^2 + 1 = 1
+fn generate_lemniscate_expression() -> Expression<Fr> {
+    let x = Expression::variable("x");
+    let y = Expression::variable("y");
+
+    1 + (x.clone().pow(2) + y.clone().pow(2)).pow(2) - 120 * x.pow(2) + 80 * y.pow(2)
+}
+
+/// Generates the expression for the determinant of a 3x3 matrix.
+fn generate_3_by_3_determinant_expression() -> Expression<Fr> {
+    let matrix = (0..3)
+        .map(|i| {
+            (0..3)
+                .map(|j| Expression::variable(&format!("x_{i}_{j}")))
+                .collect::<Vec<_>>()
+        })
+        .collect::<Vec<_>>();
+
+    let possitive_diagonal = (0..3)
+        .map(|k| {
+            vec![0, 4, 8]
+                .into_iter()
+                .zip(0..3)
+                .map(|(j, i)| matrix[i][(j + k) % 3].clone())
+                .product()
+        })
+        .sum::<Expression<Fr>>();
+
+    let negative_diagonal = (0..3)
+        .map(|k| {
+            vec![2, 4, 6]
+                .into_iter()
+                .zip(0..3)
+                .map(|(j, i)| matrix[i][(j + k) % 3].clone())
+                .product()
+        })
+        .sum::<Expression<Fr>>();
+
+    let det = Expression::variable("det");
+
+    1 + (possitive_diagonal - negative_diagonal - det)
+}
 
 #[test]
 fn test_get_variables() {
@@ -195,7 +250,7 @@ fn test_to_arithmetic_circuit_1() {
         [(Fr::from(3), 5), (Fr::ONE, 2), (Fr::from(2), 0)]
             .iter()
             .cloned()
-            .collect::<HashMap<_, _>>()
+            .collect::<BTreeMap<_, _>>()
     );
 
     assert_eq!(
@@ -274,7 +329,7 @@ fn test_to_arithmetic_circuit_2() {
         .collect::<Vec<_>>()
     );
 
-    assert_eq!(circuit.constants, HashMap::new());
+    assert_eq!(circuit.constants, BTreeMap::new());
 
     assert_eq!(
         circuit.evaluation_trace_with_labels(

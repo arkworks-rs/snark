@@ -3,13 +3,7 @@ use ark_ff::{Field, UniformRand};
 use ark_std::test_rng;
 
 use crate::{
-    arithmetic_circuit::{
-        examples::{
-            generate_3_by_3_determinant_circuit, generate_bls12_377_circuit,
-            generate_lemniscate_circuit,
-        },
-        filter_constants, ArithmeticCircuit,
-    },
+    arithmetic_circuit::{filter_constants, ArithmeticCircuit, Node},
     reader::read_constraint_system,
     TEST_DATA_PATH,
 };
@@ -17,7 +11,81 @@ use crate::{
 use ark_bls12_377::{Fq as FqBLS, G1Affine};
 use ark_bn254::Fr as FrBN;
 
-use super::Node;
+/// Generates the arithmetic circuit for the BLS12-377 elliptic curve.
+///
+/// The curve is defined by the equation:
+/// 1 + (1 + x^3 - y^2) = 1
+pub fn generate_bls12_377_circuit() -> ArithmeticCircuit<FqBLS> {
+    let mut circuit = ArithmeticCircuit::new();
+
+    let one = circuit.constant(FqBLS::ONE);
+
+    let x = circuit.new_variable_with_label("x");
+    let y = circuit.new_variable_with_label("y");
+
+    let y_squared = circuit.pow(y, 2);
+    let minus_y_squared = circuit.minus(y_squared);
+    let x_cubed = circuit.pow(x, 3);
+
+    circuit.add_nodes([x_cubed, one, minus_y_squared, one]);
+    circuit
+}
+
+/// Generates the arithmetic circuit for the lemniscate curve defined by:
+/// (x^2 + y^2)^2 - 120x^2 + 80y^2 + 1 = 1
+pub fn generate_lemniscate_circuit() -> ArithmeticCircuit<FrBN> {
+    let mut circuit = ArithmeticCircuit::new();
+
+    let one = circuit.constant(FrBN::ONE);
+
+    let x = circuit.new_variable();
+    let y = circuit.new_variable();
+
+    let a = circuit.constant(FrBN::from(120));
+    let b = circuit.constant(FrBN::from(80));
+
+    let x_2 = circuit.mul(x, x);
+    let y_2 = circuit.mul(y, y);
+
+    let a_x_2 = circuit.mul(a, x_2);
+    let b_y_2 = circuit.mul(b, y_2);
+    let minus_a_x_2 = circuit.minus(a_x_2);
+
+    let x_2_plus_y_2 = circuit.add(x_2, y_2);
+    let b_y_2_minus_a_x_2 = circuit.add(b_y_2, minus_a_x_2);
+
+    let x_2_plus_y_2_2 = circuit.mul(x_2_plus_y_2, x_2_plus_y_2);
+
+    circuit.add_nodes([x_2_plus_y_2_2, b_y_2_minus_a_x_2, one]);
+    circuit
+}
+
+/// Generates the arithmetic circuit for the determinant of a 3x3 matrix.
+pub fn generate_3_by_3_determinant_circuit() -> ArithmeticCircuit<FrBN> {
+    let mut circuit = ArithmeticCircuit::new();
+
+    let one = circuit.constant(FrBN::ONE);
+
+    let vars = circuit.new_variables(9);
+    let det = circuit.new_variable();
+
+    let aei = circuit.mul_nodes([vars[0], vars[4], vars[8]]);
+    let bfg = circuit.mul_nodes([vars[1], vars[5], vars[6]]);
+    let cdh = circuit.mul_nodes([vars[2], vars[3], vars[7]]);
+
+    let ceg = circuit.mul_nodes([vars[2], vars[4], vars[6]]);
+    let bdi = circuit.mul_nodes([vars[1], vars[3], vars[8]]);
+    let afh = circuit.mul_nodes([vars[0], vars[5], vars[7]]);
+
+    let sum1 = circuit.add_nodes([aei, bfg, cdh]);
+    let sum2 = circuit.add_nodes([ceg, bdi, afh]);
+
+    let minus_sum2 = circuit.minus(sum2);
+    let minus_det = circuit.minus(det);
+
+    circuit.add_nodes([sum1, minus_sum2, minus_det, one]);
+    circuit
+}
 
 #[test]
 fn test_add_constants() {
