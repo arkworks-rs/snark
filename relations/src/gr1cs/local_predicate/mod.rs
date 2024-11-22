@@ -4,11 +4,9 @@ use core::fmt::Debug;
 
 use ark_ff::Field;
 
-use super::{
-    Constraint, ConstraintSystemRef, LinearCombination, Matrix,
-};
+use super::{Constraint, ConstraintSystemRef, LcIndex, LinearCombination, Matrix};
 use crate::utils::{error::SynthesisError::ArityMismatch, variable::Variable::SymbolicLc};
-use ark_std::vec::Vec;
+use ark_std::vec::{self, Vec};
 use polynomial_constraint::PolynomialPredicate;
 
 /// A predicate is a function that decides (outputs boolean) on a vector of
@@ -50,10 +48,13 @@ pub struct PredicateConstraintSystem<F: Field> {
     /// associated with
     global_cs: ConstraintSystemRef<F>,
 
-    /// The list of constraints that are enforced by this predicate
-    /// each constraint is a list of linear combinations with size equal to the
-    /// arity
-    constraints: Vec<Constraint>,
+    /// The list of linear combinations for each arguments of the predicate
+    /// The length of this list is equal to the arity of the predicate
+    /// Each element in the list has size equal to the number of constraints
+    argument_lcs: Vec<Vec<LcIndex>>,
+
+    /// The number of constraints enforced by this predicate
+    num_constraints: usize,
 
     /// The local predicate acting on constraints
     local_predicate: LocalPredicate<F>,
@@ -64,8 +65,9 @@ impl<F: Field> PredicateConstraintSystem<F> {
     fn new(global_cs: ConstraintSystemRef<F>, local_predicate: LocalPredicate<F>) -> Self {
         Self {
             global_cs,
-            constraints: Vec::new(),
+            argument_lcs: vec![Vec::new(); local_predicate.arity()],
             local_predicate,
+            num_constraints: 0,
         }
     }
 
@@ -101,14 +103,14 @@ impl<F: Field> PredicateConstraintSystem<F> {
 
     /// Get the number of constraints enforced by this predicate
     pub fn num_constraints(&self) -> usize {
-        self.constraints.len()
+        self.num_constraints
     }
 
     /// Get the vector of constrints enforced by this predicate
     /// Each constraint is a list of linear combinations with size equal to the
     /// arity
     pub fn get_constraints(&self) -> &Vec<Constraint> {
-        &self.constraints
+        &self.argument_lcs
     }
 
     /// Get a reference to the global constraint system that this predicate is
@@ -130,14 +132,33 @@ impl<F: Field> PredicateConstraintSystem<F> {
         if constraint.len() != self.get_arity() {
             return Err(ArityMismatch);
         }
-        self.constraints.push(constraint);
+
+        for (i, lc_index) in constraint.iter().enumerate() {
+            self.argument_lcs[i].push(*lc_index);
+        }
+
+        self.num_constraints += 1;
         Ok(())
     }
+
+
+
+    fn iter_constraints(&self) -> impl Iterator<Item = Constraint> + '_ {
+        // Transpose the `argument_lcs` to iterate over constraints
+        let num_constraints = self.num_constraints;
+    
+        (0..num_constraints).map(move |i| {
+            (0..self.get_arity())
+                .map(|j| self.argument_lcs[j][i])
+                .collect::<Vec<LcIndex>>()
+        })
+    }
+
 
     /// Check if the constraints enforced by this predicate are satisfied
     /// i.e. L(x_1, x_2, ..., x_n) = 0
     pub fn which_constraint_is_unsatisfied(&self) -> Option<usize> {
-        for (i, constraint) in self.constraints.iter().enumerate() {
+        for (i, constraint) in self.iter_constraints().enumerate() {
             let variables: Vec<F> = constraint
                 .iter()
                 .map(|lc_index| {
@@ -157,7 +178,7 @@ impl<F: Field> PredicateConstraintSystem<F> {
     /// Create the set of matrices for this predicate constraint system
     pub fn to_matrices(&self) -> Vec<Matrix<F>> {
         let mut matrices: Vec<Matrix<F>> = vec![Vec::new(); self.get_arity()];
-        for constraint in self.constraints.iter() {
+        for constraint in self.iter_constraints() {
             for (matrix_ind, lc_index) in constraint.iter().enumerate() {
                 let lc: LinearCombination<F> = self.global_cs.get_lc(*lc_index).unwrap();
                 let row: Vec<(F, usize)> = self.make_row(&lc);

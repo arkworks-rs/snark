@@ -6,13 +6,15 @@
 use ark_std::collections::BTreeMap;
 use core::cell::{Ref, RefCell, RefMut};
 
-use ark_ff::Field;
-use ark_std::{rc::Rc, string::String, vec::Vec};
 
 use super::{
-    constraint_system::ConstraintSystem, local_predicate::PredicateConstraintSystem, Label,
-    LcIndex, LinearCombination, Matrix, OptimizationGoal, SynthesisError, SynthesisMode, Variable,
+    constraint_system::ConstraintSystem,
+    local_predicate::{polynomial_constraint::R1CS_PREDICATE_LABEL, PredicateConstraintSystem},
+    Label, LcIndex, LinearCombination, Matrix, OptimizationGoal, SynthesisError, SynthesisMode,
+    Variable,
 };
+use ark_ff::Field;
+use ark_std::{rc::Rc, string::String, vec::Vec};
 
 /// A shared reference to a constraint system that can be stored in high level
 /// variables.
@@ -42,20 +44,26 @@ impl<F: Field> ConstraintSystemRef<F> {
     /// Construct a `ConstraintSystemRef` from a `ConstraintSystem`.
     #[inline]
     pub fn new(inner: ConstraintSystem<F>) -> Self {
-        Self::CS(Rc::new(RefCell::new(inner)))
+        // file_dbg!("\n\n\n--------------------------------------------------------------Creating a new ConstraintSystemRef--------------------------------------------------------------");
+        let cs_ref = Self::CS(Rc::new(RefCell::new(inner)));
+        let _ = cs_ref.clone().register_predicate(
+            R1CS_PREDICATE_LABEL,
+            PredicateConstraintSystem::new_r1cs_predicate(cs_ref.clone()),
+        );
+        cs_ref
     }
 
-    /// Returns the instance assignment of the constraint system
-    /// TODO:Fix the panic
-    pub fn instance_assignment(&self) -> Ref<[F]> {
-        match self {
-            ConstraintSystemRef::None => panic!(),
-            ConstraintSystemRef::CS(cs) => {
-                // Borrow the RefCell immutably and map to instance_assignment slice
-                Ref::map(cs.borrow(), |cs_inner| cs_inner.instance_assignment())
-            },
-        }
-    }
+    // /// Returns the instance assignment of the constraint system
+    // /// TODO:Fix the panic
+    // pub fn instance_assignment(&self) -> Ref<[F]> {
+    //     match self {
+    //         ConstraintSystemRef::None => panic!(),
+    //         ConstraintSystemRef::CS(cs) => {
+    //             // Borrow the RefCell immutably and map to instance_assignment
+    // slice             Ref::map(cs.borrow(), |cs_inner|
+    // cs_inner.instance_assignment())         },
+    //     }
+    // }
 
     /// Returns the maximum arity of the local predicates.
     /// Maximum arity is used when stacking the local predicates as Garuda does
@@ -104,9 +112,14 @@ impl<F: Field> ConstraintSystemRef<F> {
     pub fn enforce_constraint(
         &mut self,
         local_predicate_label: &str,
-        lc_vec: Vec<LinearCombination<F>>,
+        lc_vec: impl IntoIterator<Item = LinearCombination<F>>,
     ) -> crate::gr1cs::Result<()> {
-        self.call_on_mut_inner(|cs| cs.enforce_constraint(local_predicate_label, lc_vec))
+        self.inner()
+            .ok_or(SynthesisError::MissingCS)
+            .and_then(|cs| {
+                cs.borrow_mut()
+                    .enforce_constraint(local_predicate_label, lc_vec)
+            })
     }
 
     /// Enforce an r1cs constraint in the constraint system. It takes a, b, and
@@ -114,6 +127,7 @@ impl<F: Field> ConstraintSystemRef<F> {
     /// constraint system, It will create one. This function is a special case
     /// of `enforce_constraint` and is used as the legacy R1CS API to be bacward
     /// compatible with R1CS gadgets.
+    /// TODO: Delete the inner enforce_r1cs_constraint function
     #[inline]
     pub fn enforce_r1cs_constraint(
         &self,
@@ -121,13 +135,20 @@ impl<F: Field> ConstraintSystemRef<F> {
         b: LinearCombination<F>,
         c: LinearCombination<F>,
     ) -> crate::gr1cs::Result<()> {
-        self.call_on_mut_inner(|cs| cs.enforce_r1cs_constraint(a, b, c, self.clone()))
+        self.inner()
+            .ok_or(SynthesisError::MissingCS)
+            .and_then(|cs| {
+                cs.borrow_mut()
+                    .enforce_constraint(R1CS_PREDICATE_LABEL, [a, b, c])
+            })
     }
 
     /// Obtain a variable representing a linear combination.
     #[inline]
     pub fn new_lc(&self, lc: LinearCombination<F>) -> crate::gr1cs::Result<Variable> {
-        self.call_on_mut_inner(|cs| cs.new_lc(lc))
+        self.inner()
+            .ok_or(SynthesisError::MissingCS)
+            .and_then(|cs| cs.borrow_mut().new_lc(lc))
     }
     /// Set `self.mode` to `mode`.
     /// Sets the mode if there exists an underlying ConstrainSystem
@@ -177,7 +198,8 @@ impl<F: Field> ConstraintSystemRef<F> {
     where
         Func: FnOnce() -> crate::utils::Result<F>,
     {
-        self.inner()
+        // mem_dbg("Before new_input_variable");
+        let a = self.inner()
             .ok_or(SynthesisError::MissingCS)
             .and_then(|cs| {
                 if !self.is_in_setup_mode() {
@@ -188,7 +210,9 @@ impl<F: Field> ConstraintSystemRef<F> {
                 } else {
                     cs.borrow_mut().new_input_variable(f)
                 }
-            })
+            });
+        // mem_dbg("After new_input_variable");
+        a
     }
 
     /// Obtain a variable representing a new private witness input.
@@ -197,7 +221,8 @@ impl<F: Field> ConstraintSystemRef<F> {
     where
         Func: FnOnce() -> crate::utils::Result<F>,
     {
-        self.inner()
+        // mem_dbg("Before new_witness_variable");
+        let a = self.inner()
             .ok_or(SynthesisError::MissingCS)
             .and_then(|cs| {
                 if !self.is_in_setup_mode() {
@@ -208,7 +233,9 @@ impl<F: Field> ConstraintSystemRef<F> {
                 } else {
                     cs.borrow_mut().new_witness_variable(f)
                 }
-            })
+            });
+            // mem_dbg("After new_witness_variable");
+            a
     }
 
     /// Register a local predicate in the constraint system with a given label.
@@ -217,7 +244,12 @@ impl<F: Field> ConstraintSystemRef<F> {
         predicate_label: &str,
         predicate: PredicateConstraintSystem<F>,
     ) -> crate::utils::Result<()> {
-        self.call_on_mut_inner(|cs| cs.register_predicate(predicate_label, predicate))
+        self.inner()
+            .ok_or(SynthesisError::MissingCS)
+            .and_then(|cs| {
+                cs.borrow_mut()
+                    .register_predicate(predicate_label, predicate)
+            })
     }
 
     /// Obtain the assignment corresponding to the `Variable` `v`.
@@ -229,7 +261,9 @@ impl<F: Field> ConstraintSystemRef<F> {
     /// If `self` is unsatisfied, outputs `Ok(false)`.
     /// If `self.is_in_setup_mode()` or if `self == None`, outputs `Err(())`.
     pub fn is_satisfied(&self) -> crate::utils::Result<bool> {
-        self.call_on_inner(|cs| cs.is_satisfied())
+        self.inner()
+            .ok_or(SynthesisError::MissingCS)
+            .and_then(|cs| cs.borrow().is_satisfied())
     }
 
     /// If `self` is satisfied, outputs `Ok(None)`.
@@ -238,7 +272,9 @@ impl<F: Field> ConstraintSystemRef<F> {
     /// the first unsatisfied constraint in that local predicate.
     /// If `self.is_in_setup_mode()` or `self == None`, outputs `Err(())`.
     pub fn which_predicate_is_unsatisfied(&self) -> crate::utils::Result<Option<String>> {
-        self.call_on_inner(|cs| cs.which_predicate_is_unsatisfied())
+        self.inner()
+            .ok_or(SynthesisError::MissingCS)
+            .and_then(|cs| cs.borrow().which_predicate_is_unsatisfied())
     }
 
     /// Finalize the constraint system (either by outlining or inlining,
@@ -276,26 +312,6 @@ impl<F: Field> ConstraintSystemRef<F> {
         matches!(self, ConstraintSystemRef::None)
     }
 
-    fn call_on_mut_inner<T, R>(&self, f: T) -> crate::gr1cs::Result<R>
-    where
-        T: FnOnce(&mut ConstraintSystem<F>) -> crate::gr1cs::Result<R>,
-    {
-        match self {
-            ConstraintSystemRef::None => Err(SynthesisError::MissingCS),
-            ConstraintSystemRef::CS(ref cs) => f(&mut cs.borrow_mut()),
-        }
-    }
-
-    fn call_on_inner<T, R>(&self, f: T) -> crate::gr1cs::Result<R>
-    where
-        T: FnOnce(&ConstraintSystem<F>) -> crate::gr1cs::Result<R>,
-    {
-        match self {
-            ConstraintSystemRef::None => Err(SynthesisError::MissingCS),
-            ConstraintSystemRef::CS(ref cs) => f(&cs.borrow()),
-        }
-    }
-
     fn inner(&self) -> Option<&Rc<RefCell<ConstraintSystem<F>>>> {
         match self {
             Self::CS(a) => Some(a),
@@ -313,35 +329,22 @@ impl<F: Field> ConstraintSystemRef<F> {
         }
     }
 
-    /// Obtain an immutable reference to the underlying `ConstraintSystem`.
-    ///
-    /// # Panics
-    /// This method panics if `self` is already mutably borrowed.
-    #[inline]
-    pub fn borrow(&self) -> Option<Ref<'_, ConstraintSystem<F>>> {
-        self.inner().map(|cs| cs.borrow())
-    }
-
-    /// Obtain a mutable reference to the underlying `ConstraintSystem`.
-    ///
-    /// # Panics
-    /// This method panics if `self` is already mutably borrowed.
-    #[inline]
-    pub fn borrow_mut(&self) -> Option<RefMut<'_, ConstraintSystem<F>>> {
-        self.inner().map(|cs| cs.borrow_mut())
-    }
-
     /// Get the matrices corresponding to the local predicates.and the
     /// corresponding set of matrices
+    #[inline]
     pub fn to_matrices(&self) -> crate::gr1cs::Result<BTreeMap<Label, Vec<Matrix<F>>>> {
-        self.call_on_inner(|cs| cs.to_matrices())
+        self.inner()
+            .ok_or(SynthesisError::MissingCS)
+            .and_then(|cs| cs.borrow().to_matrices())
     }
 
     /// Get the linear combination corresponding to the given `lc_index`.
     /// TODO: This function should return a reference to the linear combination
     /// and not clone it.
     pub fn get_lc(&self, lc_index: LcIndex) -> crate::utils::Result<LinearCombination<F>> {
-        self.call_on_inner(|cs| cs.get_lc(lc_index))
+        self.inner()
+            .ok_or(SynthesisError::MissingCS)
+            .and_then(|cs| cs.borrow().get_lc(lc_index))
     }
 
     // TODO: Implement this function

@@ -27,19 +27,19 @@ fn test_circuit1_sat() {
     let cs = ConstraintSystem::<Fr>::new_ref();
     c.clone().generate_constraints(cs.clone()).unwrap();
     cs.finalize();
-    assert!(cs.borrow().unwrap().is_satisfied().unwrap());
+    assert!(cs.is_satisfied().unwrap());
 
     let cs = ConstraintSystem::<Fr>::new_ref();
     cs.set_optimization_goal(OptimizationGoal::Constraints);
     c.clone().generate_constraints(cs.clone()).unwrap();
     cs.finalize();
-    assert!(cs.borrow().unwrap().is_satisfied().unwrap());
+    assert!(cs.is_satisfied().unwrap());
 
     let cs = ConstraintSystem::<Fr>::new_ref();
     cs.set_optimization_goal(OptimizationGoal::Weight);
     c.clone().generate_constraints(cs.clone()).unwrap();
     cs.finalize();
-    assert!(cs.borrow().unwrap().is_satisfied().unwrap());
+    assert!(cs.is_satisfied().unwrap());
 }
 
 /// Test the circuit with non-satisfying inputs
@@ -63,7 +63,7 @@ fn test_circuit1_non_sat() {
     };
     let cs = ConstraintSystem::<Fr>::new_ref();
     c.generate_constraints(cs.clone()).unwrap();
-    assert!(!cs.borrow().unwrap().is_satisfied().unwrap());
+    assert!(!cs.is_satisfied().unwrap());
 }
 
 #[test]

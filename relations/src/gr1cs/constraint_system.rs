@@ -165,7 +165,7 @@ impl<F: Field> ConstraintSystem<F> {
     pub fn enforce_constraint(
         &mut self,
         local_predicate_label: &str,
-        lc_vec: Vec<LinearCombination<F>>,
+        lc_vec: impl IntoIterator<Item = LinearCombination<F>>,
     ) -> crate::gr1cs::Result<()> {
         if !self.local_predicates.contains_key(local_predicate_label) {
             return Err(SynthesisError::PredicateNotFound);

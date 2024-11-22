@@ -1,19 +1,14 @@
 use ark_ff::Field;
-use ark_std::{
-    collections::BTreeMap,
-    string::ToString,
-    vec::Vec,
-};
+use ark_std::{collections::BTreeMap, string::ToString, vec::Vec};
 
 use crate::{
     gr1cs::{
-        local_predicate::PredicateConstraintSystem,
-        ConstraintSynthesizer, ConstraintSystemRef,
+        local_predicate::PredicateConstraintSystem, ConstraintSynthesizer, ConstraintSystemRef,
     },
     lc,
 };
 
-use super::{Label, Matrix};
+use super::{local_predicate::polynomial_constraint::R1CS_PREDICATE_LABEL, Label, Matrix};
 
 #[derive(Debug, Clone)]
 pub struct Circuit1<F: Field> {
@@ -35,6 +30,12 @@ pub struct Circuit1<F: Field> {
 impl<F: Field> Circuit1<F> {
     pub fn get_matrices() -> BTreeMap<Label, Vec<Matrix<F>>> {
         let mut map: BTreeMap<Label, Vec<Matrix<F>>> = BTreeMap::new();
+
+        map.insert(
+            R1CS_PREDICATE_LABEL.to_string(),
+            vec![vec![], vec![], vec![]],
+        );
+
         map.insert(
             "poly-predicate-A".to_string(),
             vec![
