@@ -115,15 +115,6 @@ impl<F: Field> ConstraintSystem<F> {
         &self.instance_assignment
     }
 
-    /// Returns the number of constraints in each local predicate
-    pub fn predicate_num_constraints(&self) -> BTreeMap<Label, usize> {
-        let mut predicate_num_constraints = BTreeMap::new();
-        for (label, predicate) in self.local_predicates.iter() {
-            predicate_num_constraints.insert(label.clone(), predicate.num_constraints());
-        }
-        predicate_num_constraints
-    }
-
     /// Returns the number of constraints which is the sum of the number of
     /// constraints in each local predicate.
     pub fn num_constraints(&self) -> usize {
@@ -151,11 +142,6 @@ impl<F: Field> ConstraintSystem<F> {
     /// Returns the number of witness variables.
     pub fn num_witness_variables(&self) -> usize {
         self.num_witness_variables
-    }
-
-    /// Returns the number of local predicates
-    pub fn num_local_predicates(&self) -> usize {
-        self.local_predicates.len()
     }
 
     /// Enforce a constraint in the constraint system. It takes a local
@@ -187,37 +173,6 @@ impl<F: Field> ConstraintSystem<F> {
         }
         Ok(())
     }
-
-    /// Enforce an r1cs constraint in the constraint system. It takes a, b, and
-    /// c and enforces `a * b = c`. If R1CS predicate does not exist in the
-    /// constraint system, It will create one. This function is a special case
-    /// of `enforce_constraint` and is used as the legacy R1CS API to be bacward
-    /// compatible with R1CS gadgets
-    #[inline]
-    pub(super) fn enforce_r1cs_constraint(
-        &mut self,
-        a: LinearCombination<F>,
-        b: LinearCombination<F>,
-        c: LinearCombination<F>,
-        cs: ConstraintSystemRef<F>,
-    ) -> crate::gr1cs::Result<()> {
-        if !self.local_predicates.contains_key(R1CS_PREDICATE_LABEL) {
-            self.register_predicate(
-                R1CS_PREDICATE_LABEL,
-                PredicateConstraintSystem::new_r1cs_predicate(cs),
-            )?;
-        }
-        self.enforce_constraint(R1CS_PREDICATE_LABEL, vec![a, b, c])
-        // if self.should_construct_matrices() {
-        //     let constraints = self.new_lc_vec(vec![a, b, c])?;
-        //     self.local_predicates
-        //         .get_mut(R1CS_PREDICATE_LABEL)
-        //         .unwrap()
-        //         .enforce_constraint(constraints)?;
-        // }
-        // Ok(())
-    }
-
     /// Add a new vector of linear combinations to the constraint system.
     pub fn new_lc_vec(
         &mut self,
@@ -336,6 +291,11 @@ impl<F: Field> ConstraintSystem<F> {
                 .insert(predicate_label.to_string(), Vec::new());
         }
         Ok(())
+    }
+
+    /// check if there is a predicate with the given label
+    pub fn has_predicate(&self, predicate_label: &str) -> bool {
+        self.local_predicates.contains_key(predicate_label)
     }
 
     /// Obtain the assignment corresponding to the `Variable` `v`.
@@ -531,12 +491,15 @@ impl<F: Field> ConstraintSystem<F> {
                 .iter()
                 .zip(new_witness_indices.iter())
         {
-            // Add a new constraint
-            self.enforce_r1cs_constraint(
+            let r1cs_constraint: Vec<LinearCombination<F>> = vec![
                 new_witness_linear_combination.clone(),
                 LinearCombination::from(Variable::one()),
                 LinearCombination::from(Variable::Witness(*new_witness_variable)),
-                ConstraintSystemRef::new(self.clone()),
+            ];
+            // Add a new constraint
+            self.enforce_constraint(
+                R1CS_PREDICATE_LABEL,
+                r1cs_constraint,
             )
             .unwrap();
         }

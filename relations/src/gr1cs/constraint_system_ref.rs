@@ -3,9 +3,8 @@
 //! inner struct. Most of the functions of `ConstraintSystemRef` are just
 //! wrappers around the functions of `ConstraintSystem`.
 
-use ark_std::collections::BTreeMap;
-use core::cell::{Ref, RefCell, RefMut};
-
+use ark_std::{collections::BTreeMap, rc::Weak};
+use core::cell::RefCell;
 
 use super::{
     constraint_system::ConstraintSystem,
@@ -44,13 +43,7 @@ impl<F: Field> ConstraintSystemRef<F> {
     /// Construct a `ConstraintSystemRef` from a `ConstraintSystem`.
     #[inline]
     pub fn new(inner: ConstraintSystem<F>) -> Self {
-        // file_dbg!("\n\n\n--------------------------------------------------------------Creating a new ConstraintSystemRef--------------------------------------------------------------");
-        let cs_ref = Self::CS(Rc::new(RefCell::new(inner)));
-        let _ = cs_ref.clone().register_predicate(
-            R1CS_PREDICATE_LABEL,
-            PredicateConstraintSystem::new_r1cs_predicate(cs_ref.clone()),
-        );
-        cs_ref
+        Self::CS(Rc::new(RefCell::new(inner)))
     }
 
     // /// Returns the instance assignment of the constraint system
@@ -69,13 +62,6 @@ impl<F: Field> ConstraintSystemRef<F> {
     /// Maximum arity is used when stacking the local predicates as Garuda does
     pub fn max_arity(&self) -> usize {
         self.inner().map_or(0, |cs| cs.borrow().max_arity())
-    }
-
-    /// Returns the number of constraints in each local predicate
-    pub fn predicate_num_constraints(&self) -> BTreeMap<Label, usize> {
-        self.inner().map_or(BTreeMap::new(), |cs| {
-            cs.borrow().predicate_num_constraints()
-        })
     }
 
     /// Returns the number of constraints which is the sum of the number of
@@ -98,19 +84,12 @@ impl<F: Field> ConstraintSystemRef<F> {
             .map_or(0, |cs| cs.borrow().num_witness_variables())
     }
 
-    /// Returns the number of local predicates
-    #[inline]
-    pub fn num_local_predicates(&self) -> usize {
-        self.inner()
-            .map_or(0, |cs| cs.borrow().num_local_predicates())
-    }
-
     /// Enforce a constraint in the constraint system. It takes a local
     /// predicate name and enforces a vector of linear combinations of the
     /// length of the arity of the local predicate enforces the constraint.
     #[inline]
     pub fn enforce_constraint(
-        &mut self,
+        &self,
         local_predicate_label: &str,
         lc_vec: impl IntoIterator<Item = LinearCombination<F>>,
     ) -> crate::gr1cs::Result<()> {
@@ -135,6 +114,11 @@ impl<F: Field> ConstraintSystemRef<F> {
         b: LinearCombination<F>,
         c: LinearCombination<F>,
     ) -> crate::gr1cs::Result<()> {
+        if !self.has_predicate(R1CS_PREDICATE_LABEL) {
+            let r1cs_constraint_system =
+                PredicateConstraintSystem::new_r1cs_predicate(self.clone())?;
+            self.register_predicate(R1CS_PREDICATE_LABEL, r1cs_constraint_system)?;
+        }
         self.inner()
             .ok_or(SynthesisError::MissingCS)
             .and_then(|cs| {
@@ -162,7 +146,7 @@ impl<F: Field> ConstraintSystemRef<F> {
     #[inline]
     pub fn is_in_setup_mode(&self) -> bool {
         self.inner()
-            .map_or(false, |cs| cs.borrow().is_in_setup_mode())
+            .is_some_and(|cs| cs.borrow().is_in_setup_mode())
     }
 
     /// Check whether this constraint system aims to optimize weight,
@@ -186,7 +170,7 @@ impl<F: Field> ConstraintSystemRef<F> {
     #[inline]
     pub fn should_construct_matrices(&self) -> bool {
         self.inner()
-            .map_or(false, |cs| cs.borrow().should_construct_matrices())
+            .is_some_and(|cs| cs.borrow().should_construct_matrices())
     }
 
     /// Obtain a variable representing a new public instance input
@@ -199,7 +183,8 @@ impl<F: Field> ConstraintSystemRef<F> {
         Func: FnOnce() -> crate::utils::Result<F>,
     {
         // mem_dbg("Before new_input_variable");
-        let a = self.inner()
+        let a = self
+            .inner()
             .ok_or(SynthesisError::MissingCS)
             .and_then(|cs| {
                 if !self.is_in_setup_mode() {
@@ -222,7 +207,8 @@ impl<F: Field> ConstraintSystemRef<F> {
         Func: FnOnce() -> crate::utils::Result<F>,
     {
         // mem_dbg("Before new_witness_variable");
-        let a = self.inner()
+        let a = self
+            .inner()
             .ok_or(SynthesisError::MissingCS)
             .and_then(|cs| {
                 if !self.is_in_setup_mode() {
@@ -234,13 +220,13 @@ impl<F: Field> ConstraintSystemRef<F> {
                     cs.borrow_mut().new_witness_variable(f)
                 }
             });
-            // mem_dbg("After new_witness_variable");
-            a
+        // mem_dbg("After new_witness_variable");
+        a
     }
 
     /// Register a local predicate in the constraint system with a given label.
     pub fn register_predicate(
-        &mut self,
+        &self,
         predicate_label: &str,
         predicate: PredicateConstraintSystem<F>,
     ) -> crate::utils::Result<()> {
@@ -250,6 +236,12 @@ impl<F: Field> ConstraintSystemRef<F> {
                 cs.borrow_mut()
                     .register_predicate(predicate_label, predicate)
             })
+    }
+
+    /// Checks if there is a predicate with the given label in the constraint
+    pub fn has_predicate(&self, predicate_label: &str) -> bool {
+        self.inner()
+            .is_some_and(|cs| cs.borrow().has_predicate(predicate_label))
     }
 
     /// Obtain the assignment corresponding to the `Variable` `v`.
@@ -312,7 +304,7 @@ impl<F: Field> ConstraintSystemRef<F> {
         matches!(self, ConstraintSystemRef::None)
     }
 
-    pub fn inner(&self) -> Option<&Rc<RefCell<ConstraintSystem<F>>>> {
+    pub(crate) fn inner(&self) -> Option<&Rc<RefCell<ConstraintSystem<F>>>> {
         match self {
             Self::CS(a) => Some(a),
             Self::None => None,
@@ -398,4 +390,38 @@ impl<F: Field> ConstraintSystemRef<F> {
     //         None
     //     }
     // }
+}
+
+/// A shared reference to a constraint system that can be stored in high level
+/// variables.
+#[derive(Debug, Clone)]
+pub enum WeakConstraintSystemRef<F: Field> {
+    /// Represents the case where we *don't* need to allocate variables or
+    /// enforce constraints. Encountered when operating over constant
+    /// values.
+    None,
+    /// Represents the case where we *do* allocate variables or enforce
+    /// constraints.
+    CS(Weak<RefCell<ConstraintSystem<F>>>),
+}
+
+impl<F: Field> WeakConstraintSystemRef<F> {
+    /// Create a new `WeakConstraintSystemRef` from a
+    /// `Weak<RefCell<ConstraintSystem<F>>>`
+    pub fn from(cs: ConstraintSystemRef<F>) -> Self {
+        match cs.inner() {
+            None => WeakConstraintSystemRef::None,
+            Some(cs) => WeakConstraintSystemRef::CS(Rc::downgrade(cs)),
+        }
+    }
+
+    /// Convert a `WeakConstraintSystemRef` to a `ConstraintSystemRef`
+    /// If the `WeakConstraintSystemRef` is `None`, it will return `None`
+    /// Otherwise, it will upgrade the weak reference
+    pub fn to_constraint_system_ref(&self) -> ConstraintSystemRef<F> {
+        match self {
+            WeakConstraintSystemRef::CS(ref cs) => ConstraintSystemRef::CS(cs.upgrade().unwrap()),
+            WeakConstraintSystemRef::None => ConstraintSystemRef::None,
+        }
+    }
 }

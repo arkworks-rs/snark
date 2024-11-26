@@ -1,24 +1,25 @@
+//! This module contains the implementation of a general local predicate, defined in https://eprint.iacr.org/2024/1245
+//! A local predicate is a function from t (arity) variables to a boolean
+//! variable A local predicate can be as simple as f(a,b,c)=a.b-c=0 or as
+//! complex as a lookup table
+
 pub mod polynomial_constraint;
 
-use core::{cell::RefCell, fmt::Debug};
-
-use ark_ff::Field;
-
 use super::{
-    Constraint, ConstraintSystem, ConstraintSystemRef, LcIndex, LinearCombination, Matrix,
+    Constraint, ConstraintSystemRef, LcIndex, LinearCombination, Matrix, WeakConstraintSystemRef,
 };
 use crate::utils::{error::SynthesisError::ArityMismatch, variable::Variable::SymbolicLc};
-use ark_std::{
-    rc::Weak,
-    rc::Rc,
-    vec::{self, Vec},
-};
+use ark_ff::Field;
+use ark_std::vec::Vec;
 use polynomial_constraint::PolynomialPredicate;
 
 /// A predicate is a function that decides (outputs boolean) on a vector of
 /// field elements
 pub trait Predicate<F> {
-    fn evaluate(&self, variables: Vec<F>) -> bool;
+    /// Evaluate the predicate on t (arity) variables
+    fn evaluate(&self, variables: &[F]) -> bool;
+
+    /// Get the arity of the predicate, i.e. the number of variables it takes
     fn arity(&self) -> usize;
 }
 
@@ -32,17 +33,17 @@ pub enum LocalPredicate<F: Field> {
 }
 
 impl<F: Field> Predicate<F> for LocalPredicate<F> {
-    fn evaluate(&self, variables: Vec<F>) -> bool {
+    fn evaluate(&self, variables: &[F]) -> bool {
         match self {
             LocalPredicate::Polynomial(p) => p.evaluate(variables),
-            // Add other predicates in the future, e.g. lookup table
+            // TODO: Add other predicates in the future, e.g. lookup table
         }
     }
 
     fn arity(&self) -> usize {
         match self {
             LocalPredicate::Polynomial(p) => p.arity(),
-            // Add other predicates in the future, e.g. lookup table
+            // TODO: Add other predicates in the future, e.g. lookup table
         }
     }
 }
@@ -52,7 +53,7 @@ impl<F: Field> Predicate<F> for LocalPredicate<F> {
 pub struct PredicateConstraintSystem<F: Field> {
     /// A reference to the global constraint system that this predicate is
     /// associated with
-    global_cs: Weak<RefCell<ConstraintSystem<F>>>,
+    global_cs: WeakConstraintSystemRef<F>,
 
     /// The list of linear combinations for each arguments of the predicate
     /// The length of this list is equal to the arity of the predicate
@@ -68,7 +69,10 @@ pub struct PredicateConstraintSystem<F: Field> {
 
 impl<F: Field> PredicateConstraintSystem<F> {
     /// Create a new predicate constraint system with a specific predicate
-    fn new(global_cs: Weak<RefCell<ConstraintSystem<F>>>, local_predicate: LocalPredicate<F>) -> Self {
+    fn new(
+        global_cs: WeakConstraintSystemRef<F>,
+        local_predicate: LocalPredicate<F>,
+    ) -> Self {
         Self {
             global_cs,
             argument_lcs: vec![Vec::new(); local_predicate.arity()],
@@ -79,7 +83,7 @@ impl<F: Field> PredicateConstraintSystem<F> {
 
     /// Create new polynomial predicate constraint system
     pub fn new_polynomial_predicate(
-        cs: Weak<RefCell<ConstraintSystem<F>>>,
+        cs: WeakConstraintSystemRef<F>,
         arity: usize,
         terms: Vec<(F, Vec<(usize, usize)>)>,
     ) -> Self {
@@ -91,15 +95,15 @@ impl<F: Field> PredicateConstraintSystem<F> {
 
     /// creates an R1CS predicate which is a special kind of polynomial
     /// predicate
-    pub fn new_r1cs_predicate(cs: ConstraintSystemRef<F>) -> Self {
-        Self::new_polynomial_predicate(
-            Rc::downgrade(cs.inner().unwrap()),
+    pub fn new_r1cs_predicate(cs: ConstraintSystemRef<F>) -> crate::utils::Result<Self> {
+        Ok(Self::new_polynomial_predicate(
+            WeakConstraintSystemRef::from(cs),
             3,
             vec![
                 (F::from(1u8), vec![(0, 1), (1, 1)]),
                 (F::from(-1i8), vec![(2, 1)]),
             ],
-        )
+        ))
     }
 
     /// Get the arity of the local predicate in this predicate constraint system
@@ -164,7 +168,7 @@ impl<F: Field> PredicateConstraintSystem<F> {
                         .unwrap()
                 })
                 .collect();
-            let result = self.local_predicate.evaluate(variables);
+            let result = self.local_predicate.evaluate(&variables);
             if result {
                 return Some(i);
             }
@@ -204,6 +208,6 @@ impl<F: Field> PredicateConstraintSystem<F> {
     }
 
     pub fn get_global_cs(&self) -> ConstraintSystemRef<F> {
-        ConstraintSystemRef::CS(self.global_cs.upgrade().unwrap())
+        self.global_cs.to_constraint_system_ref()
     }
 }

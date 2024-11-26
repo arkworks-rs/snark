@@ -28,7 +28,7 @@ pub enum SynthesisError {
     /// The LcIndex provided does not correspond to any Linear Combination
     LcNotFound,
     /// The variable type is not expected for the operation
-    UnexpectedVariable
+    UnexpectedVariable,
 }
 
 impl ark_std::error::Error for SynthesisError {}
@@ -63,10 +63,7 @@ impl fmt::Display for SynthesisError {
                 )
             },
             SynthesisError::UnexpectedVariable => {
-                write!(
-                    f,
-                    "Variable type is not expected for the operation"
-                )
+                write!(f, "Variable type is not expected for the operation")
             },
         }
     }

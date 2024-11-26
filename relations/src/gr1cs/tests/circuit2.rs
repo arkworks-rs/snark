@@ -1,15 +1,9 @@
 use ark_ff::Field;
 
-use ark_std::{
-    collections::BTreeMap,
-    string::ToString,
-    vec::Vec,
-};
+use ark_std::{collections::BTreeMap, string::ToString, vec::Vec};
 
 use crate::{
-    gr1cs::{
-        ConstraintSynthesizer, ConstraintSystemRef,
-    },
+    gr1cs::{ConstraintSynthesizer, ConstraintSystemRef},
     lc,
 };
 

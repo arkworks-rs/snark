@@ -1,14 +1,13 @@
-use ark_ff::Field;
-use ark_std::{collections::BTreeMap, rc::Rc, string::ToString, vec::Vec};
-
 use crate::{
     gr1cs::{
         local_predicate::PredicateConstraintSystem, ConstraintSynthesizer, ConstraintSystemRef,
     },
     lc,
 };
+use ark_ff::Field;
+use ark_std::{collections::BTreeMap, string::ToString, vec::Vec};
 
-use super::{local_predicate::polynomial_constraint::R1CS_PREDICATE_LABEL, Label, Matrix};
+use super::{Label, Matrix, WeakConstraintSystemRef};
 
 #[derive(Debug, Clone)]
 pub struct Circuit1<F: Field> {
@@ -30,11 +29,6 @@ pub struct Circuit1<F: Field> {
 impl<F: Field> Circuit1<F> {
     pub fn get_matrices() -> BTreeMap<Label, Vec<Matrix<F>>> {
         let mut map: BTreeMap<Label, Vec<Matrix<F>>> = BTreeMap::new();
-
-        map.insert(
-            R1CS_PREDICATE_LABEL.to_string(),
-            vec![vec![], vec![], vec![]],
-        );
 
         map.insert(
             "poly-predicate-A".to_string(),
@@ -66,7 +60,7 @@ impl<F: Field> Circuit1<F> {
     }
 }
 impl<F: Field + core::convert::From<i8>> ConstraintSynthesizer<F> for Circuit1<F> {
-    fn generate_constraints(self, mut cs: ConstraintSystemRef<F>) -> crate::utils::Result<()> {
+    fn generate_constraints(self, cs: ConstraintSystemRef<F>) -> crate::utils::Result<()> {
         // Variable declarations -> Instance variables + Witness variables
 
         let x1 = cs.new_input_variable(|| Ok(self.x1)).unwrap();
@@ -86,7 +80,7 @@ impl<F: Field + core::convert::From<i8>> ConstraintSynthesizer<F> for Circuit1<F
         // Local predicate declarations -> Polynomial predicates
 
         let local_predicate_a = PredicateConstraintSystem::new_polynomial_predicate(
-            Rc::downgrade(cs.inner().unwrap()),
+            WeakConstraintSystemRef::from(cs.clone()),
             4,
             vec![
                 (F::from(1u8), vec![(0, 1), (1, 1)]),
@@ -95,7 +89,7 @@ impl<F: Field + core::convert::From<i8>> ConstraintSynthesizer<F> for Circuit1<F
             ],
         );
         let local_predicate_b = PredicateConstraintSystem::new_polynomial_predicate(
-            Rc::downgrade(cs.inner().unwrap()),
+            WeakConstraintSystemRef::from(cs.clone()),
             3,
             vec![
                 (F::from(7u8), vec![(1, 1)]),
@@ -105,7 +99,7 @@ impl<F: Field + core::convert::From<i8>> ConstraintSynthesizer<F> for Circuit1<F
         );
 
         let local_predicate_c = PredicateConstraintSystem::new_polynomial_predicate(
-            Rc::downgrade(cs.inner().unwrap()),
+            WeakConstraintSystemRef::from(cs.clone()),
             3,
             vec![
                 (F::from(1u8), vec![(0, 1), (1, 1)]),

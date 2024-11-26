@@ -20,7 +20,10 @@ pub use tracing::info_span;
 pub use ark_ff::{Field, ToConstraintField};
 
 pub use crate::{
-    gr1cs::{constraint_system::ConstraintSystem, constraint_system_ref::ConstraintSystemRef},
+    gr1cs::{
+        constraint_system::ConstraintSystem,
+        constraint_system_ref::{ConstraintSystemRef, WeakConstraintSystemRef},
+    },
     lc,
     utils::{
         error::SynthesisError,

@@ -36,8 +36,9 @@ impl<F: Field> PolynomialPredicate<F> {
 /// The evaluation of a polynomial predicate is the evaluation of the underlying
 /// polynomial and the arity is the number of variables in the polynomial.
 impl<F: Field> Predicate<F> for PolynomialPredicate<F> {
-    fn evaluate(&self, variables: Vec<F>) -> bool {
-        !self.polynomial.evaluate(&variables).is_zero()
+    fn evaluate(&self, variables: &[F]) -> bool {
+        // TODO: Change the polynomial eval to get a slice as an evaluation point
+        !self.polynomial.evaluate(&variables.to_vec()).is_zero()
     }
 
     fn arity(&self) -> usize {

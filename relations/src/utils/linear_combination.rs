@@ -165,7 +165,7 @@ impl<F: Field> Mul<F> for LinearCombination<F> {
     }
 }
 
-impl<'a, F: Field> Mul<F> for &'a LinearCombination<F> {
+impl<F: Field> Mul<F> for &LinearCombination<F> {
     type Output = LinearCombination<F>;
 
     #[inline]
