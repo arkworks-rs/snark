@@ -312,7 +312,7 @@ impl<F: Field> ConstraintSystemRef<F> {
         matches!(self, ConstraintSystemRef::None)
     }
 
-    fn inner(&self) -> Option<&Rc<RefCell<ConstraintSystem<F>>>> {
+    pub fn inner(&self) -> Option<&Rc<RefCell<ConstraintSystem<F>>>> {
         match self {
             Self::CS(a) => Some(a),
             Self::None => None,

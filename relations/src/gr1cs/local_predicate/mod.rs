@@ -1,12 +1,18 @@
 pub mod polynomial_constraint;
 
-use core::fmt::Debug;
+use core::{cell::RefCell, fmt::Debug};
 
 use ark_ff::Field;
 
-use super::{Constraint, ConstraintSystemRef, LcIndex, LinearCombination, Matrix};
+use super::{
+    Constraint, ConstraintSystem, ConstraintSystemRef, LcIndex, LinearCombination, Matrix,
+};
 use crate::utils::{error::SynthesisError::ArityMismatch, variable::Variable::SymbolicLc};
-use ark_std::vec::{self, Vec};
+use ark_std::{
+    rc::Weak,
+    rc::Rc,
+    vec::{self, Vec},
+};
 use polynomial_constraint::PolynomialPredicate;
 
 /// A predicate is a function that decides (outputs boolean) on a vector of
@@ -46,7 +52,7 @@ impl<F: Field> Predicate<F> for LocalPredicate<F> {
 pub struct PredicateConstraintSystem<F: Field> {
     /// A reference to the global constraint system that this predicate is
     /// associated with
-    global_cs: ConstraintSystemRef<F>,
+    global_cs: Weak<RefCell<ConstraintSystem<F>>>,
 
     /// The list of linear combinations for each arguments of the predicate
     /// The length of this list is equal to the arity of the predicate
@@ -62,7 +68,7 @@ pub struct PredicateConstraintSystem<F: Field> {
 
 impl<F: Field> PredicateConstraintSystem<F> {
     /// Create a new predicate constraint system with a specific predicate
-    fn new(global_cs: ConstraintSystemRef<F>, local_predicate: LocalPredicate<F>) -> Self {
+    fn new(global_cs: Weak<RefCell<ConstraintSystem<F>>>, local_predicate: LocalPredicate<F>) -> Self {
         Self {
             global_cs,
             argument_lcs: vec![Vec::new(); local_predicate.arity()],
@@ -73,7 +79,7 @@ impl<F: Field> PredicateConstraintSystem<F> {
 
     /// Create new polynomial predicate constraint system
     pub fn new_polynomial_predicate(
-        cs: ConstraintSystemRef<F>,
+        cs: Weak<RefCell<ConstraintSystem<F>>>,
         arity: usize,
         terms: Vec<(F, Vec<(usize, usize)>)>,
     ) -> Self {
@@ -87,7 +93,7 @@ impl<F: Field> PredicateConstraintSystem<F> {
     /// predicate
     pub fn new_r1cs_predicate(cs: ConstraintSystemRef<F>) -> Self {
         Self::new_polynomial_predicate(
-            cs,
+            Rc::downgrade(cs.inner().unwrap()),
             3,
             vec![
                 (F::from(1u8), vec![(0, 1), (1, 1)]),
@@ -113,12 +119,6 @@ impl<F: Field> PredicateConstraintSystem<F> {
         &self.argument_lcs
     }
 
-    /// Get a reference to the global constraint system that this predicate is
-    /// associated with
-    pub fn get_global_cs(&self) -> ConstraintSystemRef<F> {
-        self.global_cs.clone()
-    }
-
     /// Get a reference to the local predicate in this predicate constraint
     /// system
     pub fn get_local_predicate(&self) -> &LocalPredicate<F> {
@@ -141,19 +141,16 @@ impl<F: Field> PredicateConstraintSystem<F> {
         Ok(())
     }
 
-
-
     fn iter_constraints(&self) -> impl Iterator<Item = Constraint> + '_ {
         // Transpose the `argument_lcs` to iterate over constraints
         let num_constraints = self.num_constraints;
-    
+
         (0..num_constraints).map(move |i| {
             (0..self.get_arity())
                 .map(|j| self.argument_lcs[j][i])
                 .collect::<Vec<LcIndex>>()
         })
     }
-
 
     /// Check if the constraints enforced by this predicate are satisfied
     /// i.e. L(x_1, x_2, ..., x_n) = 0
@@ -162,7 +159,7 @@ impl<F: Field> PredicateConstraintSystem<F> {
             let variables: Vec<F> = constraint
                 .iter()
                 .map(|lc_index| {
-                    self.global_cs
+                    self.get_global_cs()
                         .assigned_value(SymbolicLc(*lc_index))
                         .unwrap()
                 })
@@ -180,7 +177,7 @@ impl<F: Field> PredicateConstraintSystem<F> {
         let mut matrices: Vec<Matrix<F>> = vec![Vec::new(); self.get_arity()];
         for constraint in self.iter_constraints() {
             for (matrix_ind, lc_index) in constraint.iter().enumerate() {
-                let lc: LinearCombination<F> = self.global_cs.get_lc(*lc_index).unwrap();
+                let lc: LinearCombination<F> = self.get_global_cs().get_lc(*lc_index).unwrap();
                 let row: Vec<(F, usize)> = self.make_row(&lc);
                 matrices[matrix_ind].push(row);
             }
@@ -191,7 +188,7 @@ impl<F: Field> PredicateConstraintSystem<F> {
     /// Given a linear combination, create a row in the matrix
     #[inline]
     fn make_row(&self, l: &LinearCombination<F>) -> Vec<(F, usize)> {
-        let num_input = self.global_cs.num_instance_variables();
+        let num_input = self.get_global_cs().num_instance_variables();
         l.0.iter()
             .filter_map(|(coeff, var)| {
                 if coeff.is_zero() {
@@ -204,5 +201,9 @@ impl<F: Field> PredicateConstraintSystem<F> {
                 }
             })
             .collect()
+    }
+
+    pub fn get_global_cs(&self) -> ConstraintSystemRef<F> {
+        ConstraintSystemRef::CS(self.global_cs.upgrade().unwrap())
     }
 }

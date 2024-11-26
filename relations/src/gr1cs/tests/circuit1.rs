@@ -1,5 +1,5 @@
 use ark_ff::Field;
-use ark_std::{collections::BTreeMap, string::ToString, vec::Vec};
+use ark_std::{collections::BTreeMap, rc::Rc, string::ToString, vec::Vec};
 
 use crate::{
     gr1cs::{
@@ -86,7 +86,7 @@ impl<F: Field + core::convert::From<i8>> ConstraintSynthesizer<F> for Circuit1<F
         // Local predicate declarations -> Polynomial predicates
 
         let local_predicate_a = PredicateConstraintSystem::new_polynomial_predicate(
-            cs.clone(),
+            Rc::downgrade(cs.inner().unwrap()),
             4,
             vec![
                 (F::from(1u8), vec![(0, 1), (1, 1)]),
@@ -95,7 +95,7 @@ impl<F: Field + core::convert::From<i8>> ConstraintSynthesizer<F> for Circuit1<F
             ],
         );
         let local_predicate_b = PredicateConstraintSystem::new_polynomial_predicate(
-            cs.clone(),
+            Rc::downgrade(cs.inner().unwrap()),
             3,
             vec![
                 (F::from(7u8), vec![(1, 1)]),
@@ -105,7 +105,7 @@ impl<F: Field + core::convert::From<i8>> ConstraintSynthesizer<F> for Circuit1<F
         );
 
         let local_predicate_c = PredicateConstraintSystem::new_polynomial_predicate(
-            cs.clone(),
+            Rc::downgrade(cs.inner().unwrap()),
             3,
             vec![
                 (F::from(1u8), vec![(0, 1), (1, 1)]),
