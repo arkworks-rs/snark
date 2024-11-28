@@ -116,7 +116,7 @@ impl<F: Field> ConstraintSystemRef<F> {
     ) -> crate::gr1cs::Result<()> {
         if !self.has_predicate(R1CS_PREDICATE_LABEL) {
             let r1cs_constraint_system =
-                PredicateConstraintSystem::new_r1cs_predicate(self.clone())?;
+                PredicateConstraintSystem::new_r1cs_predicate()?;
             self.register_predicate(R1CS_PREDICATE_LABEL, r1cs_constraint_system)?;
         }
         self.inner()
@@ -399,36 +399,3 @@ impl<F: Field> ConstraintSystemRef<F> {
     // }
 }
 
-/// A shared reference to a constraint system that can be stored in high level
-/// variables.
-#[derive(Debug, Clone)]
-pub enum WeakConstraintSystemRef<F: Field> {
-    /// Represents the case where we *don't* need to allocate variables or
-    /// enforce constraints. Encountered when operating over constant
-    /// values.
-    None,
-    /// Represents the case where we *do* allocate variables or enforce
-    /// constraints.
-    CS(Weak<RefCell<ConstraintSystem<F>>>),
-}
-
-impl<F: Field> WeakConstraintSystemRef<F> {
-    /// Create a new `WeakConstraintSystemRef` from a
-    /// `Weak<RefCell<ConstraintSystem<F>>>`
-    pub fn from(cs: ConstraintSystemRef<F>) -> Self {
-        match cs.inner() {
-            None => WeakConstraintSystemRef::None,
-            Some(cs) => WeakConstraintSystemRef::CS(Rc::downgrade(cs)),
-        }
-    }
-
-    /// Convert a `WeakConstraintSystemRef` to a `ConstraintSystemRef`
-    /// If the `WeakConstraintSystemRef` is `None`, it will return `None`
-    /// Otherwise, it will upgrade the weak reference
-    pub fn to_constraint_system_ref(&self) -> ConstraintSystemRef<F> {
-        match self {
-            WeakConstraintSystemRef::CS(ref cs) => ConstraintSystemRef::CS(cs.upgrade().unwrap()),
-            WeakConstraintSystemRef::None => ConstraintSystemRef::None,
-        }
-    }
-}

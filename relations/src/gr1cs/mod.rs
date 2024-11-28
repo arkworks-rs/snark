@@ -22,7 +22,7 @@ pub use ark_ff::{Field, ToConstraintField};
 pub use crate::{
     gr1cs::{
         constraint_system::ConstraintSystem,
-        constraint_system_ref::{ConstraintSystemRef, WeakConstraintSystemRef},
+        constraint_system_ref::{ConstraintSystemRef},
         local_predicate::polynomial_constraint::R1CS_PREDICATE_LABEL
     },
     lc,

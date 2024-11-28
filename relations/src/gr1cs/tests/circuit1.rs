@@ -7,7 +7,7 @@ use crate::{
 use ark_ff::Field;
 use ark_std::{collections::BTreeMap, string::ToString, vec::Vec};
 
-use super::{Label, Matrix, WeakConstraintSystemRef};
+use super::{Label, Matrix};
 
 #[derive(Debug, Clone)]
 pub struct Circuit1<F: Field> {
@@ -80,7 +80,6 @@ impl<F: Field + core::convert::From<i8>> ConstraintSynthesizer<F> for Circuit1<F
         // Local predicate declarations -> Polynomial predicates
 
         let local_predicate_a = PredicateConstraintSystem::new_polynomial_predicate(
-            WeakConstraintSystemRef::from(cs.clone()),
             4,
             vec![
                 (F::from(1u8), vec![(0, 1), (1, 1)]),
@@ -89,7 +88,6 @@ impl<F: Field + core::convert::From<i8>> ConstraintSynthesizer<F> for Circuit1<F
             ],
         );
         let local_predicate_b = PredicateConstraintSystem::new_polynomial_predicate(
-            WeakConstraintSystemRef::from(cs.clone()),
             3,
             vec![
                 (F::from(7u8), vec![(1, 1)]),
@@ -99,7 +97,6 @@ impl<F: Field + core::convert::From<i8>> ConstraintSynthesizer<F> for Circuit1<F
         );
 
         let local_predicate_c = PredicateConstraintSystem::new_polynomial_predicate(
-            WeakConstraintSystemRef::from(cs.clone()),
             3,
             vec![
                 (F::from(1u8), vec![(0, 1), (1, 1)]),

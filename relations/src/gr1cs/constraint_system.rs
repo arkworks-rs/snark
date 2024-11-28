@@ -346,7 +346,7 @@ impl<F: Field> ConstraintSystem<F> {
             Err(SynthesisError::AssignmentMissing)
         } else {
             for (label, predicate) in self.local_predicates.iter() {
-                if let Some(unsatisfied_constraint) = predicate.which_constraint_is_unsatisfied() {
+                if let Some(unsatisfied_constraint) = predicate.which_constraint_is_unsatisfied(self) {
                     let mut trace: String = "".to_string();
                     #[cfg(feature = "std")]
                     {
@@ -629,7 +629,7 @@ impl<F: Field> ConstraintSystem<F> {
     pub fn to_matrices(&self) -> crate::gr1cs::Result<BTreeMap<Label, Vec<Matrix<F>>>> {
         let mut matrices = BTreeMap::new();
         for (label, predicate) in self.local_predicates.iter() {
-            matrices.insert(label.clone(), predicate.to_matrices());
+            matrices.insert(label.clone(), predicate.to_matrices(self));
         }
         Ok(matrices)
     }
