@@ -339,11 +339,11 @@ impl<F: Field> ConstraintSystemRef<F> {
             .and_then(|cs| cs.borrow().get_lc(lc_index))
     }
 
-
+    /// Given a linear combination, create a row in the matrix
     pub fn make_row(&self, lc: &LinearCombination<F>) -> crate::utils::Result<Vec<(F, usize)>> {
         self.inner()
             .ok_or(SynthesisError::MissingCS)
-            .and_then(|cs| Ok(cs.borrow().make_row(lc)))
+            .map(|cs| cs.borrow().make_row(lc))
     }
 
     // TODO: Implement this function
