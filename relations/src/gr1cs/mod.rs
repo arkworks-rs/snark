@@ -23,6 +23,7 @@ pub use crate::{
     gr1cs::{
         constraint_system::ConstraintSystem,
         constraint_system_ref::{ConstraintSystemRef, WeakConstraintSystemRef},
+        local_predicate::polynomial_constraint::R1CS_PREDICATE_LABEL
     },
     lc,
     utils::{
