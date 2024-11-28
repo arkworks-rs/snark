@@ -643,4 +643,23 @@ impl<F: Field> ConstraintSystem<F> {
             .cloned()
             .ok_or(SynthesisError::LcNotFound)
     }
+
+
+        /// Given a linear combination, create a row in the matrix
+        #[inline]
+        pub(crate) fn make_row(&self, l: &LinearCombination<F>) -> Vec<(F, usize)> {
+            let num_input = self.num_instance_variables();
+            l.0.iter()
+                .filter_map(|(coeff, var)| {
+                    if coeff.is_zero() {
+                        None
+                    } else {
+                        Some((
+                            *coeff,
+                            var.get_index_unchecked(num_input).expect("no symbolic LCs"),
+                        ))
+                    }
+                })
+                .collect()
+        }
 }

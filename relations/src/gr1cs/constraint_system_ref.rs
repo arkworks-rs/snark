@@ -339,6 +339,13 @@ impl<F: Field> ConstraintSystemRef<F> {
             .and_then(|cs| cs.borrow().get_lc(lc_index))
     }
 
+
+    pub fn make_row(&self, lc: &LinearCombination<F>) -> crate::utils::Result<Vec<(F, usize)>> {
+        self.inner()
+            .ok_or(SynthesisError::MissingCS)
+            .and_then(|cs| Ok(cs.borrow().make_row(lc)))
+    }
+
     // TODO: Implement this function
     // /// Get trace information about all constraints in the system
     // pub fn constraint_names(&self) -> Option<Vec<String>> {

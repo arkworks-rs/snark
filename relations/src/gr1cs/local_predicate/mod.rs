@@ -178,34 +178,18 @@ impl<F: Field> PredicateConstraintSystem<F> {
 
     /// Create the set of matrices for this predicate constraint system
     pub fn to_matrices(&self) -> Vec<Matrix<F>> {
+        let global_cs = self.get_global_cs();
         let mut matrices: Vec<Matrix<F>> = vec![Vec::new(); self.get_arity()];
         for constraint in self.iter_constraints() {
             for (matrix_ind, lc_index) in constraint.iter().enumerate() {
-                let lc: LinearCombination<F> = self.get_global_cs().get_lc(*lc_index).unwrap();
-                let row: Vec<(F, usize)> = self.make_row(&lc);
+                let lc: LinearCombination<F> = global_cs.get_lc(*lc_index).unwrap();
+                let row: Vec<(F, usize)> = global_cs.make_row(&lc).unwrap();
                 matrices[matrix_ind].push(row);
             }
         }
         matrices
     }
 
-    /// Given a linear combination, create a row in the matrix
-    #[inline]
-    fn make_row(&self, l: &LinearCombination<F>) -> Vec<(F, usize)> {
-        let num_input = self.get_global_cs().num_instance_variables();
-        l.0.iter()
-            .filter_map(|(coeff, var)| {
-                if coeff.is_zero() {
-                    None
-                } else {
-                    Some((
-                        *coeff,
-                        var.get_index_unchecked(num_input).expect("no symbolic LCs"),
-                    ))
-                }
-            })
-            .collect()
-    }
 
     pub fn get_global_cs(&self) -> ConstraintSystemRef<F> {
         self.global_cs.to_constraint_system_ref()
