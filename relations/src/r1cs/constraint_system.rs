@@ -61,7 +61,7 @@ pub struct ConstraintSystem<F: Field> {
     /// Map for gadgets to cache computation results.
     pub cache_map: Rc<RefCell<BTreeMap<TypeId, Box<dyn Any>>>>,
 
-    lc_map: BTreeMap<LcIndex, LinearCombination<F>>,
+    lc_map: Vec<LinearCombination<F>>,
 
     #[cfg(feature = "std")]
     constraint_traces: Vec<Option<ConstraintTrace>>,
@@ -70,7 +70,7 @@ pub struct ConstraintSystem<F: Field> {
     b_constraints: Vec<LcIndex>,
     c_constraints: Vec<LcIndex>,
 
-    lc_assignment_cache: Rc<RefCell<BTreeMap<LcIndex, F>>>,
+    lc_assignment_cache: Rc<RefCell<Vec<Option<F>>>>,
 }
 
 impl<F: Field> Default for ConstraintSystem<F> {
@@ -141,8 +141,8 @@ impl<F: Field> ConstraintSystem<F> {
             #[cfg(feature = "std")]
             constraint_traces: Vec::new(),
 
-            lc_map: BTreeMap::new(),
-            lc_assignment_cache: Rc::new(RefCell::new(BTreeMap::new())),
+            lc_map: Vec::new(),
+            lc_assignment_cache: Rc::new(RefCell::new(Vec::new())),
 
             mode: SynthesisMode::Prove {
                 construct_matrices: true,
@@ -243,7 +243,8 @@ impl<F: Field> ConstraintSystem<F> {
         let index = LcIndex(self.num_linear_combinations);
         let var = Variable::SymbolicLc(index);
 
-        self.lc_map.insert(index, lc);
+        self.lc_map.push(lc);
+        self.lc_assignment_cache.borrow_mut().push(None);
 
         self.num_linear_combinations += 1;
         Ok(var)
@@ -280,8 +281,8 @@ impl<F: Field> ConstraintSystem<F> {
         let mut num_times_used = vec![0; self.lc_map.len()];
 
         // Iterate over every lc in constraint system
-        for (index, lc) in self.lc_map.iter() {
-            num_times_used[index.0] += count_sinks as usize;
+        for (index, lc) in self.lc_map.iter().enumerate() {
+            num_times_used[index] += count_sinks as usize;
 
             // Increment the counter for each lc that this lc has a direct dependency on.
             for &(_, var) in lc.iter() {
@@ -315,13 +316,13 @@ impl<F: Field> ConstraintSystem<F> {
         ) -> (usize, Option<Vec<F>>),
     ) {
         // `transformed_lc_map` stores the transformed linear combinations.
-        let mut transformed_lc_map = BTreeMap::<_, LinearCombination<F>>::new();
+        let mut transformed_lc_map = vec![lc!(); self.lc_map.len()];
         let mut num_times_used = self.lc_num_times_used(false);
 
         // This loop goes through all the LCs in the map, starting from
         // the early ones. The transformer function is applied to the
         // inlined LC, where new witness variables can be created.
-        for (&index, lc) in &self.lc_map {
+        for (index, lc) in self.lc_map.iter().enumerate() {
             let mut transformed_lc = LinearCombination::new();
 
             // Inline the LC, unwrapping symbolic LCs that may constitute it,
@@ -337,10 +338,7 @@ impl<F: Field> ConstraintSystem<F> {
                     // `new_lc_map` since a LC can only depend on other
                     // LCs with lower indices, which we have transformed.
                     //
-                    let lc = transformed_lc_map
-                        .get(&lc_index)
-                        .expect("should be inlined");
-                    transformed_lc.extend((lc * coeff).0.into_iter());
+                    transformed_lc.extend((&transformed_lc_map[lc_index.0] * coeff).0.into_iter());
 
                     // Delete linear combinations that are no longer used.
                     //
@@ -357,7 +355,7 @@ impl<F: Field> ConstraintSystem<F> {
                     num_times_used[lc_index.0] -= 1;
                     if num_times_used[lc_index.0] == 0 {
                         // This lc is not used any more, so remove it.
-                        transformed_lc_map.remove(&lc_index);
+                        transformed_lc_map[lc_index.0] = lc!();
                     }
                 } else {
                     // Otherwise, it's a concrete variable and so we
@@ -369,10 +367,10 @@ impl<F: Field> ConstraintSystem<F> {
 
             // Call the transformer function.
             let (num_new_witness_variables, new_witness_assignments) =
-                transformer(&self, num_times_used[index.0], &mut transformed_lc);
+                transformer(&self, num_times_used[index], &mut transformed_lc);
 
             // Insert the transformed LC.
-            transformed_lc_map.insert(index, transformed_lc);
+            transformed_lc_map[index] = transformed_lc;
 
             // Update the witness counter.
             self.num_witness_variables += num_new_witness_variables;
@@ -533,17 +531,17 @@ impl<F: Field> ConstraintSystem<F> {
             let a: Vec<_> = self
                 .a_constraints
                 .iter()
-                .map(|index| self.make_row(self.lc_map.get(index).unwrap()))
+                .map(|index| self.make_row(&self.lc_map[index.0]))
                 .collect();
             let b: Vec<_> = self
                 .b_constraints
                 .iter()
-                .map(|index| self.make_row(self.lc_map.get(index).unwrap()))
+                .map(|index| self.make_row(&self.lc_map[index.0]))
                 .collect();
             let c: Vec<_> = self
                 .c_constraints
                 .iter()
-                .map(|index| self.make_row(self.lc_map.get(index).unwrap()))
+                .map(|index| self.make_row(&self.lc_map[index.0]))
                 .collect();
 
             let a_num_non_zero: usize = a.iter().map(|lc| lc.len()).sum();
@@ -567,7 +565,7 @@ impl<F: Field> ConstraintSystem<F> {
     }
 
     fn eval_lc(&self, lc: LcIndex) -> Option<F> {
-        let lc = self.lc_map.get(&lc)?;
+        let lc = self.lc_map.get(lc.0)?;
         let mut acc = F::zero();
         for (coeff, var) in lc.iter() {
             acc += *coeff * self.assigned_value(*var)?;
@@ -631,12 +629,12 @@ impl<F: Field> ConstraintSystem<F> {
             Variable::Witness(idx) => self.witness_assignment.get(idx).copied(),
             Variable::Instance(idx) => self.instance_assignment.get(idx).copied(),
             Variable::SymbolicLc(idx) => {
-                let value = self.lc_assignment_cache.borrow().get(&idx).copied();
+                let value = self.lc_assignment_cache.borrow()[idx.0];
                 if value.is_some() {
                     value
                 } else {
                     let value = self.eval_lc(idx)?;
-                    self.lc_assignment_cache.borrow_mut().insert(idx, value);
+                    self.lc_assignment_cache.borrow_mut()[idx.0] = Some(value);
                     Some(value)
                 }
             },
