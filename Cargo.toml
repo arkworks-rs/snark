@@ -2,7 +2,6 @@
 members = [
     "relations",
     "snark",
-    "arithmetic-circuits",
 ]
 
 resolver = "2"

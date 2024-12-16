@@ -1,6 +1,6 @@
 use ark_ec::short_weierstrass::Affine;
 use ark_ff::{Field, UniformRand};
-use ark_std::test_rng;
+use ark_std::{string::ToString, test_rng, vec::Vec};
 
 use crate::{
     arithmetic_circuit::{filter_constants, ArithmeticCircuit, Node},

@@ -2,7 +2,7 @@ use ark_bls12_377::{Fq, G1Affine};
 use ark_bn254::Fr;
 use ark_ec::short_weierstrass::Affine;
 use ark_ff::{Field, UniformRand};
-use ark_std::{collections::BTreeMap, ops::Deref, test_rng};
+use ark_std::{collections::BTreeMap, ops::Deref, string::ToString, test_rng, vec::Vec};
 use itertools::Itertools;
 
 use crate::arithmetic_circuit::Node;
@@ -158,60 +158,58 @@ fn test_some_operations() {
     assert_eq!(output, circ_output);
 }
 
-/*
-                                                Add
-                    /                                                                   \
-                  Add                                                                    Mul
-        /                       \                                     /                                      \
-    Constant(3)                 Mul                                  Add                                    Add
-                        /              \                        /               \                   /                   \
-                    Constant(2)        Mul                  Constant(3)         Mul             Constant(1)              Mul
-                                    /       \                               /       \                             /             \
-                                    |       |                         Constant(2)   |                         Constant(2)   Variable(1)
-                                    |       |                                       |                                           |
-                                    -------------------------------------------------                                           |
-                                            |               |                                                                   |
-                                            -------------------------------------------------------------------------------------
-                                                            |                           |
-                                                        Variable(0)                 Variable(1)
-Original:
-
-    16: Add(15, 5)
-    15: Add(14, 13)
-    14: Constant(3)
-    13: Mul(12, 11)
-    12: Constant(2)
-    11: Mul(10, 9)
-    10: Variable(0)
-    9: Variable(1)
-    8: Mul(4, 10)
-    7: Add(6, 8)
-    6: Constant(3)
-    5: Mul(3, 7)
-    4: Constant(2)
-    3: Add(2, 1)
-    2: Constant(1)
-    1: Mul(0, 9)
-    0: Constant(2)
-
-After filtering:
-
-    13: Add(12, 7) -> (3 + 2 * x * y) + (3 + 2 * x) * (1 + 2 * y) = 60
-    12: Add(5, 11) -> 3 + 2 * x * y = 15
-    11: Mul(0, 10) -> 2 * x * y = 12
-    10: Mul(9, 8)  -> x * y = 6
-    9: Variable(0) -> x = 3
-    8: Variable(1) -> y = 2
-    7: Mul(6, 3)   -> (3 + 2 * x) * (1 + 2 * y) = 45
-    6: Add(5, 4)   -> 3 + 2 * x = 9
-    5: Constant(3) -> 3
-    4: Mul(0, 9)   -> 2 * x = 6
-    3: Add(2, 1)   -> 1 + 2 * y = 5
-    2: Constant(1) -> 1
-    1: Mul(0, 8)   -> 2 * y = 4
-    0: Constant(2) -> 2
-
-*/
+// Add
+// /                                                                   \
+// Add                                                                    Mul
+// /                       \                                     /
+// \ Constant(3)                 Mul                                  Add
+// Add /              \                        /               \
+// /                   \ Constant(2)        Mul                  Constant(3)
+// Mul             Constant(1)              Mul /       \
+// /       \                             /             \ |       |                         Constant(2)   |                         Constant(2)   Variable(1)
+// |       |                                       |                                           |
+// -------------------------------------------------
+// | |               |                                                                   |
+// -------------------------------------------------------------------------------------
+// |                           |
+// Variable(0)                 Variable(1)
+// Original:
+//
+// 16: Add(15, 5)
+// 15: Add(14, 13)
+// 14: Constant(3)
+// 13: Mul(12, 11)
+// 12: Constant(2)
+// 11: Mul(10, 9)
+// 10: Variable(0)
+// 9: Variable(1)
+// 8: Mul(4, 10)
+// 7: Add(6, 8)
+// 6: Constant(3)
+// 5: Mul(3, 7)
+// 4: Constant(2)
+// 3: Add(2, 1)
+// 2: Constant(1)
+// 1: Mul(0, 9)
+// 0: Constant(2)
+//
+// After filtering:
+//
+// 13: Add(12, 7) -> (3 + 2 * x * y) + (3 + 2 * x) * (1 + 2 * y) = 60
+// 12: Add(5, 11) -> 3 + 2 * x * y = 15
+// 11: Mul(0, 10) -> 2 * x * y = 12
+// 10: Mul(9, 8)  -> x * y = 6
+// 9: Variable(0) -> x = 3
+// 8: Variable(1) -> y = 2
+// 7: Mul(6, 3)   -> (3 + 2 * x) * (1 + 2 * y) = 45
+// 6: Add(5, 4)   -> 3 + 2 * x = 9
+// 5: Constant(3) -> 3
+// 4: Mul(0, 9)   -> 2 * x = 6
+// 3: Add(2, 1)   -> 1 + 2 * y = 5
+// 2: Constant(1) -> 1
+// 1: Mul(0, 8)   -> 2 * y = 4
+// 0: Constant(2) -> 2
+//
 #[test]
 fn test_to_arithmetic_circuit_1() {
     let x = Expression::variable("x");
@@ -278,29 +276,26 @@ fn test_to_arithmetic_circuit_1() {
     );
 }
 
-/*
-
-                    Mul()
-            /                   \
-            Add()                 Add()
-        /       \          /              \
-        |        |      Variable(c)      Mul()
-        |        |                     /       \
-        -------------------------------        |
-            |     |                            |
-            |     ------------------------------
-            |                   |
-            Variable(a)         Variable(b)
-
-    6: Mul(5, 2) -> 35
-    5: Add(4, 3) -> 5
-    4: Variable(a) -> 3
-    3: Variable(b) -> 2
-    2: Add(1, 0) -> 7
-    1: Variable(c) -> 1
-    0: Mul(4, 3) -> 6
-
-*/
+// Mul()
+// /                   \
+// Add()                 Add()
+// /       \          /              \
+// |        |      Variable(c)      Mul()
+// |        |                     /       \
+// -------------------------------        |
+// |     |                            |
+// |     ------------------------------
+// |                   |
+// Variable(a)         Variable(b)
+//
+// 6: Mul(5, 2) -> 35
+// 5: Add(4, 3) -> 5
+// 4: Variable(a) -> 3
+// 3: Variable(b) -> 2
+// 2: Add(1, 0) -> 7
+// 1: Variable(c) -> 1
+// 0: Mul(4, 3) -> 6
+//
 
 #[test]
 fn test_to_arithmetic_circuit_2() {

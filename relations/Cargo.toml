@@ -17,10 +17,16 @@ ark-ff.workspace = true
 ark-std.workspace = true
 tracing.workspace = true
 tracing-subscriber = { workspace = true, optional = true }
+itertools = { version = "0.13.0", default-features = false }
 
 [dev-dependencies]
 ark-test-curves = { workspace = true, features = [ "bls12_381_scalar_field" ] }
+tokio = { version = "1", features = [ "full" ] }
+ark-ec = { version = "0.5.0", default-features = false }
+ark-circom = { git = "https://github.com/arkworks-rs/circom-compat", branch = "release-0.5" }
+ark-bn254 = { version = "0.5.0", default-features = false, features = [ "curve" ] }
+ark-bls12-377 = { version = "0.5.0", default-features = false, features = [ "curve" ] }
 
 [features]
-default = []
-std = [ "ark-std/std", "ark-ff/std", "tracing-subscriber", "tracing/std" ]
+default = [ "itertools/use_alloc" ]
+std = [ "ark-std/std", "ark-ff/std", "tracing-subscriber", "tracing/std", "ark-ec/std", "itertools/use_alloc" ]

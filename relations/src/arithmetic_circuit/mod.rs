@@ -1,6 +1,6 @@
 //! This module contains the core functionality for arithmetic circuits.
+use crate::r1cs::{ConstraintMatrices, ConstraintSystem};
 use ark_ff::{BigInteger, BigInteger256, PrimeField};
-use ark_relations::r1cs::{ConstraintMatrices, ConstraintSystem};
 use ark_std::{
     assert,
     clone::Clone,
