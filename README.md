@@ -18,8 +18,7 @@ This library is released under the MIT License and the Apache v2 License (see [L
 This repository contains two Rust crates:
 
 * [`ark-snark`](snark): Provides generic traits for zkSNARKs
-* [`ark-relations`](relations): Provides generic traits for NP relations used in programming zkSNARKs, such as R1CS
-* [`arithmetic-circuits`](arithmetic-circuits): Provides a library for constructing arithmetic circuits and expressions
+* [`ark-relations`](relations): Provides generic traits for NP relations used in programming zkSNARKs, such as R1CS and Arithmetic Circuits
 
 ## Overview
 

@@ -30,8 +30,7 @@ pub fn read_constraint_system<F: PrimeField>(
 // `circom-compat/release-0.5` has `ark-relations v0.5.0` as a dependency, which
 // currently does not exist, therefore
 // `ark-circom::ark_relations::r1cs::ConstraintSystem` is not the same structure
-// as
-//`crate::r1cs::ConstraintSystem`.
+// as `crate::r1cs::ConstraintSystem`.
 fn generate_constraints<F: PrimeField>(
     circom: CircomCircuit<F>,
     cs: ConstraintSystemRef<F>,

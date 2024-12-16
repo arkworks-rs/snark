@@ -1,6 +1,6 @@
 //! Core interface for working with various relations that are useful in
 //! zkSNARKs. At the moment, we implement APIs for working with Rank-1
-//! Constraint Systems (R1CS), Arithmetic Circuits and Arithmetic Expressions
+//! Constraint Systems (R1CS), Arithmetic Circuits and Arithmetic Expressions.
 
 #![cfg_attr(not(feature = "std"), no_std)]
 #![warn(
