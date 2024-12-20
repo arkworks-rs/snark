@@ -1,5 +1,7 @@
 mod circuit1;
 mod circuit2;
+use crate::ns;
+
 use super::*;
 use ark_ff::{One, Zero};
 use ark_test_curves::bls12_381::Fr;
@@ -46,6 +48,13 @@ fn test_circuit1_sat() {
 /// The first input is changed comparing to sat test
 #[test]
 fn test_circuit1_non_sat() {
+    // use crate::gr1cs::TracingMode;
+    // use tracing_subscriber::prelude::*;
+    // let mut layer = ConstraintLayer::default();
+    // layer.mode = TracingMode::OnlyConstraints;
+    // let subscriber = tracing_subscriber::Registry::default().with(layer);
+    // tracing::subscriber::set_global_default(subscriber).unwrap();
+
     let c = Circuit1 {
         x1: Fr::from(4u8),
         x2: Fr::from(2u8),
@@ -61,9 +70,10 @@ fn test_circuit1_non_sat() {
         w7: Fr::from(57u8),
         w8: Fr::from(22022u32),
     };
+
     let cs = ConstraintSystem::<Fr>::new_ref();
     c.generate_constraints(cs.clone()).unwrap();
-    assert!(!cs.is_satisfied().unwrap());
+    assert!(!cs.is_satisfied().unwrap()); // This fails as expected.
 }
 
 #[test]
@@ -88,14 +98,13 @@ fn test_circuit1_matrices() {
     assert_eq!(Circuit1::get_matrices(), cs.clone().to_matrices().unwrap());
 }
 
-
 /// This is the legacy test for R1CS from the previous version of the library
 #[test]
 fn test_circuit2_matrices() {
     let c = Circuit2 {
         a: Fr::one(),
         b: Fr::one(),
-        c: Fr::one()+Fr::one(),
+        c: Fr::one() + Fr::one(),
     };
     let cs = ConstraintSystem::<Fr>::new_ref();
     c.clone().generate_constraints(cs.clone()).unwrap();

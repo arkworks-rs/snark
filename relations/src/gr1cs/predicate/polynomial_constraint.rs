@@ -1,6 +1,6 @@
 //! This module contains the implementation of the Polynomial Predicate struct.
-//! A polynomial predicate is a kind of local predicate which is defined in https://eprint.iacr.org/2024/1245
-//! Other kinds of local predicates can be added in the future such as lookup
+//! A polynomial predicate is a kind of  predicate which is defined in https://eprint.iacr.org/2024/1245
+//! Other kinds of  predicates can be added in the future such as lookup
 //! table predicates.
 
 use ark_ff::Field;
@@ -10,12 +10,11 @@ use ark_poly::{
 };
 use ark_std::vec::Vec;
 
-use super::Predicate;
 
 /// A polynomial predicat is just a polynomial
 #[derive(Debug, Clone)]
 pub struct PolynomialPredicate<F: Field> {
-    polynomial: SparsePolynomial<F, SparseTerm>,
+    pub polynomial: SparsePolynomial<F, SparseTerm>,
 }
 
 impl<F: Field> PolynomialPredicate<F> {
@@ -35,15 +34,20 @@ impl<F: Field> PolynomialPredicate<F> {
 /// This is the implementation of the Predicate trait for PolynomialPredicate.
 /// The evaluation of a polynomial predicate is the evaluation of the underlying
 /// polynomial and the arity is the number of variables in the polynomial.
-impl<F: Field> Predicate<F> for PolynomialPredicate<F> {
-    fn evaluate(&self, variables: &[F]) -> bool {
+impl<F: Field> PolynomialPredicate<F> {
+    pub fn evaluate(&self, variables: &[F]) -> bool {
         // TODO: Change the polynomial eval to get a slice as an evaluation point
         !self.polynomial.evaluate(&variables.to_vec()).is_zero()
     }
 
-    fn arity(&self) -> usize {
+    pub fn arity(&self) -> usize {
         self.polynomial.num_vars()
     }
+
+    pub fn degree(&self) -> usize {
+        self.polynomial.degree()
+    }
+
 }
 
 /// The label for the popular R1CS predicate

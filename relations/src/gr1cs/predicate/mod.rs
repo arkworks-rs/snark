@@ -1,6 +1,6 @@
-//! This module contains the implementation of a general local predicate, defined in https://eprint.iacr.org/2024/1245
-//! A local predicate is a function from t (arity) variables to a boolean
-//! variable A local predicate can be as simple as f(a,b,c)=a.b-c=0 or as
+//! This module contains the implementation of a general  predicate, defined in https://eprint.iacr.org/2024/1245
+//! A  predicate is a function from t (arity) variables to a boolean
+//! variable A predicate can be as simple as f(a,b,c)=a.b-c=0 or as
 //! complex as a lookup table
 
 pub mod polynomial_constraint;
@@ -13,36 +13,26 @@ use ark_ff::Field;
 use ark_std::vec::Vec;
 use polynomial_constraint::PolynomialPredicate;
 
-/// A predicate is a function that decides (outputs boolean) on a vector of
-/// field elements
-pub trait Predicate<F> {
-    /// Evaluate the predicate on t (arity) variables
-    fn evaluate(&self, variables: &[F]) -> bool;
-
-    /// Get the arity of the predicate, i.e. the number of variables it takes
-    fn arity(&self) -> usize;
-}
-
 /// GR1CS can potentially support different types of predicates
 /// For now, we only support polynomial predicates
 /// In the future, we can add other types of predicates, e.g. lookup table
 #[derive(Debug, Clone)]
-pub enum LocalPredicate<F: Field> {
+pub enum PredicateType<F: Field> {
     Polynomial(PolynomialPredicate<F>),
     // Add other predicates in the future, e.g. lookup table
 }
 
-impl<F: Field> Predicate<F> for LocalPredicate<F> {
+impl<F: Field> PredicateType<F> {
     fn evaluate(&self, variables: &[F]) -> bool {
         match self {
-            LocalPredicate::Polynomial(p) => p.evaluate(variables),
+            PredicateType::Polynomial(p) => p.evaluate(variables),
             // TODO: Add other predicates in the future, e.g. lookup table
         }
     }
 
     fn arity(&self) -> usize {
         match self {
-            LocalPredicate::Polynomial(p) => p.arity(),
+            PredicateType::Polynomial(p) => p.arity(),
             // TODO: Add other predicates in the future, e.g. lookup table
         }
     }
@@ -59,23 +49,23 @@ pub struct PredicateConstraintSystem<F: Field> {
     /// The number of constraints enforced by this predicate
     num_constraints: usize,
 
-    /// The local predicate acting on constraints
-    local_predicate: LocalPredicate<F>,
+    /// The  predicate acting on constraints
+    predicate_type: PredicateType<F>,
 }
 
 impl<F: Field> PredicateConstraintSystem<F> {
     /// Create a new predicate constraint system with a specific predicate
-    fn new(local_predicate: LocalPredicate<F>) -> Self {
+    fn new(predicate_type: PredicateType<F>) -> Self {
         Self {
-            argument_lcs: vec![Vec::new(); local_predicate.arity()],
-            local_predicate,
+            argument_lcs: vec![Vec::new(); predicate_type.arity()],
+            predicate_type,
             num_constraints: 0,
         }
     }
 
     /// Create new polynomial predicate constraint system
     pub fn new_polynomial_predicate(arity: usize, terms: Vec<(F, Vec<(usize, usize)>)>) -> Self {
-        Self::new(LocalPredicate::Polynomial(PolynomialPredicate::new(
+        Self::new(PredicateType::Polynomial(PolynomialPredicate::new(
             arity, terms,
         )))
     }
@@ -92,9 +82,9 @@ impl<F: Field> PredicateConstraintSystem<F> {
         ))
     }
 
-    /// Get the arity of the local predicate in this predicate constraint system
+    /// Get the arity of the  predicate in this predicate constraint system
     pub fn get_arity(&self) -> usize {
-        self.local_predicate.arity()
+        self.predicate_type.arity()
     }
 
     /// Get the number of constraints enforced by this predicate
@@ -109,10 +99,10 @@ impl<F: Field> PredicateConstraintSystem<F> {
         &self.argument_lcs
     }
 
-    /// Get a reference to the local predicate in this predicate constraint
+    /// Get a reference to the  predicate in this predicate constraint
     /// system
-    pub fn get_local_predicate(&self) -> &LocalPredicate<F> {
-        &self.local_predicate
+    pub fn get_predicate_type(&self) -> &PredicateType<F> {
+        &self.predicate_type
     }
 
     /// Enforce a constraint in this predicate constraint system
@@ -150,7 +140,7 @@ impl<F: Field> PredicateConstraintSystem<F> {
                 .iter()
                 .map(|lc_index| cs.assigned_value(SymbolicLc(*lc_index)).unwrap())
                 .collect();
-            let result = self.local_predicate.evaluate(&variables);
+            let result = self.predicate_type.evaluate(&variables);
             if result {
                 return Some(i);
             }

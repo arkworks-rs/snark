@@ -1,14 +1,14 @@
 //! Core interface for working with Generalized Rank-1 Constraint Systems
 //! (GR1CS).
 mod constraint_system_ref;
-mod local_predicate;
+pub mod predicate;
 mod namespace;
 #[macro_use]
 mod constraint_system;
 #[cfg(test)]
 mod tests;
 #[cfg(feature = "std")]
-mod trace;
+pub mod trace;
 ///////////////////////////////////////////////////////////////////////////////////////
 
 #[cfg(feature = "std")]
@@ -23,7 +23,7 @@ pub use crate::{
     gr1cs::{
         constraint_system::ConstraintSystem,
         constraint_system_ref::{ConstraintSystemRef},
-        local_predicate::polynomial_constraint::R1CS_PREDICATE_LABEL
+        predicate::polynomial_constraint::R1CS_PREDICATE_LABEL
     },
     lc,
     utils::{
@@ -49,7 +49,7 @@ pub trait ConstraintSynthesizer<F: Field> {
 ///////////////////////////////////////////////////////////////////////////////////////
 
 /// In GR1CS a constraint is a vector of linear combinations associated with a
-/// local predicate
+///  predicate
 pub type Constraint = Vec<LcIndex>;
 
 /// Each predicate is associated with a label
@@ -88,17 +88,3 @@ pub enum OptimizationGoal {
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////
-
-/// Generate a `Namespace` with name `name` from `ConstraintSystem` `cs`.
-/// `name` must be a `&'static str`.
-#[macro_export]
-macro_rules! ns {
-    ($cs:expr, $name:expr) => {{
-        let span = $crate::gr1cs::info_span!(target: "gr1cs", $name);
-        let id = span.id();
-        let _enter_guard = span.enter();
-        core::mem::forget(_enter_guard);
-        core::mem::forget(span);
-        $crate::gr1cs::Namespace::new($cs.clone(), id)
-    }};
-}

@@ -8,7 +8,7 @@ use crate::{
 };
 
 use super::{
-    local_predicate::polynomial_constraint::R1CS_PREDICATE_LABEL, Label, Matrix, Variable,
+    predicate::polynomial_constraint::R1CS_PREDICATE_LABEL, Label, Matrix, Variable,
 };
 
 #[derive(Debug, Clone)]
@@ -50,7 +50,6 @@ impl<F: Field + core::convert::From<i8>> ConstraintSynthesizer<F> for Circuit2<F
     fn generate_constraints(self, cs: ConstraintSystemRef<F>) -> crate::utils::Result<()> {
         // Variable declarations -> Instance variables + Witness variables
         let two = F::one() + F::one();
-
         let a = cs.new_input_variable(|| Ok(self.a)).unwrap();
         let b = cs.new_witness_variable(|| Ok(self.b)).unwrap();
         let c = cs.new_witness_variable(|| Ok(self.c)).unwrap();

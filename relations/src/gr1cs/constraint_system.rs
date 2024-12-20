@@ -1,9 +1,9 @@
 //! This module contains the implementation of the `ConstraintSystem` struct.
-//! a constraint system contains multiple local predicate constraint systems,
+//! a constraint system contains multiple predicate constraint systems,
 //! each of which enforce have seperate predicates and constraints. For more infomation about the terminology and the structure of the constraint system, refer to https://eprint.iacr.org/2024/1245
 
 use super::{
-    local_predicate::{polynomial_constraint::R1CS_PREDICATE_LABEL, PredicateConstraintSystem},
+    predicate::{polynomial_constraint::R1CS_PREDICATE_LABEL, PredicateConstraintSystem, PredicateType},
     Constraint, ConstraintSystemRef, Label, OptimizationGoal, SynthesisMode,
 };
 #[cfg(feature = "std")]
@@ -15,7 +15,7 @@ use ark_std::{
     boxed::Box,
     cell::RefCell,
     collections::BTreeMap,
-    format,
+    format, log2,
     rc::Rc,
     string::{String, ToString},
     vec::Vec,
@@ -45,6 +45,7 @@ pub struct ConstraintSystem<F: Field> {
     /// The number of linear combinations
     num_linear_combinations: usize,
 
+
     /// The parameter we aim to minimize in this constraint system (either the
     /// number of constraints or their total weight).
     optimization_goal: OptimizationGoal,
@@ -57,6 +58,9 @@ pub struct ConstraintSystem<F: Field> {
     /// == SynthesisMode::Setup`.
     witness_assignment: Vec<F>,
 
+
+
+
     /// Map for gadgets to cache computation results.
     cache_map: Rc<RefCell<BTreeMap<TypeId, Box<dyn Any>>>>,
 
@@ -64,8 +68,8 @@ pub struct ConstraintSystem<F: Field> {
     /// it's easier to inline and outline the linear combinations.
     lc_map: BTreeMap<LcIndex, LinearCombination<F>>,
 
-    /// A map from the the local predicate labels to the local predicates
-    local_predicates: BTreeMap<Label, PredicateConstraintSystem<F>>,
+    /// A map from the the predicate labels to the predicates
+    predicate_constraint_systems: BTreeMap<Label, PredicateConstraintSystem<F>>,
 
     /// A cache for the linear combination assignments. It shows evaluation
     /// result of each linear combination
@@ -84,13 +88,13 @@ impl<F: Field> Default for ConstraintSystem<F> {
 
 impl<F: Field> ConstraintSystem<F> {
     /// Create a new and empty `ConstraintSystem<F>`.
-    /// Note that no local predicate is registered yet
+    /// Note that no predicate is registered yet
     pub fn new() -> Self {
         Self {
             num_instance_variables: 1,
             num_witness_variables: 0,
             num_linear_combinations: 0,
-            local_predicates: BTreeMap::new(),
+            predicate_constraint_systems: BTreeMap::new(),
             instance_assignment: vec![F::one()],
             witness_assignment: Vec::new(),
             cache_map: Rc::new(RefCell::new(BTreeMap::new())),
@@ -110,29 +114,52 @@ impl<F: Field> ConstraintSystem<F> {
         ConstraintSystemRef::new(Self::new())
     }
 
-    /// Returns the instance assignment of the constraint system
+    pub fn get_predicate_num_constraints (&self) -> BTreeMap<String, usize> { 
+        let mut num_constraints = BTreeMap::new();
+        for (label, predicate) in self.predicate_constraint_systems.iter() {
+            num_constraints.insert(label.clone(), predicate.num_constraints());
+        }
+        num_constraints 
+    }
+
+    pub fn get_predicate_arities (&self) -> BTreeMap<String, usize> {
+        let mut arities = BTreeMap::new();
+        for (label, predicate) in self.predicate_constraint_systems.iter() {
+            arities.insert(label.clone(), predicate.get_arity());
+        }
+        arities
+    }
+
+
+    pub fn get_predicate_types (&self) -> BTreeMap<Label, PredicateType<F>> {
+        let mut types: BTreeMap<String, PredicateType<F>> = BTreeMap::new();
+        for (label, predicate) in self.predicate_constraint_systems.iter() {
+            types.insert(label.clone(), predicate.get_predicate_type().clone());
+        }
+        types
+    }
+
+
+
+    /// Returself.num_constraints()he constraint system
     pub fn instance_assignment(&self) -> &[F] {
         &self.instance_assignment
     }
 
+    /// Returself.num_constraints()he constraint system
+    pub fn witness_assignment(&self) -> &[F] {
+        &self.witness_assignment
+    }
+
     /// Returns the number of constraints which is the sum of the number of
-    /// constraints in each local predicate.
+    /// constraints in each predicate.
     pub fn num_constraints(&self) -> usize {
-        self.local_predicates
+        self.predicate_constraint_systems
             .values()
             .map(|p| p.num_constraints())
             .sum()
     }
 
-    /// Returns the maximum arity of the local predicates.
-    /// Maximum arity is used when stacking the local predicates as Garuda does
-    pub fn max_arity(&self) -> usize {
-        self.local_predicates
-            .values()
-            .map(|p| p.get_arity())
-            .max()
-            .unwrap_or(0)
-    }
 
     /// Returns the number of instance variables.
     pub fn num_instance_variables(&self) -> usize {
@@ -144,31 +171,42 @@ impl<F: Field> ConstraintSystem<F> {
         self.num_witness_variables
     }
 
-    /// Enforce a constraint in the constraint system. It takes a local
+    /// Returns the number of witness variables.
+    pub fn num_variables(&self) -> usize {
+        self.num_witness_variables() + self.num_instance_variables()
+    }
+
+    pub fn num_predicates(&self) -> usize {
+        self.predicate_constraint_systems.len()
+    }
+
+    /// Enforce a constraint in the constraint system. It takes a
     /// predicate name and enforces a vector of linear combinations of the
-    /// length of the arity of the local predicate enforces the constraint.
+    /// length of the arity of the predicate enforces the constraint.
     #[inline]
     pub fn enforce_constraint(
         &mut self,
-        local_predicate_label: &str,
+        predicate_label: &str,
         lc_vec: impl IntoIterator<Item = LinearCombination<F>>,
     ) -> crate::gr1cs::Result<()> {
-        if !self.local_predicates.contains_key(local_predicate_label) {
+        if !self.predicate_constraint_systems.contains_key(predicate_label) {
             return Err(SynthesisError::PredicateNotFound);
         }
         if self.should_construct_matrices() {
             let constraint = self.new_lc_vec(lc_vec)?;
-            self.local_predicates
-                .get_mut(local_predicate_label)
+            self.predicate_constraint_systems
+                .get_mut(predicate_label)
                 .unwrap()
                 .enforce_constraint(constraint)?;
         }
         #[cfg(feature = "std")]
         {
             let trace = ConstraintTrace::capture();
-            match self.predicate_traces.get_mut(local_predicate_label) {
+            match self.predicate_traces.get_mut(predicate_label) {
                 Some(traces) => traces.push(trace),
-                None => (),
+                None => eprintln!(
+                    "Constraint trace requires adding the predicate constraint trace"
+                )
             }
         }
         Ok(())
@@ -277,13 +315,13 @@ impl<F: Field> ConstraintSystem<F> {
         Ok(Variable::Witness(index))
     }
 
-    /// Register a local predicate in the constraint system with a given label.
+    /// Register a predicate in the constraint system with a given label.
     pub fn register_predicate(
         &mut self,
         predicate_label: &str,
         predicate: PredicateConstraintSystem<F>,
     ) -> crate::utils::Result<()> {
-        self.local_predicates
+        self.predicate_constraint_systems
             .insert(predicate_label.to_string(), predicate);
         #[cfg(feature = "std")]
         {
@@ -295,7 +333,7 @@ impl<F: Field> ConstraintSystem<F> {
 
     /// check if there is a predicate with the given label
     pub fn has_predicate(&self, predicate_label: &str) -> bool {
-        self.local_predicates.contains_key(predicate_label)
+        self.predicate_constraint_systems.contains_key(predicate_label)
     }
 
     /// Obtain the assignment corresponding to the `Variable` `v`.
@@ -338,15 +376,17 @@ impl<F: Field> ConstraintSystem<F> {
 
     /// If `self` is satisfied, outputs `Ok(None)`.
     /// If `self` is unsatisfied, outputs `Some(s,i)`, where `s` is the label of
-    /// the unsatisfied local prediacate and  `i` is the index of
-    /// the first unsatisfied constraint in that local predicate.
+    /// the unsatisfied prediacate and  `i` is the index of
+    /// the first unsatisfied constraint in that predicate.
     /// If `self.is_in_setup_mode()` or `self == None`, outputs `Err(())`.
     pub fn which_predicate_is_unsatisfied(&self) -> crate::utils::Result<Option<String>> {
         if self.is_in_setup_mode() {
             Err(SynthesisError::AssignmentMissing)
         } else {
-            for (label, predicate) in self.local_predicates.iter() {
-                if let Some(unsatisfied_constraint) = predicate.which_constraint_is_unsatisfied(self) {
+            for (label, predicate) in self.predicate_constraint_systems.iter() {
+                if let Some(unsatisfied_constraint) =
+                    predicate.which_constraint_is_unsatisfied(self)
+                {
                     let mut trace: String = "".to_string();
                     #[cfg(feature = "std")]
                     {
@@ -360,7 +400,7 @@ impl<F: Field> ConstraintSystem<F> {
                                     format!("{} - {unsatisfied_constraint}", &label)
                                 },
                                 |t| format!("{t}"),
-                            );
+                            ).to_string();
                     }
                     #[cfg(not(feature = "std"))]
                     {
@@ -497,11 +537,8 @@ impl<F: Field> ConstraintSystem<F> {
                 LinearCombination::from(Variable::Witness(*new_witness_variable)),
             ];
             // Add a new constraint
-            self.enforce_constraint(
-                R1CS_PREDICATE_LABEL,
-                r1cs_constraint,
-            )
-            .unwrap();
+            self.enforce_constraint(R1CS_PREDICATE_LABEL, r1cs_constraint)
+                .unwrap();
         }
     }
 
@@ -624,11 +661,11 @@ impl<F: Field> ConstraintSystem<F> {
         num_times_used
     }
 
-    /// Get the matrices corresponding to the local predicates.and the
+    /// Get the matrices corresponding to the predicates.and the
     /// corresponding set of matrices
     pub fn to_matrices(&self) -> crate::gr1cs::Result<BTreeMap<Label, Vec<Matrix<F>>>> {
         let mut matrices = BTreeMap::new();
-        for (label, predicate) in self.local_predicates.iter() {
+        for (label, predicate) in self.predicate_constraint_systems.iter() {
             matrices.insert(label.clone(), predicate.to_matrices(self));
         }
         Ok(matrices)
@@ -644,22 +681,21 @@ impl<F: Field> ConstraintSystem<F> {
             .ok_or(SynthesisError::LcNotFound)
     }
 
-
-        /// Given a linear combination, create a row in the matrix
-        #[inline]
-        pub(crate) fn make_row(&self, l: &LinearCombination<F>) -> Vec<(F, usize)> {
-            let num_input = self.num_instance_variables();
-            l.0.iter()
-                .filter_map(|(coeff, var)| {
-                    if coeff.is_zero() {
-                        None
-                    } else {
-                        Some((
-                            *coeff,
-                            var.get_index_unchecked(num_input).expect("no symbolic LCs"),
-                        ))
-                    }
-                })
-                .collect()
-        }
+    /// Given a linear combination, create a row in the matrix
+    #[inline]
+    pub(crate) fn make_row(&self, l: &LinearCombination<F>) -> Vec<(F, usize)> {
+        let num_input = self.num_instance_variables();
+        l.0.iter()
+            .filter_map(|(coeff, var)| {
+                if coeff.is_zero() {
+                    None
+                } else {
+                    Some((
+                        *coeff,
+                        var.get_index_unchecked(num_input).expect("no symbolic LCs"),
+                    ))
+                }
+            })
+            .collect()
+    }
 }

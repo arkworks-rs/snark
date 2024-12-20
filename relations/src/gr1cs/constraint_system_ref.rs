@@ -4,11 +4,13 @@
 //! wrappers around the functions of `ConstraintSystem`.
 
 use ark_std::{collections::BTreeMap, rc::Weak};
-use core::cell::RefCell;
+use core::cell::{Ref, RefCell, RefMut};
 
 use super::{
     constraint_system::ConstraintSystem,
-    local_predicate::{polynomial_constraint::R1CS_PREDICATE_LABEL, PredicateConstraintSystem},
+    predicate::{
+        polynomial_constraint::R1CS_PREDICATE_LABEL, PredicateConstraintSystem, PredicateType,
+    },
     Label, LcIndex, LinearCombination, Matrix, OptimizationGoal, SynthesisError, SynthesisMode,
     Variable,
 };
@@ -46,6 +48,21 @@ impl<F: Field> ConstraintSystemRef<F> {
         Self::CS(Rc::new(RefCell::new(inner)))
     }
 
+    pub fn get_predicate_num_constraints(&self) ->  BTreeMap<Label, usize> {
+        self.inner()
+            .map_or(BTreeMap::new(), |cs| cs.borrow().get_predicate_num_constraints())
+    }
+
+    pub fn get_predicate_arities(&self) -> BTreeMap<Label, usize> {
+        self.inner()
+            .map_or(BTreeMap::new(), |cs| cs.borrow().get_predicate_arities())
+    }
+
+    pub fn get_predicate_types(&self) -> BTreeMap<Label, PredicateType<F>> {
+        self.inner()
+            .map_or(BTreeMap::new(), |cs| cs.borrow().get_predicate_types())
+    }
+
     // /// Returns the instance assignment of the constraint system
     // /// TODO:Fix the panic
     // pub fn instance_assignment(&self) -> Ref<[F]> {
@@ -58,14 +75,8 @@ impl<F: Field> ConstraintSystemRef<F> {
     //     }
     // }
 
-    /// Returns the maximum arity of the local predicates.
-    /// Maximum arity is used when stacking the local predicates as Garuda does
-    pub fn max_arity(&self) -> usize {
-        self.inner().map_or(0, |cs| cs.borrow().max_arity())
-    }
-
     /// Returns the number of constraints which is the sum of the number of
-    /// constraints in each local predicate.    #[inline]
+    /// constraints in each  predicate.    #[inline]
     pub fn num_constraints(&self) -> usize {
         self.inner().map_or(0, |cs| cs.borrow().num_constraints())
     }
@@ -77,6 +88,17 @@ impl<F: Field> ConstraintSystemRef<F> {
             .map_or(0, |cs| cs.borrow().num_instance_variables())
     }
 
+    /// Returns the number of instance variables.
+    #[inline]
+    pub fn num_variables(&self) -> usize {
+        self.inner().map_or(0, |cs| cs.borrow().num_variables())
+    }
+
+    #[inline]
+    pub fn num_predicates(&self) -> usize {
+        self.inner().map_or(0, |cs| cs.borrow().num_predicates())
+    }
+
     /// Returns the number of witness variables.
     #[inline]
     pub fn num_witness_variables(&self) -> usize {
@@ -84,21 +106,18 @@ impl<F: Field> ConstraintSystemRef<F> {
             .map_or(0, |cs| cs.borrow().num_witness_variables())
     }
 
-    /// Enforce a constraint in the constraint system. It takes a local
+    /// Enforce a constraint in the constraint system. It takes a
     /// predicate name and enforces a vector of linear combinations of the
-    /// length of the arity of the local predicate enforces the constraint.
+    /// length of the arity of the  predicate enforces the constraint.
     #[inline]
     pub fn enforce_constraint(
         &self,
-        local_predicate_label: &str,
+        predicate_label: &str,
         lc_vec: impl IntoIterator<Item = LinearCombination<F>>,
     ) -> crate::gr1cs::Result<()> {
         self.inner()
             .ok_or(SynthesisError::MissingCS)
-            .and_then(|cs| {
-                cs.borrow_mut()
-                    .enforce_constraint(local_predicate_label, lc_vec)
-            })
+            .and_then(|cs| cs.borrow_mut().enforce_constraint(predicate_label, lc_vec))
     }
 
     /// Enforce an r1cs constraint in the constraint system. It takes a, b, and
@@ -115,8 +134,7 @@ impl<F: Field> ConstraintSystemRef<F> {
         c: LinearCombination<F>,
     ) -> crate::gr1cs::Result<()> {
         if !self.has_predicate(R1CS_PREDICATE_LABEL) {
-            let r1cs_constraint_system =
-                PredicateConstraintSystem::new_r1cs_predicate()?;
+            let r1cs_constraint_system = PredicateConstraintSystem::new_r1cs_predicate()?;
             self.register_predicate(R1CS_PREDICATE_LABEL, r1cs_constraint_system)?;
         }
         self.inner()
@@ -224,7 +242,7 @@ impl<F: Field> ConstraintSystemRef<F> {
         a
     }
 
-    /// Register a local predicate in the constraint system with a given label.
+    /// Register a  predicate in the constraint system with a given label.
     pub fn register_predicate(
         &self,
         predicate_label: &str,
@@ -260,8 +278,8 @@ impl<F: Field> ConstraintSystemRef<F> {
 
     /// If `self` is satisfied, outputs `Ok(None)`.
     /// If `self` is unsatisfied, outputs `Some(s,i)`, where `s` is the label of
-    /// the unsatisfied local prediacate and  `i` is the index of
-    /// the first unsatisfied constraint in that local predicate.
+    /// the unsatisfied  prediacate and  `i` is the index of
+    /// the first unsatisfied constraint in that  predicate.
     /// If `self.is_in_setup_mode()` or `self == None`, outputs `Err(())`.
     pub fn which_predicate_is_unsatisfied(&self) -> crate::utils::Result<Option<String>> {
         self.inner()
@@ -321,7 +339,7 @@ impl<F: Field> ConstraintSystemRef<F> {
         }
     }
 
-    /// Get the matrices corresponding to the local predicates.and the
+    /// Get the matrices corresponding to the  predicates.and the
     /// corresponding set of matrices
     #[inline]
     pub fn to_matrices(&self) -> crate::gr1cs::Result<BTreeMap<Label, Vec<Matrix<F>>>> {
@@ -345,6 +363,25 @@ impl<F: Field> ConstraintSystemRef<F> {
             .ok_or(SynthesisError::MissingCS)
             .map(|cs| cs.borrow().make_row(lc))
     }
+
+        /// Obtain an immutable reference to the underlying `ConstraintSystem`.
+    ///
+    /// # Panics
+    /// This method panics if `self` is already mutably borrowed.
+    #[inline]
+    pub fn borrow(&self) -> Option<Ref<'_, ConstraintSystem<F>>> {
+        self.inner().map(|cs| cs.borrow())
+    }
+
+    /// Obtain a mutable reference to the underlying `ConstraintSystem`.
+    ///
+    /// # Panics
+    /// This method panics if `self` is already mutably borrowed.
+    #[inline]
+    pub fn borrow_mut(&self) -> Option<RefMut<'_, ConstraintSystem<F>>> {
+        self.inner().map(|cs| cs.borrow_mut())
+    }
+
 
     // TODO: Implement this function
     // /// Get trace information about all constraints in the system
@@ -398,4 +435,3 @@ impl<F: Field> ConstraintSystemRef<F> {
     //     }
     // }
 }
-

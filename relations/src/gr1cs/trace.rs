@@ -5,6 +5,7 @@ use core::{
     fmt,
     marker::PhantomData,
 };
+use ark_std::vec::Vec;
 use tracing::{span, Dispatch, Metadata, Subscriber};
 use tracing_subscriber::{
     layer::{self, Layer},
@@ -49,6 +50,8 @@ impl<S> Layer<S> for ConstraintLayer<S>
 where
     S: Subscriber + for<'span> LookupSpan<'span>,
 {
+    /// Specifies which spans and events we are interested in, depending on the
+    /// TracingMode of the layer
     fn enabled(&self, metadata: &Metadata<'_>, _ctx: layer::Context<'_, S>) -> bool {
         match self.mode {
             TracingMode::OnlyConstraints => metadata.target() == "gr1cs",
@@ -59,7 +62,7 @@ where
 
     /// Notifies this layer that a new span was constructed with the given
     /// `Attributes` and `Id`.
-    fn new_span(&self, _attrs: &span::Attributes<'_>, _id: &span::Id, _ctx: layer::Context<'_, S>) {
+    fn on_new_span(&self, _attrs: &span::Attributes<'_>, _id: &span::Id, _ctx: layer::Context<'_, S>) {
     }
 
     #[allow(unsafe_code, trivial_casts)]
@@ -223,6 +226,7 @@ impl ConstraintTrace {
             None
         } else {
             let trace = Self { span };
+            // dbg!(&trace);
             Some(trace)
         }
     }

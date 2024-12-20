@@ -2,7 +2,7 @@
 name = "ark-relations"
 version = "0.5.0"
 authors = [ "arkworks contributors" ]
-description = "A library for rank-one constraint systems"
+description = "A library for generalized rank-one constraint systems"
 homepage = "https://arkworks.rs"
 repository = "https://github.com/arkworks-rs/snark"
 documentation = "https://docs.rs/ark-relations/"
@@ -17,8 +17,8 @@ ark-ff = { version = "0.5.0", default-features = false }
 ark-std = { version = "0.5.0", default-features = false }
 ark-poly = { version = "0.5.0", default-features = false }
 ark-serialize = { version = "0.5.0", default-features = false }
-tracing = { version = "0.1", default-features = false }
-tracing-subscriber = { version = "0.2", default-features = false, optional = true }
+tracing = { version = "0.1", default-features = false, features = ["attributes"]}
+tracing-subscriber = { version = "0.3", default-features = true, optional = true }
 
 [dev-dependencies]
 ark-test-curves = { version = "0.5.0", default-features = false, features = [ "bls12_381_scalar_field" ] }
