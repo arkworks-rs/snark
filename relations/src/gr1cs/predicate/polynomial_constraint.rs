@@ -8,11 +8,12 @@ use ark_poly::{
     multivariate::{SparsePolynomial, SparseTerm, Term},
     DenseMVPolynomial, Polynomial,
 };
+use ark_serialize::CanonicalSerialize;
 use ark_std::vec::Vec;
 
 
 /// A polynomial predicat is just a polynomial
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, CanonicalSerialize)]
 pub struct PolynomialPredicate<F: Field> {
     pub polynomial: SparsePolynomial<F, SparseTerm>,
 }
@@ -38,6 +39,11 @@ impl<F: Field> PolynomialPredicate<F> {
     pub fn evaluate(&self, variables: &[F]) -> bool {
         // TODO: Change the polynomial eval to get a slice as an evaluation point
         !self.polynomial.evaluate(&variables.to_vec()).is_zero()
+    }
+
+    pub fn eval(&self, variables: &[F]) -> F {
+        // TODO: We have eval and evaluate --> Fix
+        self.polynomial.evaluate(&variables.to_vec())
     }
 
     pub fn arity(&self) -> usize {

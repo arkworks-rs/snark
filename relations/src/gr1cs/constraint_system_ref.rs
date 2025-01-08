@@ -3,7 +3,7 @@
 //! inner struct. Most of the functions of `ConstraintSystemRef` are just
 //! wrappers around the functions of `ConstraintSystem`.
 
-use ark_std::{collections::BTreeMap, rc::Weak};
+use ark_std::collections::BTreeMap;
 use core::cell::{Ref, RefCell, RefMut};
 
 use super::{
@@ -48,16 +48,20 @@ impl<F: Field> ConstraintSystemRef<F> {
         Self::CS(Rc::new(RefCell::new(inner)))
     }
 
-    pub fn get_predicate_num_constraints(&self) ->  BTreeMap<Label, usize> {
-        self.inner()
-            .map_or(BTreeMap::new(), |cs| cs.borrow().get_predicate_num_constraints())
+    /// Returns the number of constraints in each predicate
+    pub fn get_predicate_num_constraints(&self) -> BTreeMap<Label, usize> {
+        self.inner().map_or(BTreeMap::new(), |cs| {
+            cs.borrow().get_predicate_num_constraints()
+        })
     }
 
+    /// Returns the arity of each predicate
     pub fn get_predicate_arities(&self) -> BTreeMap<Label, usize> {
         self.inner()
             .map_or(BTreeMap::new(), |cs| cs.borrow().get_predicate_arities())
     }
 
+    /// Returns the predicate types of each predicate
     pub fn get_predicate_types(&self) -> BTreeMap<Label, PredicateType<F>> {
         self.inner()
             .map_or(BTreeMap::new(), |cs| cs.borrow().get_predicate_types())
@@ -95,6 +99,7 @@ impl<F: Field> ConstraintSystemRef<F> {
     }
 
     #[inline]
+    /// Returns the number of predicates.
     pub fn num_predicates(&self) -> usize {
         self.inner().map_or(0, |cs| cs.borrow().num_predicates())
     }
@@ -133,10 +138,6 @@ impl<F: Field> ConstraintSystemRef<F> {
         b: LinearCombination<F>,
         c: LinearCombination<F>,
     ) -> crate::gr1cs::Result<()> {
-        if !self.has_predicate(R1CS_PREDICATE_LABEL) {
-            let r1cs_constraint_system = PredicateConstraintSystem::new_r1cs_predicate()?;
-            self.register_predicate(R1CS_PREDICATE_LABEL, r1cs_constraint_system)?;
-        }
         self.inner()
             .ok_or(SynthesisError::MissingCS)
             .and_then(|cs| {
@@ -200,9 +201,7 @@ impl<F: Field> ConstraintSystemRef<F> {
     where
         Func: FnOnce() -> crate::utils::Result<F>,
     {
-        // mem_dbg("Before new_input_variable");
-        let a = self
-            .inner()
+        self.inner()
             .ok_or(SynthesisError::MissingCS)
             .and_then(|cs| {
                 if !self.is_in_setup_mode() {
@@ -213,9 +212,7 @@ impl<F: Field> ConstraintSystemRef<F> {
                 } else {
                     cs.borrow_mut().new_input_variable(f)
                 }
-            });
-        // mem_dbg("After new_input_variable");
-        a
+            })
     }
 
     /// Obtain a variable representing a new private witness input.
@@ -224,7 +221,6 @@ impl<F: Field> ConstraintSystemRef<F> {
     where
         Func: FnOnce() -> crate::utils::Result<F>,
     {
-        // mem_dbg("Before new_witness_variable");
         let a = self
             .inner()
             .ok_or(SynthesisError::MissingCS)
@@ -238,7 +234,6 @@ impl<F: Field> ConstraintSystemRef<F> {
                     cs.borrow_mut().new_witness_variable(f)
                 }
             });
-        // mem_dbg("After new_witness_variable");
         a
     }
 
@@ -289,9 +284,9 @@ impl<F: Field> ConstraintSystemRef<F> {
 
     /// Finalize the constraint system (either by outlining or inlining,
     /// if an optimization goal is set).
-    pub fn finalize(&self) {
+    pub fn finalize(&self, outline_instances: bool) {
         if let Some(cs) = self.inner() {
-            cs.borrow_mut().finalize()
+            cs.borrow_mut().finalize(outline_instances)
         }
     }
 
@@ -364,7 +359,7 @@ impl<F: Field> ConstraintSystemRef<F> {
             .map(|cs| cs.borrow().make_row(lc))
     }
 
-        /// Obtain an immutable reference to the underlying `ConstraintSystem`.
+    /// Obtain an immutable reference to the underlying `ConstraintSystem`.
     ///
     /// # Panics
     /// This method panics if `self` is already mutably borrowed.
@@ -381,7 +376,6 @@ impl<F: Field> ConstraintSystemRef<F> {
     pub fn borrow_mut(&self) -> Option<RefMut<'_, ConstraintSystem<F>>> {
         self.inner().map(|cs| cs.borrow_mut())
     }
-
 
     // TODO: Implement this function
     // /// Get trace information about all constraints in the system

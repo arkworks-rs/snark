@@ -14,3 +14,7 @@ pub mod variable;
 
 /// A result type specialized to `SynthesisError`.
 pub type Result<T> = core::result::Result<T, SynthesisError>;
+
+
+
+

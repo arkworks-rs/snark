@@ -1,11 +1,12 @@
-// adapted from `tracing_error::{SpanTrace, ErrorLayer}`.
+//! This module contains the implementation of a tracing layer that captures a
+//! trace of GR1CS constraint generation. This is useful for debugging purposes.
 
+use ark_std::vec::Vec;
 use core::{
     any::{type_name, TypeId},
     fmt,
     marker::PhantomData,
 };
-use ark_std::vec::Vec;
 use tracing::{span, Dispatch, Metadata, Subscriber};
 use tracing_subscriber::{
     layer::{self, Layer},
@@ -62,7 +63,12 @@ where
 
     /// Notifies this layer that a new span was constructed with the given
     /// `Attributes` and `Id`.
-    fn on_new_span(&self, _attrs: &span::Attributes<'_>, _id: &span::Id, _ctx: layer::Context<'_, S>) {
+    fn on_new_span(
+        &self,
+        _attrs: &span::Attributes<'_>,
+        _id: &span::Id,
+        _ctx: layer::Context<'_, S>,
+    ) {
     }
 
     #[allow(unsafe_code, trivial_casts)]
@@ -120,9 +126,9 @@ where
 }
 
 impl WithContext {
-    pub(crate) fn with_context<'a>(
+    pub(crate) fn with_context(
         &self,
-        dispatch: &'a Dispatch,
+        dispatch: &Dispatch,
         id: &span::Id,
         mut f: impl FnMut(&'static Metadata<'static>, &str) -> bool,
     ) {
@@ -226,7 +232,6 @@ impl ConstraintTrace {
             None
         } else {
             let trace = Self { span };
-            // dbg!(&trace);
             Some(trace)
         }
     }

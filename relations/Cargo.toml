@@ -26,3 +26,9 @@ ark-test-curves = { version = "0.5.0", default-features = false, features = [ "b
 [features]
 default = []
 std = [ "ark-std/std", "ark-ff/std", "tracing-subscriber", "tracing/std" ]
+
+
+[[example]]
+name = "non-satisfiable"
+path = "examples/non-satisfiable.rs"
+required-features = ["std"]

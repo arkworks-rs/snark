@@ -6,11 +6,12 @@
 pub mod polynomial_constraint;
 
 use super::{
-    Constraint, ConstraintSystem, ConstraintSystemRef, LcIndex, LinearCombination, Matrix,
+    Constraint, ConstraintSystem, LcIndex, LinearCombination, Matrix,
 };
 use crate::utils::{error::SynthesisError::ArityMismatch, variable::Variable::SymbolicLc};
 use ark_ff::Field;
-use ark_std::vec::Vec;
+use ark_serialize::{CanonicalSerialize, Compress, SerializationError};
+use ark_std::{io::Write, vec::Vec};
 use polynomial_constraint::PolynomialPredicate;
 
 /// GR1CS can potentially support different types of predicates
@@ -18,8 +19,29 @@ use polynomial_constraint::PolynomialPredicate;
 /// In the future, we can add other types of predicates, e.g. lookup table
 #[derive(Debug, Clone)]
 pub enum PredicateType<F: Field> {
+
+    /// A polynomial local predicate. This is the most common predicate that captures high-degree custome gates
     Polynomial(PolynomialPredicate<F>),
     // Add other predicates in the future, e.g. lookup table
+}
+
+impl<F: Field> CanonicalSerialize for PredicateType<F> {
+    fn serialize_with_mode<W: Write>(
+        &self,
+        writer: W,
+        compress: Compress,
+    ) -> Result<(), SerializationError> {
+        match self {
+            PredicateType::Polynomial(p) => p.serialize_with_mode(writer, compress),
+            _ => Ok(()),
+        }
+    }
+    fn serialized_size(&self, compress: Compress) -> usize {
+        match self {
+            PredicateType::Polynomial(p) => p.serialized_size(compress),
+            _ => 0,
+        }
+    }
 }
 
 impl<F: Field> PredicateType<F> {

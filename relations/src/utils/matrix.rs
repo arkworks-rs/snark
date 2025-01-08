@@ -4,17 +4,11 @@ use ark_std::vec::Vec;
 pub type Matrix<F> = Vec<Vec<(F, usize)>>;
 
 /// Transpose a matrix of field elements.
-pub fn transpose<F: Field>(matrix: &Matrix<F>) -> Matrix<F> {
-    // First, find the maximum column index to know the size of the transposed
-    // matrix
-    let max_cols = matrix
-        .iter()
-        .flat_map(|row| row.iter().map(|&(_, col)| col + 1))
-        .max()
-        .unwrap_or(0);
+pub fn trans<F: Field>(matrix: &Matrix<F>, num_col: usize) -> Matrix<F> {
+
 
     // Initialize the transposed matrix with empty vectors
-    let mut transposed: Matrix<F> = vec![Vec::new(); max_cols];
+    let mut transposed: Matrix<F> = vec![Vec::new(); num_col];
 
     // Iterate through each row and each element in the row
     for (row_index, row) in matrix.iter().enumerate() {
@@ -27,4 +21,17 @@ pub fn transpose<F: Field>(matrix: &Matrix<F>) -> Matrix<F> {
 
     // Return the transposed matrix
     transposed
+}
+
+/// Multiply a matrix by a vector.
+pub fn mat_vec_mul<F: Field>(matrix: &Matrix<F>, vector: &[F]) -> Vec<F> {
+    let mut output: Vec<F> = Vec::new();
+    for row in matrix {
+        let mut sum: F = F::zero();
+        for (value, col) in row {
+            sum += vector[*col] * value;
+        }
+        output.push(sum);
+    }
+    output
 }

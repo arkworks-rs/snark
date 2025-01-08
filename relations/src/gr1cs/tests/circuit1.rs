@@ -1,13 +1,11 @@
 use crate::{
-    gr1cs::{
-        predicate::PredicateConstraintSystem, ConstraintSynthesizer, ConstraintSystemRef,
-    },
+    gr1cs::{predicate::PredicateConstraintSystem, ConstraintSynthesizer, ConstraintSystemRef},
     lc, ns,
 };
 use ark_ff::Field;
 use ark_std::{collections::BTreeMap, string::ToString, vec::Vec};
 
-use super::{Label, Matrix};
+use super::{Label, Matrix, R1CS_PREDICATE_LABEL};
 
 #[derive(Debug, Clone)]
 pub struct Circuit1<F: Field> {
@@ -29,7 +27,10 @@ pub struct Circuit1<F: Field> {
 impl<F: Field> Circuit1<F> {
     pub fn get_matrices() -> BTreeMap<Label, Vec<Matrix<F>>> {
         let mut map: BTreeMap<Label, Vec<Matrix<F>>> = BTreeMap::new();
-
+        map.insert(
+            R1CS_PREDICATE_LABEL.to_string(),
+            vec![vec![], vec![], vec![]],
+        );
         map.insert(
             "poly-predicate-A".to_string(),
             vec![
@@ -63,11 +64,26 @@ impl<F: Field + core::convert::From<i8>> ConstraintSynthesizer<F> for Circuit1<F
     fn generate_constraints(self, cs: ConstraintSystemRef<F>) -> crate::utils::Result<()> {
         // Variable declarations -> Instance variables + Witness variables
         let input_variables_namespace = ns!(cs, "Input variables");
-        let x1 = input_variables_namespace.cs().new_input_variable(|| Ok(self.x1)).unwrap();
-        let x2 = input_variables_namespace.cs().new_input_variable(|| Ok(self.x2)).unwrap();
-        let x3 = input_variables_namespace.cs().new_input_variable(|| Ok(self.x3)).unwrap();
-        let x4 = input_variables_namespace.cs().new_input_variable(|| Ok(self.x4)).unwrap();
-        let x5 = input_variables_namespace.cs().new_input_variable(|| Ok(self.x5)).unwrap();
+        let x1 = input_variables_namespace
+            .cs()
+            .new_input_variable(|| Ok(self.x1))
+            .unwrap();
+        let x2 = input_variables_namespace
+            .cs()
+            .new_input_variable(|| Ok(self.x2))
+            .unwrap();
+        let x3 = input_variables_namespace
+            .cs()
+            .new_input_variable(|| Ok(self.x3))
+            .unwrap();
+        let x4 = input_variables_namespace
+            .cs()
+            .new_input_variable(|| Ok(self.x4))
+            .unwrap();
+        let x5 = input_variables_namespace
+            .cs()
+            .new_input_variable(|| Ok(self.x5))
+            .unwrap();
         ns!(cs, "Witness variables");
         let w1 = cs.new_witness_variable(|| Ok(self.w1)).unwrap();
         let w2 = cs.new_witness_variable(|| Ok(self.w2)).unwrap();

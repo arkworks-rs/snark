@@ -1,12 +1,11 @@
+
 use ark_ff::Field;
-use ark_relations::{
-    gr1cs::{
-        trace::{ConstraintLayer, TracingMode},
-        ConstraintSystem, ConstraintSystemRef, LinearCombination, SynthesisError, Variable,
-    },
-    ns,
+use ark_relations::gr1cs::{
+    trace::{ConstraintLayer, TracingMode},
+    ConstraintSystem, ConstraintSystemRef, LinearCombination, SynthesisError, Variable,
 };
 use ark_test_curves::bls12_381::Fr;
+
 use tracing::{info_span, Instrument};
 use tracing_subscriber::{fmt, layer::SubscriberExt, Registry};
 
@@ -42,7 +41,10 @@ fn main() {
     let _result_var =
         generate_constraints(cs.clone(), p1, p2, p3, p4, w1, w2, w3, w4, expected_result).unwrap();
     let trace = cs.which_predicate_is_unsatisfied().unwrap().unwrap();
-    println!("This is the trace of non-satisfied scenario, Check out the trace:\n{}", trace)
+    println!(
+        "This is the trace of non-satisfied scenario, Check out the trace:\n{}",
+        trace
+    )
 }
 // Function to enforce the overall constraints by combining subcircuits
 #[tracing::instrument(target = "gr1cs")]
@@ -166,6 +168,3 @@ fn enforce_addition<F: Field>(
 
     Ok(sum)
 }
-
-
-

@@ -1,12 +1,13 @@
 //! Core interface for working with Generalized Rank-1 Constraint Systems
 //! (GR1CS).
 mod constraint_system_ref;
-pub mod predicate;
 mod namespace;
+pub mod predicate;
 #[macro_use]
 mod constraint_system;
 #[cfg(test)]
 mod tests;
+
 #[cfg(feature = "std")]
 pub mod trace;
 ///////////////////////////////////////////////////////////////////////////////////////
@@ -21,15 +22,14 @@ pub use ark_ff::{Field, ToConstraintField};
 
 pub use crate::{
     gr1cs::{
-        constraint_system::ConstraintSystem,
-        constraint_system_ref::{ConstraintSystemRef},
-        predicate::polynomial_constraint::R1CS_PREDICATE_LABEL
+        constraint_system::ConstraintSystem, constraint_system_ref::ConstraintSystemRef,
+        predicate::polynomial_constraint::R1CS_PREDICATE_LABEL,
     },
     lc,
     utils::{
         error::SynthesisError,
         linear_combination::{LcIndex, LinearCombination},
-        matrix::Matrix,
+        matrix::{mat_vec_mul, trans, Matrix},
         variable::Variable,
         Result,
     },
