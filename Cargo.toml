@@ -37,3 +37,4 @@ ark-ff = { git = "https://github.com/arkworks-rs/algebra/" }
 ark-ec = { git = "https://github.com/arkworks-rs/algebra/" }
 ark-poly = { git = "https://github.com/arkworks-rs/algebra/" }
 ark-serialize = { git = "https://github.com/arkworks-rs/algebra/" }
+ark-std = { git = "https://github.com/arkworks-rs/std" }
