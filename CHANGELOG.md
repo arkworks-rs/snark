@@ -7,6 +7,7 @@
 ### Features
 
 ### Improvements
+- [\#381](https://github.com/arkworks-rs/snark/pull/381) Use `Vec` instead of `BTreeMap` for `lc_map` and `lc_assignment_cache` to reduce circuit synthesis time.
 
 ### Bug fixes
 
