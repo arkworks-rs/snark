@@ -59,7 +59,12 @@ where
 
     /// Notifies this layer that a new span was constructed with the given
     /// `Attributes` and `Id`.
-    fn new_span(&self, _attrs: &span::Attributes<'_>, _id: &span::Id, _ctx: layer::Context<'_, S>) {
+    fn on_new_span(
+        &self,
+        _attrs: &span::Attributes<'_>,
+        _id: &span::Id,
+        _ctx: layer::Context<'_, S>,
+    ) {
     }
 
     #[allow(unsafe_code, trivial_casts)]
