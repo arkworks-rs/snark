@@ -15,13 +15,9 @@ use ark_std::{
 };
 
 /// Computations are expressed in terms of rank-1 constraint systems (R1CS).
-/// The `generate_constraints` method is called to generate constraints for
-/// both CRS generation and for proving.
-// TODO: Think: should we replace this with just a closure?
-pub trait ConstraintSynthesizer<F: Field> {
-    /// Drives generation of new constraints inside `cs`.
-    fn generate_constraints(self, cs: ConstraintSystemRef<F>) -> crate::r1cs::Result<()>;
-}
+/// The type represents a closure that generates constraints for both CRS generation
+/// and for proving.
+pub type ConstraintSynthesizer<F> = Box<dyn FnOnce(ConstraintSystemRef<F>) -> crate::r1cs::Result<()>>;
 
 /// An Rank-One `ConstraintSystem`. Enforces constraints of the form
 /// `⟨a_i, z⟩ ⋅ ⟨b_i, z⟩ = ⟨c_i, z⟩`, where `a_i`, `b_i`, and `c_i` are linear
