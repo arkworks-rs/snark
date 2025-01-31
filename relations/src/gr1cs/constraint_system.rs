@@ -2,14 +2,11 @@
 //! a constraint system contains multiple predicate constraint systems,
 //! each of which enforce have seperate predicates and constraints. For more infomation about the terminology and the structure of the constraint system, refer to section 3.3 of https://eprint.iacr.org/2024/1245
 
-use core::num;
-
 use super::{
-    lc,
     predicate::{
         polynomial_constraint::R1CS_PREDICATE_LABEL, PredicateConstraintSystem, PredicateType,
     },
-    Constraint, ConstraintSystemRef, Label, OptimizationGoal, SynthesisMode,
+    ConstraintSystemRef, Label, OptimizationGoal, SynthesisMode,
 };
 #[cfg(feature = "std")]
 use crate::gr1cs::ConstraintTrace;

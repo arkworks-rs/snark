@@ -6,7 +6,6 @@ use ark_relations::gr1cs::{
 };
 use ark_test_curves::bls12_381::Fr;
 
-use tracing::{info_span, Instrument};
 use tracing_subscriber::{fmt, layer::SubscriberExt, Registry};
 
 fn main() {

@@ -365,8 +365,8 @@ impl<F: Field> ConstraintSystemRef<F> {
     }
 
     /// Get the linear combination corresponding to the given `lc_index`.
-    /// TODO: This function should return a reference to the linear combination
-    /// and not clone it.
+    /// TODO: This function should ideally return a reference to the linear
+    /// combination and not clone it.
     pub fn get_lc(&self, lc_index: LcIndex) -> crate::utils::Result<LinearCombination<F>> {
         self.inner()
             .ok_or(SynthesisError::MissingCS)
@@ -406,10 +406,8 @@ impl<F: Field> ConstraintSystemRef<F> {
                 cs.borrow()
                     .predicate_traces
                     .iter()
-                    .flat_map(|(key, values)| {
-                        values.iter().map(move |v| (key.clone(), v))
-                    }) 
-                    .map(|(label,trace)| {
+                    .flat_map(|(key, values)| values.iter().map(move |v| (key.clone(), v)))
+                    .map(|(label, trace)| {
                         let mut constraint_path = String::new();
                         let mut prev_module_path = "";
                         let mut prefixes = ark_std::collections::BTreeSet::new();
@@ -441,7 +439,7 @@ impl<F: Field> ConstraintSystemRef<F> {
                             prev_module_path = step.module_path;
                             constraint_path += &["/", &module_path, step.name].join("");
                         }
-                        Some(constraint_path)
+                        Some(constraint_path + " (predicate:" + &label + ")")
                     })
                     .collect::<Option<Vec<_>>>()
             })

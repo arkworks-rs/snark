@@ -11,10 +11,10 @@ use ark_poly::{
 use ark_serialize::CanonicalSerialize;
 use ark_std::vec::Vec;
 
-
 /// A polynomial predicat is just a polynomial
 #[derive(Debug, Clone, CanonicalSerialize)]
 pub struct PolynomialPredicate<F: Field> {
+    /// The sparse polynomial for the predicate
     pub polynomial: SparsePolynomial<F, SparseTerm>,
 }
 
@@ -36,24 +36,27 @@ impl<F: Field> PolynomialPredicate<F> {
 /// The evaluation of a polynomial predicate is the evaluation of the underlying
 /// polynomial and the arity is the number of variables in the polynomial.
 impl<F: Field> PolynomialPredicate<F> {
+    /// Check if the predicate is satisfied by the given variables
     pub fn is_satisfied(&self, variables: &[F]) -> bool {
         // TODO: Change the polynomial eval to get a slice as an evaluation point
         !self.polynomial.evaluate(&variables.to_vec()).is_zero()
     }
-
+    /// What is the evaluation of the polynomial predicate given the variables
     pub fn eval(&self, variables: &[F]) -> F {
-        // TODO: We have eval and evaluate --> Fix
         self.polynomial.evaluate(&variables.to_vec())
     }
 
+    /// Get the arity of the polynomial predicate
+    /// The arity of P(x1, x2, ..., xn) is n
     pub fn arity(&self) -> usize {
         self.polynomial.num_vars()
     }
 
+    /// Get the degree of the polynomial predicate
+    /// The degree of x1 + x2^4 + x3^2 is 4
     pub fn degree(&self) -> usize {
         self.polynomial.degree()
     }
-
 }
 
 /// The label for the popular R1CS predicate
