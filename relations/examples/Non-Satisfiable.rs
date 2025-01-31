@@ -36,7 +36,6 @@ fn main() {
     let w4 = cs.new_witness_variable(|| Ok(Fr::from(9u32))).unwrap();
     // Create expected result as a witness
     let expected_result = cs.new_input_variable(|| Ok(Fr::from(198))).unwrap();
-
     // Build the circuit
     let _result_var =
         generate_constraints(cs.clone(), p1, p2, p3, p4, w1, w2, w3, w4, expected_result).unwrap();

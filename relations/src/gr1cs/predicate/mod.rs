@@ -5,9 +5,7 @@
 
 pub mod polynomial_constraint;
 
-use super::{
-    Constraint, ConstraintSystem, LcIndex, LinearCombination, Matrix,
-};
+use super::{Constraint, ConstraintSystem, LcIndex, LinearCombination, Matrix, Variable};
 use crate::utils::{error::SynthesisError::ArityMismatch, variable::Variable::SymbolicLc};
 use ark_ff::Field;
 use ark_serialize::{CanonicalSerialize, Compress, SerializationError};
@@ -18,9 +16,10 @@ use polynomial_constraint::PolynomialPredicate;
 /// For now, we only support polynomial predicates
 /// In the future, we can add other types of predicates, e.g. lookup table
 #[derive(Debug, Clone)]
+#[non_exhaustive]  
 pub enum PredicateType<F: Field> {
-
-    /// A polynomial local predicate. This is the most common predicate that captures high-degree custome gates
+    /// A polynomial local predicate. This is the most common predicate that
+    /// captures high-degree custome gates
     Polynomial(PolynomialPredicate<F>),
     // Add other predicates in the future, e.g. lookup table
 }
@@ -33,21 +32,19 @@ impl<F: Field> CanonicalSerialize for PredicateType<F> {
     ) -> Result<(), SerializationError> {
         match self {
             PredicateType::Polynomial(p) => p.serialize_with_mode(writer, compress),
-            _ => Ok(()),
         }
     }
     fn serialized_size(&self, compress: Compress) -> usize {
         match self {
             PredicateType::Polynomial(p) => p.serialized_size(compress),
-            _ => 0,
         }
     }
 }
 
 impl<F: Field> PredicateType<F> {
-    fn evaluate(&self, variables: &[F]) -> bool {
+    fn is_satisfied(&self, variables: &[F]) -> bool {
         match self {
-            PredicateType::Polynomial(p) => p.evaluate(variables),
+            PredicateType::Polynomial(p) => p.is_satisfied(variables),
             // TODO: Add other predicates in the future, e.g. lookup table
         }
     }
@@ -71,7 +68,7 @@ pub struct PredicateConstraintSystem<F: Field> {
     /// The number of constraints enforced by this predicate
     num_constraints: usize,
 
-    /// The  predicate acting on constraints
+    /// The type of the predicate enforced by this constraint system.  
     predicate_type: PredicateType<F>,
 }
 
@@ -130,14 +127,17 @@ impl<F: Field> PredicateConstraintSystem<F> {
     /// Enforce a constraint in this predicate constraint system
     /// The constraint is a list of linear combinations with size equal to the
     /// arity
-    pub fn enforce_constraint(&mut self, constraint: Constraint) -> crate::utils::Result<()> {
+    pub fn enforce_constraint(
+        &mut self,
+        constraint: impl ExactSizeIterator<Item = LcIndex>,
+    ) -> crate::utils::Result<()> {
         if constraint.len() != self.get_arity() {
             return Err(ArityMismatch);
         }
 
-        for (i, lc_index) in constraint.iter().enumerate() {
-            self.argument_lcs[i].push(*lc_index);
-        }
+        constraint.enumerate().for_each(|(i, lc_index)| {
+            self.argument_lcs[i].push(lc_index);
+        });
 
         self.num_constraints += 1;
         Ok(())
@@ -148,8 +148,9 @@ impl<F: Field> PredicateConstraintSystem<F> {
         let num_constraints = self.num_constraints;
 
         (0..num_constraints).map(move |i| {
-            (0..self.get_arity())
-                .map(|j| self.argument_lcs[j][i])
+            self.argument_lcs
+                .iter()
+                .map(|lc_s| lc_s[i])
                 .collect::<Vec<LcIndex>>()
         })
     }
@@ -162,7 +163,7 @@ impl<F: Field> PredicateConstraintSystem<F> {
                 .iter()
                 .map(|lc_index| cs.assigned_value(SymbolicLc(*lc_index)).unwrap())
                 .collect();
-            let result = self.predicate_type.evaluate(&variables);
+            let result = self.predicate_type.is_satisfied(&variables);
             if result {
                 return Some(i);
             }

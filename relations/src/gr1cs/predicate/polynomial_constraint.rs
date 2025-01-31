@@ -21,10 +21,10 @@ pub struct PolynomialPredicate<F: Field> {
 impl<F: Field> PolynomialPredicate<F> {
     /// Create a new polynomial predicate with a given arity (number of
     /// variables) and terms
-    pub fn new(arity: usize, terms: Vec<(F, Vec<(usize, usize)>)>) -> Self {
+    pub fn new(arity: usize, terms: impl IntoIterator<Item = (F, Vec<(usize, usize)>)>) -> Self {
         let sparse_terms = terms
-            .iter()
-            .map(|(coeff, term)| (*coeff, SparseTerm::new(term.clone())))
+            .into_iter()
+            .map(|(coeff, term)| (coeff, SparseTerm::new(term.clone())))
             .collect();
         Self {
             polynomial: SparsePolynomial::from_coefficients_vec(arity, sparse_terms),
@@ -36,7 +36,7 @@ impl<F: Field> PolynomialPredicate<F> {
 /// The evaluation of a polynomial predicate is the evaluation of the underlying
 /// polynomial and the arity is the number of variables in the polynomial.
 impl<F: Field> PolynomialPredicate<F> {
-    pub fn evaluate(&self, variables: &[F]) -> bool {
+    pub fn is_satisfied(&self, variables: &[F]) -> bool {
         // TODO: Change the polynomial eval to get a slice as an evaluation point
         !self.polynomial.evaluate(&variables.to_vec()).is_zero()
     }

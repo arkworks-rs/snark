@@ -1,8 +1,11 @@
 //! This module contains the implementation of the `ConstraintSystem` struct.
 //! a constraint system contains multiple predicate constraint systems,
-//! each of which enforce have seperate predicates and constraints. For more infomation about the terminology and the structure of the constraint system, refer to https://eprint.iacr.org/2024/1245
+//! each of which enforce have seperate predicates and constraints. For more infomation about the terminology and the structure of the constraint system, refer to section 3.3 of https://eprint.iacr.org/2024/1245
+
+use core::num;
 
 use super::{
+    lc,
     predicate::{
         polynomial_constraint::R1CS_PREDICATE_LABEL, PredicateConstraintSystem, PredicateType,
     },
@@ -51,6 +54,12 @@ pub struct ConstraintSystem<F: Field> {
     /// number of constraints or their total weight).
     optimization_goal: OptimizationGoal,
 
+    /// If true, the constraint system will outline the instances. Outlining the instances is a technique used for verification succinctness in some SNARKs like Polymath, Garuda, and Pari. For more information, refer to https://eprint.iacr.org/2024/1245
+    /// It assigns a witness variable to each instance variable and enforces the
+    /// equality of the instance and witness variables. Then only uses the
+    /// witness variables in the constraints.
+    outline_instances: bool,
+
     /// Assignments to the public input variables. This is empty if `self.mode
     /// == SynthesisMode::Setup`.
     instance_assignment: Vec<F>,
@@ -60,7 +69,7 @@ pub struct ConstraintSystem<F: Field> {
     witness_assignment: Vec<F>,
 
     /// Map for gadgets to cache computation results.
-    cache_map: Rc<RefCell<BTreeMap<TypeId, Box<dyn Any>>>>,
+    pub cache_map: Rc<RefCell<BTreeMap<TypeId, Box<dyn Any>>>>,
 
     /// A data structure to store the linear combinations. We use map because
     /// it's easier to inline and outline the linear combinations.
@@ -72,6 +81,7 @@ pub struct ConstraintSystem<F: Field> {
     /// A cache for the linear combination assignments. It shows evaluation
     /// result of each linear combination
     lc_assignment_cache: Rc<RefCell<BTreeMap<LcIndex, F>>>,
+
 
     /// data structure to store the traces for each predicate
     #[cfg(feature = "std")]
@@ -86,12 +96,14 @@ impl<F: Field> Default for ConstraintSystem<F> {
 
 impl<F: Field> ConstraintSystem<F> {
     /// Create a new and empty `ConstraintSystem<F>`.
-    /// Note that no predicate is registered yet
+    /// Note that by default, the constraint system is
+    /// registered with the R1CS predicate.
     pub fn new() -> Self {
         let mut cs = Self {
             num_instance_variables: 1,
             num_witness_variables: 0,
             num_linear_combinations: 0,
+            outline_instances: false,
             predicate_constraint_systems: BTreeMap::new(),
             instance_assignment: vec![F::one()],
             witness_assignment: Vec::new(),
@@ -115,34 +127,53 @@ impl<F: Field> ConstraintSystem<F> {
         ConstraintSystemRef::new(Self::new())
     }
 
-    /// Returns the number of constraints in each predicate
-    pub fn get_predicate_num_constraints(&self) -> BTreeMap<String, usize> {
-        let mut num_constraints = BTreeMap::new();
-        for (label, predicate) in self.predicate_constraint_systems.iter() {
-            num_constraints.insert(label.clone(), predicate.num_constraints());
-        }
-        num_constraints
+    /// Returns a mapping from predicate label to number of constraints for that
+    /// predicate
+    pub fn get_all_predicates_num_constraints(&self) -> BTreeMap<Label, usize> {
+        self.predicate_constraint_systems
+            .iter()
+            .map(|(label, predicate)| (label.clone(), predicate.num_constraints()))
+            .collect()
     }
 
-    /// Returns the arity of each predicate
-    pub fn get_predicate_arities(&self) -> BTreeMap<String, usize> {
-        let mut arities = BTreeMap::new();
-        for (label, predicate) in self.predicate_constraint_systems.iter() {
-            arities.insert(label.clone(), predicate.get_arity());
-        }
-        arities
+    /// Returns the number of constraints for a given predicate
+    pub fn get_predicate_num_constraints(&self, predicate_label: &str) -> Option<usize> {
+        self.predicate_constraint_systems
+            .get(predicate_label)
+            .map(|predicate| predicate.num_constraints())
     }
 
-    /// Returns the predicate types of each predicate
-    pub fn get_predicate_types(&self) -> BTreeMap<Label, PredicateType<F>> {
-        let mut types: BTreeMap<String, PredicateType<F>> = BTreeMap::new();
-        for (label, predicate) in self.predicate_constraint_systems.iter() {
-            types.insert(label.clone(), predicate.get_predicate_type().clone());
-        }
-        types
+    /// Returns a mapping from predicate label to arity for that predicate
+    pub fn get_all_predicate_arities(&self) -> BTreeMap<Label, usize> {
+        self.predicate_constraint_systems
+            .iter()
+            .map(|(label, predicate)| (label.clone(), predicate.get_arity()))
+            .collect()
     }
 
-    /// Returself.num_constraints()he constraint system
+    /// Returns the type of the predicate with the given label
+    pub fn get_predicate_arity(&self, predicate_label: &str) -> Option<usize> {
+        self.predicate_constraint_systems
+            .get(predicate_label)
+            .map(|predicate| predicate.get_arity())
+    }
+
+    /// Returns a mapping from predicate labels to their types
+    pub fn get_all_predicate_types(&self) -> BTreeMap<Label, PredicateType<F>> {
+        self.predicate_constraint_systems
+            .iter()
+            .map(|(label, predicate)| (label.clone(), predicate.get_predicate_type().clone()))
+            .collect()
+    }
+
+    /// Returns the type of the predicate with the given label
+    pub fn get_predicate_type(&self, predicate_label: &str) -> Option<PredicateType<F>> {
+        self.predicate_constraint_systems
+            .get(predicate_label)
+            .map(|predicate| predicate.get_predicate_type().clone())
+    }
+
+    /// Returns the assignment to the public input variables of the constraint
     pub fn instance_assignment(&self) -> crate::gr1cs::Result<&[F]> {
         if self.is_in_setup_mode() {
             return Err(SynthesisError::AssignmentMissing);
@@ -150,7 +181,7 @@ impl<F: Field> ConstraintSystem<F> {
         Ok(&self.instance_assignment)
     }
 
-    /// Returself.num_constraints()he constraint system
+    /// Returns the assignment to the private input variables of the constraint
     pub fn witness_assignment(&self) -> crate::gr1cs::Result<&[F]> {
         if self.is_in_setup_mode() {
             return Err(SynthesisError::AssignmentMissing);
@@ -191,20 +222,27 @@ impl<F: Field> ConstraintSystem<F> {
     /// predicate name and enforces a vector of linear combinations of the
     /// length of the arity of the predicate enforces the constraint.
     #[inline]
-    pub fn enforce_constraint(
+    pub fn enforce_constraint<T>(
         &mut self,
         predicate_label: &str,
-        lc_vec: impl IntoIterator<Item = LinearCombination<F>>,
-    ) -> crate::gr1cs::Result<()> {
+        lc_vec: T,
+    ) -> crate::gr1cs::Result<()>
+    where
+        T: IntoIterator<Item = LinearCombination<F>>,
+    {
         if !self.has_predicate(predicate_label) {
             return Err(SynthesisError::PredicateNotFound);
         }
         if self.should_construct_matrices() {
-            let constraint = self.new_lc_vec(lc_vec)?;
-            self.predicate_constraint_systems
+            // TODO: Find a way to get rid of the following collect, barrier1: we need the
+            // size, possible to use ExactSizeIterator, barrier2: We will need lifetimes
+            // which leads to having two &mut refs to self
+            let lc_indices: Vec<LcIndex> = self.new_lc_vec(lc_vec).collect();
+            let predicate = self
+                .predicate_constraint_systems
                 .get_mut(predicate_label)
-                .unwrap()
-                .enforce_constraint(constraint)?;
+                .unwrap();
+            predicate.enforce_constraint(lc_indices.into_iter())?;
         }
         #[cfg(feature = "std")]
         {
@@ -218,23 +256,19 @@ impl<F: Field> ConstraintSystem<F> {
         }
         Ok(())
     }
-    /// Add a new vector of linear combinations to the constraint system.
-    pub fn new_lc_vec(
-        &mut self,
-        lc_vec: impl IntoIterator<Item = LinearCombination<F>>,
-    ) -> crate::gr1cs::Result<Constraint> {
-        let constraints: Vec<LcIndex> = lc_vec
-            .into_iter()
-            .map(|lc| {
-                let var = self.new_lc(lc)?;
-                match var {
-                    Variable::SymbolicLc(index) => Ok(index),
-                    _ => Err(SynthesisError::UnexpectedVariable),
-                }
-            })
-            .collect::<Result<Vec<LcIndex>, SynthesisError>>()?;
 
-        Ok(constraints)
+    /// Add a new vector of linear combinations to the constraint system.
+    pub fn new_lc_vec<'a, T>(&'a mut self, lc_vec: T) -> impl Iterator<Item = LcIndex> + 'a
+    where
+        T: IntoIterator<Item = LinearCombination<F>> + 'a,
+    {
+        lc_vec.into_iter().map(move |lc| {
+            let var = self.new_lc(lc).unwrap();
+            match var {
+                Variable::SymbolicLc(index) => index,
+                _ => panic!("Unexpected variable type"),
+            }
+        })
     }
 
     /// Adds a new linear combination to the constraint system.
@@ -395,7 +429,7 @@ impl<F: Field> ConstraintSystem<F> {
                 if let Some(unsatisfied_constraint) =
                     predicate.which_constraint_is_unsatisfied(self)
                 {
-                    let mut trace: String = "".to_string();
+                    let mut trace;
                     #[cfg(feature = "std")]
                     {
                         trace = self.predicate_traces[label][unsatisfied_constraint]
@@ -405,7 +439,7 @@ impl<F: Field> ConstraintSystem<F> {
                                     eprintln!(
                                         "Constraint trace requires enabling `ConstraintLayer`"
                                     );
-                                    format!("{} - {unsatisfied_constraint}", &label)
+                                    format!("{label} - {unsatisfied_constraint}")
                                 },
                                 |t| format!("{t}"),
                             )
@@ -413,7 +447,7 @@ impl<F: Field> ConstraintSystem<F> {
                     }
                     #[cfg(not(feature = "std"))]
                     {
-                        trace = format!("{} - {unsatisfied_constraint}", label.clone());
+                        trace = format!("{label} - {unsatisfied_constraint}");
                     }
                     return Ok(Some(trace));
                 }
@@ -424,14 +458,14 @@ impl<F: Field> ConstraintSystem<F> {
 
     /// Finalize the constraint system (either by outlining or inlining,
     /// if an optimization goal is set).
-    pub fn finalize(&mut self, outline_instance: bool) {
+    pub fn finalize(&mut self) {
         match self.optimization_goal {
             OptimizationGoal::None => self.inline_all_lcs(),
             OptimizationGoal::Constraints => self.inline_all_lcs(),
             OptimizationGoal::Weight => self.outline_lcs(),
         };
-        if outline_instance {
-            let _ = self.outline_instances();
+        if self.outline_instances {
+            let _ = self.do_outline_instances();
         }
     }
 
@@ -711,12 +745,23 @@ impl<F: Field> ConstraintSystem<F> {
             .collect()
     }
 
+    /// Sets the flag for outlining the instances
+    pub(crate) fn outline_instances(&mut self) {
+        self.outline_instances = true;
+    }
+
+    /// Returns the flag for outlining the instances, This is by default set to
+    /// false
+    pub(crate) fn should_outline_instances(&self) -> bool {
+        self.outline_instances
+    }
+
     /// Outlines the instances in the constraint system
     /// This function creates a new witness variable for each instance variable
     /// and uses these witness variables in the constraints instead of instance
     /// variables. This technique is useful for verifier succinctness in some
     /// SNARKs like Garuda, Pari and PolyMath
-    pub(crate) fn outline_instances(&mut self) -> crate::gr1cs::Result<()> {
+    pub(crate) fn do_outline_instances(&mut self) -> crate::gr1cs::Result<()> {
         let mut instance_to_witness_map = BTreeMap::<Variable, Variable>::new();
         instance_to_witness_map
             .insert(Variable::One, Variable::Witness(self.num_witness_variables));

@@ -49,35 +49,42 @@ impl<F: Field> ConstraintSystemRef<F> {
     }
 
     /// Returns the number of constraints in each predicate
-    pub fn get_predicate_num_constraints(&self) -> BTreeMap<Label, usize> {
+    pub fn get_all_predicates_num_constraints(&self) -> BTreeMap<Label, usize> {
         self.inner().map_or(BTreeMap::new(), |cs| {
-            cs.borrow().get_predicate_num_constraints()
+            cs.borrow().get_all_predicates_num_constraints()
         })
     }
 
-    /// Returns the arity of each predicate
-    pub fn get_predicate_arities(&self) -> BTreeMap<Label, usize> {
+    /// Returns the number of constraints in the predicate with the given label
+    pub fn get_predicates_num_constraints(&self, predicate_label: &str) -> Option<usize> {
         self.inner()
-            .map_or(BTreeMap::new(), |cs| cs.borrow().get_predicate_arities())
+            .and_then(|cs| cs.borrow().get_predicate_num_constraints(predicate_label))
+    }
+
+    /// Returns the arity of each predicate
+    pub fn get_all_predicate_arities(&self) -> BTreeMap<Label, usize> {
+        self.inner().map_or(BTreeMap::new(), |cs| {
+            cs.borrow().get_all_predicate_arities()
+        })
+    }
+
+    /// Returns the predicate type of the predicate with the given label
+    pub fn get_predicate_arity(&self, predicate_label: &str) -> Option<usize> {
+        self.inner()
+            .and_then(|cs| cs.borrow().get_predicate_arity(predicate_label))
     }
 
     /// Returns the predicate types of each predicate
-    pub fn get_predicate_types(&self) -> BTreeMap<Label, PredicateType<F>> {
+    pub fn get_all_predicate_types(&self) -> BTreeMap<Label, PredicateType<F>> {
         self.inner()
-            .map_or(BTreeMap::new(), |cs| cs.borrow().get_predicate_types())
+            .map_or(BTreeMap::new(), |cs| cs.borrow().get_all_predicate_types())
     }
 
-    // /// Returns the instance assignment of the constraint system
-    // /// TODO:Fix the panic
-    // pub fn instance_assignment(&self) -> Ref<[F]> {
-    //     match self {
-    //         ConstraintSystemRef::None => panic!(),
-    //         ConstraintSystemRef::CS(cs) => {
-    //             // Borrow the RefCell immutably and map to instance_assignment
-    // slice             Ref::map(cs.borrow(), |cs_inner|
-    // cs_inner.instance_assignment())         },
-    //     }
-    // }
+    /// Returns the predicate type of the predicate with the given label
+    pub fn get_predicate_type(&self, predicate_label: &str) -> Option<PredicateType<F>> {
+        self.inner()
+            .and_then(|cs| cs.borrow().get_predicate_type(predicate_label))
+    }
 
     /// Returns the number of constraints which is the sum of the number of
     /// constraints in each  predicate.    #[inline]
@@ -130,7 +137,6 @@ impl<F: Field> ConstraintSystemRef<F> {
     /// constraint system, It will create one. This function is a special case
     /// of `enforce_constraint` and is used as the legacy R1CS API to be bacward
     /// compatible with R1CS gadgets.
-    /// TODO: Delete the inner enforce_r1cs_constraint function
     #[inline]
     pub fn enforce_r1cs_constraint(
         &self,
@@ -183,6 +189,21 @@ impl<F: Field> ConstraintSystemRef<F> {
     pub fn set_optimization_goal(&self, goal: OptimizationGoal) {
         self.inner()
             .map_or((), |cs| cs.borrow_mut().set_optimization_goal(goal))
+    }
+
+    /// Returns the flag for outlining the instances, This is by default set to
+    /// false
+    #[inline]
+    pub fn should_outline_instances(&self) -> bool {
+        self.inner()
+            .is_some_and(|cs| cs.borrow().should_outline_instances())
+    }
+
+    /// Sets the flag for outlining the instances
+    #[inline]
+    pub fn outline_instances(&self) {
+        self.inner()
+            .map_or((), |cs| cs.borrow_mut().outline_instances())
     }
 
     /// Check whether or not `self` will construct matrices.
@@ -284,9 +305,9 @@ impl<F: Field> ConstraintSystemRef<F> {
 
     /// Finalize the constraint system (either by outlining or inlining,
     /// if an optimization goal is set).
-    pub fn finalize(&self, outline_instances: bool) {
+    pub fn finalize(&self) {
         if let Some(cs) = self.inner() {
-            cs.borrow_mut().finalize(outline_instances)
+            cs.borrow_mut().finalize()
         }
     }
 
@@ -377,55 +398,57 @@ impl<F: Field> ConstraintSystemRef<F> {
         self.inner().map(|cs| cs.borrow_mut())
     }
 
-    // TODO: Implement this function
-    // /// Get trace information about all constraints in the system
-    // pub fn constraint_names(&self) -> Option<Vec<String>> {
-    //     #[cfg(feature = "std")]
-    //     {
-    //         self.inner().and_then(|cs| {
-    //             cs.borrow()
-    //                 .constraint_traces
-    //                 .iter()
-    //                 .map(|trace| {
-    //                     let mut constraint_path = String::new();
-    //                     let mut prev_module_path = "";
-    //                     let mut prefixes = ark_std::collections::BTreeSet::new();
-    //                     for step in trace.as_ref()?.path() {
-    //                         let module_path = if prev_module_path ==
-    // step.module_path {
-    // prefixes.insert(step.module_path.to_string());
-    // String::new()                         } else {
-    //                             let mut parts = step
-    //                                 .module_path
-    //                                 .split("::")
-    //                                 .filter(|&part| part != "r1cs_std" && part !=
-    // "constraints");                             let mut path_so_far =
-    // String::new();                             for part in parts.by_ref() {
-    //                                 if path_so_far.is_empty() {
-    //                                     path_so_far += part;
-    //                                 } else {
-    //                                     path_so_far += &["::", part].join("");
-    //                                 }
-    //                                 if prefixes.contains(&path_so_far) {
-    //                                     continue;
-    //                                 } else {
-    //                                     prefixes.insert(path_so_far.clone());
-    //                                     break;
-    //                                 }
-    //                             }
-    //                             parts.collect::<Vec<_>>().join("::") + "::"
-    //                         };
-    //                         prev_module_path = step.module_path;
-    //                         constraint_path += &["/", &module_path,
-    // step.name].join("");                     }
-    //                     Some(constraint_path)
-    //                 })
-    //                 .collect::<Option<Vec<_>>>()
-    //         })
-    //     }
-    //     #[cfg(not(feature = "std"))]
-    //     {
-    //         None
-    //     }
-    // }
+    /// Get trace information about all constraints in the system
+    pub fn constraint_names(&self) -> Option<Vec<String>> {
+        #[cfg(feature = "std")]
+        {
+            self.inner().and_then(|cs| {
+                cs.borrow()
+                    .predicate_traces
+                    .iter()
+                    .flat_map(|(key, values)| {
+                        values.iter().map(move |v| (key.clone(), v))
+                    }) 
+                    .map(|(label,trace)| {
+                        let mut constraint_path = String::new();
+                        let mut prev_module_path = "";
+                        let mut prefixes = ark_std::collections::BTreeSet::new();
+                        for step in trace.as_ref()?.path() {
+                            let module_path = if prev_module_path == step.module_path {
+                                prefixes.insert(step.module_path.to_string());
+                                String::new()
+                            } else {
+                                let mut parts = step
+                                    .module_path
+                                    .split("::")
+                                    .filter(|&part| part != "r1cs_std" && part != "constraints");
+                                let mut path_so_far = String::new();
+                                for part in parts.by_ref() {
+                                    if path_so_far.is_empty() {
+                                        path_so_far += part;
+                                    } else {
+                                        path_so_far += &["::", part].join("");
+                                    }
+                                    if prefixes.contains(&path_so_far) {
+                                        continue;
+                                    } else {
+                                        prefixes.insert(path_so_far.clone());
+                                        break;
+                                    }
+                                }
+                                parts.collect::<Vec<_>>().join("::") + "::"
+                            };
+                            prev_module_path = step.module_path;
+                            constraint_path += &["/", &module_path, step.name].join("");
+                        }
+                        Some(constraint_path)
+                    })
+                    .collect::<Option<Vec<_>>>()
+            })
+        }
+        #[cfg(not(feature = "std"))]
+        {
+            None
+        }
+    }
 }

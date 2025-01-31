@@ -28,19 +28,19 @@ fn test_circuit1_sat() {
     };
     let cs = ConstraintSystem::<Fr>::new_ref();
     c.clone().generate_constraints(cs.clone()).unwrap();
-    cs.finalize(false);
+    cs.finalize();
     assert!(cs.is_satisfied().unwrap());
 
     let cs = ConstraintSystem::<Fr>::new_ref();
     cs.set_optimization_goal(OptimizationGoal::Constraints);
     c.clone().generate_constraints(cs.clone()).unwrap();
-    cs.finalize(false);
+    cs.finalize();
     assert!(cs.is_satisfied().unwrap());
 
     let cs = ConstraintSystem::<Fr>::new_ref();
     cs.set_optimization_goal(OptimizationGoal::Weight);
     c.clone().generate_constraints(cs.clone()).unwrap();
-    cs.finalize(false);
+    cs.finalize();
     assert!(cs.is_satisfied().unwrap());
 }
 
@@ -96,7 +96,8 @@ fn test_circuit1_matrices() {
     let cs = ConstraintSystem::<Fr>::new_ref();
     c.clone().generate_constraints(cs.clone()).unwrap();
     assert_eq!(Circuit1::get_matrices(), cs.clone().to_matrices().unwrap());
-    cs.finalize(true);
+    cs.outline_instances();
+    cs.finalize();
 }
 
 #[test]
@@ -120,7 +121,8 @@ fn test_circuit1_instance_outlined() {
     c.clone().generate_constraints(cs.clone()).unwrap();
     let num_instance = cs.num_instance_variables();
     let prev_num_witness = cs.num_witness_variables();
-    cs.finalize(true);
+    cs.outline_instances();
+    cs.finalize();
     let new_num_witness = cs.num_witness_variables();
     assert_eq!(num_instance, new_num_witness - prev_num_witness);
 }
@@ -135,6 +137,6 @@ fn test_circuit2_matrices() {
     };
     let cs = ConstraintSystem::<Fr>::new_ref();
     c.clone().generate_constraints(cs.clone()).unwrap();
-    cs.finalize(false);
+    cs.finalize();
     assert_eq!(Circuit2::get_matrices(), cs.clone().to_matrices().unwrap());
 }

@@ -29,7 +29,7 @@ pub use crate::{
     utils::{
         error::SynthesisError,
         linear_combination::{LcIndex, LinearCombination},
-        matrix::{mat_vec_mul, trans, Matrix},
+        matrix::{mat_vec_mul, transpose, Matrix},
         variable::Variable,
         Result,
     },
