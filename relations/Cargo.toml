@@ -30,5 +30,5 @@ std = [ "ark-std/std", "ark-ff/std", "tracing-subscriber", "tracing/std" ]
 
 [[example]]
 name = "non-satisfiable"
-path = "examples/non-satisfiable.rs"
+path = "examples/non_satisfiable.rs"
 required-features = ["std"]
