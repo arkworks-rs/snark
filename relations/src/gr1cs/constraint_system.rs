@@ -422,7 +422,7 @@ impl<F: Field> ConstraintSystem<F> {
                 if let Some(unsatisfied_constraint) =
                     predicate.which_constraint_is_unsatisfied(self)
                 {
-                    let mut trace;
+                    let trace;
                     #[cfg(feature = "std")]
                     {
                         trace = self.predicate_traces[label][unsatisfied_constraint]

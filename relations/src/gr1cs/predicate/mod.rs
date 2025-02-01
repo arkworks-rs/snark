@@ -5,7 +5,7 @@
 
 pub mod polynomial_constraint;
 
-use super::{Constraint, ConstraintSystem, LcIndex, LinearCombination, Matrix};
+use super::{Constraint, ConstraintSystem, LcIndex, Matrix};
 use crate::utils::{error::SynthesisError::ArityMismatch, variable::Variable::SymbolicLc};
 use ark_ff::Field;
 use ark_serialize::{CanonicalSerialize, Compress, SerializationError};
