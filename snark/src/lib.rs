@@ -1,6 +1,6 @@
 //! This crate contains traits that define the basic behaviour of SNARKs.
 
-#![cfg_attr(not(feature = "std"), no_std)]
+#![no_std]
 #![warn(
     unused,
     future_incompatible,
@@ -11,10 +11,12 @@
 #![forbid(unsafe_code)]
 
 use ark_ff::PrimeField;
-use ark_relations::r1cs::ConstraintSynthesizer;
+use ark_relations::gr1cs::ConstraintSynthesizer;
 use ark_serialize::{CanonicalDeserialize, CanonicalSerialize};
-use ark_std::fmt::Debug;
-use ark_std::rand::{CryptoRng, RngCore};
+use ark_std::{
+    fmt::Debug,
+    rand::{CryptoRng, RngCore},
+};
 
 /// The basic functionality for a SNARK.
 pub trait SNARK<F: PrimeField> {
@@ -52,8 +54,8 @@ pub trait SNARK<F: PrimeField> {
     ) -> Result<Self::Proof, Self::Error>;
 
     /// Checks that `proof` is a valid proof of the satisfaction of circuit
-    /// encoded in `circuit_vk`, with respect to the public input `public_input`,
-    /// specified as R1CS constraints.
+    /// encoded in `circuit_vk`, with respect to the public input
+    /// `public_input`, specified as R1CS constraints.
     fn verify(
         circuit_vk: &Self::VerifyingKey,
         public_input: &[F],
@@ -69,8 +71,8 @@ pub trait SNARK<F: PrimeField> {
     ) -> Result<Self::ProcessedVerifyingKey, Self::Error>;
 
     /// Checks that `proof` is a valid proof of the satisfaction of circuit
-    /// encoded in `circuit_pvk`, with respect to the public input `public_input`,
-    /// specified as R1CS constraints.
+    /// encoded in `circuit_pvk`, with respect to the public input
+    /// `public_input`, specified as R1CS constraints.
     fn verify_with_processed_vk(
         circuit_pvk: &Self::ProcessedVerifyingKey,
         public_input: &[F],

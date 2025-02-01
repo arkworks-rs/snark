@@ -21,6 +21,14 @@ pub enum SynthesisError {
     MalformedVerifyingKey,
     /// During CRS generation, we observed an unconstrained auxiliary variable
     UnconstrainedVariable,
+    /// The string does not match to any predicate
+    PredicateNotFound,
+    /// The predicate expects a different arity
+    ArityMismatch,
+    /// The LcIndex provided does not correspond to any Linear Combination
+    LcNotFound,
+    /// The variable type is not expected for the operation
+    UnexpectedVariable,
 }
 
 impl ark_std::error::Error for SynthesisError {}
@@ -41,6 +49,21 @@ impl fmt::Display for SynthesisError {
             SynthesisError::MalformedVerifyingKey => write!(f, "malformed verifying key"),
             SynthesisError::UnconstrainedVariable => {
                 write!(f, "auxiliary variable was unconstrained")
+            },
+            SynthesisError::ArityMismatch => {
+                write!(f, "The Arity for the predicate does not match the input")
+            },
+            SynthesisError::PredicateNotFound => {
+                write!(f, "The predicate was not found in the constraint system")
+            },
+            SynthesisError::LcNotFound => {
+                write!(
+                    f,
+                    "The LcIndex provided does not correspond to any Linear Combination"
+                )
+            },
+            SynthesisError::UnexpectedVariable => {
+                write!(f, "Variable type is not expected for the operation")
             },
         }
     }
