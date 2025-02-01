@@ -9,7 +9,7 @@ use ark_std::{
 
 use super::variable::Variable;
 
-#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Debug)]
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Hash)]
 /// An opaque counter for symbolic linear combinations.
 pub struct LcIndex(pub usize);
 

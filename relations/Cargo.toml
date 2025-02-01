@@ -19,6 +19,7 @@ ark-poly = { version = "0.5.0", default-features = false }
 ark-serialize = { version = "0.5.0", default-features = false }
 tracing = { version = "0.1", default-features = false, features = ["attributes"]}
 tracing-subscriber = { version = "0.3", default-features = true, optional = true }
+hashbrown = { version = "0.15", default-features = false , features = [ "default-hasher"] }
 
 [dev-dependencies]
 ark-test-curves = { version = "0.5.0", default-features = false, features = [ "bls12_381_scalar_field" ] }

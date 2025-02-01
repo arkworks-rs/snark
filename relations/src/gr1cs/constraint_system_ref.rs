@@ -5,6 +5,7 @@
 
 use ark_std::collections::BTreeMap;
 use core::cell::{Ref, RefCell, RefMut};
+use hashbrown::HashMap;
 
 use super::{
     constraint_system::ConstraintSystem,
@@ -49,8 +50,8 @@ impl<F: Field> ConstraintSystemRef<F> {
     }
 
     /// Returns the number of constraints in each predicate
-    pub fn get_all_predicates_num_constraints(&self) -> BTreeMap<Label, usize> {
-        self.inner().map_or(BTreeMap::new(), |cs| {
+    pub fn get_all_predicates_num_constraints(&self) -> HashMap<Label, usize> {
+        self.inner().map_or(HashMap::new(), |cs| {
             cs.borrow().get_all_predicates_num_constraints()
         })
     }
@@ -62,10 +63,9 @@ impl<F: Field> ConstraintSystemRef<F> {
     }
 
     /// Returns the arity of each predicate
-    pub fn get_all_predicate_arities(&self) -> BTreeMap<Label, usize> {
-        self.inner().map_or(BTreeMap::new(), |cs| {
-            cs.borrow().get_all_predicate_arities()
-        })
+    pub fn get_all_predicate_arities(&self) -> HashMap<Label, usize> {
+        self.inner()
+            .map_or(HashMap::new(), |cs| cs.borrow().get_all_predicate_arities())
     }
 
     /// Returns the predicate type of the predicate with the given label
