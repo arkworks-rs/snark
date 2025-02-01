@@ -17,8 +17,8 @@ ark-ff.workspace = true
 ark-std.workspace = true
 ark-poly.workspace = true
 ark-serialize.workspace = true
-tracing.workspace = true
-tracing-subscriber = { workspace = true, optional = true }
+tracing = { workspace = true, features = ["attributes"] }
+tracing-subscriber = { workspace = true, default-features = true, optional = true }
 
 [dev-dependencies]
 ark-test-curves = { workspace = true, default-features = false, features = [ "bls12_381_scalar_field" ] }
