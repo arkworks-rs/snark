@@ -7,9 +7,7 @@ use crate::{
     lc,
 };
 
-use super::{
-    predicate::polynomial_constraint::R1CS_PREDICATE_LABEL, Label, Matrix, Variable,
-};
+use super::{predicate::polynomial_constraint::R1CS_PREDICATE_LABEL, Label, Matrix, Variable};
 
 #[derive(Debug, Clone)]
 pub struct Circuit2<F: Field> {

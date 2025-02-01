@@ -16,7 +16,7 @@ use polynomial_constraint::PolynomialPredicate;
 /// For now, we only support polynomial predicates
 /// In the future, we can add other types of predicates, e.g. lookup table
 #[derive(Debug, Clone)]
-#[non_exhaustive]  
+#[non_exhaustive]
 pub enum PredicateType<F: Field> {
     /// A polynomial local predicate. This is the most common predicate that
     /// captures high-degree custome gates
@@ -129,15 +129,19 @@ impl<F: Field> PredicateConstraintSystem<F> {
     /// arity
     pub fn enforce_constraint(
         &mut self,
-        constraint: impl ExactSizeIterator<Item = LcIndex>,
+        constraint: impl IntoIterator<Item = LcIndex>,
     ) -> crate::utils::Result<()> {
-        if constraint.len() != self.get_arity() {
+        let mut arity = 0;
+        constraint
+            .into_iter()
+            .zip(&mut self.argument_lcs)
+            .for_each(|(lc_index, arg_lc)| {
+                arity += 1;
+                arg_lc.push(lc_index);
+            });
+        if arity != self.get_arity() {
             return Err(ArityMismatch);
         }
-
-        constraint.enumerate().for_each(|(i, lc_index)| {
-            self.argument_lcs[i].push(lc_index);
-        });
 
         self.num_constraints += 1;
         Ok(())
@@ -176,8 +180,8 @@ impl<F: Field> PredicateConstraintSystem<F> {
         let mut matrices: Vec<Matrix<F>> = vec![Vec::new(); self.get_arity()];
         for constraint in self.iter_constraints() {
             for (matrix_ind, lc_index) in constraint.iter().enumerate() {
-                let lc: LinearCombination<F> = cs.get_lc(*lc_index).unwrap();
-                let row: Vec<(F, usize)> = cs.make_row(&lc);
+                let lc = cs.get_lc(*lc_index).unwrap();
+                let row = cs.make_row(&lc);
                 matrices[matrix_ind].push(row);
             }
         }

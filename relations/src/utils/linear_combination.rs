@@ -17,9 +17,6 @@ pub struct LcIndex(pub usize);
 #[derive(Debug, Clone, PartialEq, Eq, Default, PartialOrd, Ord)]
 pub struct LinearCombination<F: Field>(pub Vec<(F, Variable)>);
 
-
-
-
 /// Generate a `LinearCombination` from arithmetic expressions involving
 /// `Variable`s.
 #[macro_export]

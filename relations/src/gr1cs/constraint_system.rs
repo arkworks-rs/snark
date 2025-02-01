@@ -79,7 +79,6 @@ pub struct ConstraintSystem<F: Field> {
     /// result of each linear combination
     lc_assignment_cache: Rc<RefCell<BTreeMap<LcIndex, F>>>,
 
-
     /// data structure to store the traces for each predicate
     #[cfg(feature = "std")]
     pub predicate_traces: BTreeMap<Label, Vec<Option<ConstraintTrace>>>,
@@ -219,14 +218,11 @@ impl<F: Field> ConstraintSystem<F> {
     /// predicate name and enforces a vector of linear combinations of the
     /// length of the arity of the predicate enforces the constraint.
     #[inline]
-    pub fn enforce_constraint<T>(
+    pub fn enforce_constraint(
         &mut self,
         predicate_label: &str,
-        lc_vec: T,
-    ) -> crate::gr1cs::Result<()>
-    where
-        T: IntoIterator<Item = LinearCombination<F>>,
-    {
+        lc_vec: impl IntoIterator<Item = LinearCombination<F>>,
+    ) -> crate::gr1cs::Result<()> {
         if !self.has_predicate(predicate_label) {
             return Err(SynthesisError::PredicateNotFound);
         }
@@ -234,12 +230,25 @@ impl<F: Field> ConstraintSystem<F> {
             // TODO: Find a way to get rid of the following collect, barrier1: we need the
             // size, possible to use ExactSizeIterator, barrier2: We will need lifetimes
             // which leads to having two &mut refs to self
-            let lc_indices: Vec<LcIndex> = self.new_lc_vec(lc_vec).collect();
+
+            let lc_indices = lc_vec.into_iter().map(|lc| {
+                let var = {
+                    let index = LcIndex(self.num_linear_combinations);
+                    self.lc_map.insert(index, lc);
+                    self.num_linear_combinations += 1;
+                    Variable::SymbolicLc(index)
+                };
+                match var {
+                    Variable::SymbolicLc(index) => index,
+                    _ => panic!("Unexpected variable type"),
+                }
+            });
             let predicate = self
                 .predicate_constraint_systems
                 .get_mut(predicate_label)
                 .unwrap();
-            predicate.enforce_constraint(lc_indices.into_iter())?;
+
+            predicate.enforce_constraint(lc_indices)?;
         }
         #[cfg(feature = "std")]
         {
@@ -254,25 +263,12 @@ impl<F: Field> ConstraintSystem<F> {
         Ok(())
     }
 
-    /// Add a new vector of linear combinations to the constraint system.
-    pub fn new_lc_vec<'a, T>(&'a mut self, lc_vec: T) -> impl Iterator<Item = LcIndex> + 'a
-    where
-        T: IntoIterator<Item = LinearCombination<F>> + 'a,
-    {
-        lc_vec.into_iter().map(move |lc| {
-            let var = self.new_lc(lc).unwrap();
-            match var {
-                Variable::SymbolicLc(index) => index,
-                _ => panic!("Unexpected variable type"),
-            }
-        })
-    }
-
     /// Adds a new linear combination to the constraint system.
     /// If the linear combination is already in the map, return the
     /// corresponding index (using bimap)
     #[inline]
     pub fn new_lc(&mut self, lc: LinearCombination<F>) -> crate::gr1cs::Result<Variable> {
+        // Note: update also enforce_constraint if you change this logic.
         let index = LcIndex(self.num_linear_combinations);
         self.lc_map.insert(index, lc);
         self.num_linear_combinations += 1;

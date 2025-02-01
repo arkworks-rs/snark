@@ -1,4 +1,3 @@
-
 use ark_ff::Field;
 use ark_relations::gr1cs::{
     trace::{ConstraintLayer, TracingMode},

@@ -8,7 +8,6 @@ pub use circuit1::Circuit1;
 pub use circuit2::Circuit2;
 use constraint_system::ConstraintSystem;
 
-
 #[test]
 fn test_circuit1_sat() {
     let c = Circuit1 {
