@@ -1,8 +1,8 @@
 [package]
 name = "ark-relations"
-version = "0.4.0"
+version = "0.5.0"
 authors = [ "arkworks contributors" ]
-description = "A library for rank-one constraint systems"
+description = "A library for generalized rank-one constraint systems"
 homepage = "https://arkworks.rs"
 repository = "https://github.com/arkworks-rs/snark"
 documentation = "https://docs.rs/ark-relations/"
@@ -13,14 +13,27 @@ license = "MIT/Apache-2.0"
 edition = "2021"
 
 [dependencies]
-ark-ff = { version = "0.4.0", default-features = false }
-ark-std = { version = "0.4.0", default-features = false }
-tracing = { version = "0.1", default-features = false }
-tracing-subscriber = { version = "0.2", default-features = false, optional = true }
+ark-ff = { version = "0.5.0", default-features = false }
+ark-std = { version = "0.5.0", default-features = false }
+ark-poly = { version = "0.5.0", default-features = false }
+ark-serialize = { version = "0.5.0", default-features = false }
+tracing = { version = "0.1", default-features = false, features = ["attributes"]}
+tracing-subscriber = { version = "0.3", default-features = true, optional = true }
 
 [dev-dependencies]
-ark-test-curves = { version = "0.4.0", default-features = false, features = [ "bls12_381_scalar_field" ] }
+ark-test-curves = { version = "0.5.0", default-features = false, features = [ "bls12_381_scalar_field" ] }
 
 [features]
 default = []
 std = [ "ark-std/std", "ark-ff/std", "tracing-subscriber", "tracing/std" ]
+
+
+[[example]]
+name = "non-satisfiable"
+path = "examples/non_satisfiable.rs"
+required-features = ["std"]
+
+[[example]]
+name = "satisfiable"
+path = "examples/satisfiable.rs"
+required-features = ["std"]
