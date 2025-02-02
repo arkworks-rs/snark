@@ -10,7 +10,10 @@ use super::{
 };
 #[cfg(feature = "std")]
 use crate::gr1cs::ConstraintTrace;
-use crate::gr1cs::{LcIndex, LinearCombination, Matrix, SynthesisError, Variable};
+use crate::{
+    gr1cs::{LcIndex, LinearCombination, Matrix, SynthesisError, Variable},
+    lc,
+};
 use ark_ff::Field;
 use ark_std::{
     any::{Any, TypeId},
@@ -798,11 +801,20 @@ impl<F: Field> ConstraintSystem<F> {
 
         let one_witt = instance_to_witness_map.get(&Variable::One).unwrap();
         for (instance, witness) in instance_to_witness_map.iter() {
-            let r1cs_constraint = vec![
-                LinearCombination::from(*instance),
-                LinearCombination::from(*one_witt),
-                LinearCombination::from(*witness),
-            ];
+            let r1cs_constraint = if instance.is_one() {
+                vec![
+                    LinearCombination::from(*instance),
+                    LinearCombination::from(*instance),
+                    LinearCombination::from(*witness),
+                ]
+            } else {
+                vec![
+                    LinearCombination::from(*instance),
+                    LinearCombination::from(*one_witt),
+                    LinearCombination::from(*witness),
+                ]
+            };
+
             self.enforce_constraint(R1CS_PREDICATE_LABEL, r1cs_constraint)?;
         }
 
