@@ -763,6 +763,8 @@ impl<F: Field> ConstraintSystem<F> {
             .insert(Variable::One, Variable::Witness(self.num_witness_variables));
         self.num_witness_variables += 1;
 
+        // Go over all the linear combinations and create a new witness for each
+        // instance variable you see
         for (_, lc) in self.lc_map.iter() {
             for (_, var) in lc.iter() {
                 if var.is_instance() {
@@ -774,9 +776,10 @@ impl<F: Field> ConstraintSystem<F> {
             }
         }
 
+        // Go over all the linear combinations and replace the instance variables with the corresponding witness variables.
         for (_, lc) in self.lc_map.iter_mut() {
             for (_, var) in lc.iter_mut() {
-                if var.is_instance() {
+                if var.is_instance()|| var.is_one() {
                     *var = instance_to_witness_map[var];
                 }
             }
@@ -799,6 +802,7 @@ impl<F: Field> ConstraintSystem<F> {
             }
         }
 
+        dbg!(&instance_to_witness_map);
         let one_witt = instance_to_witness_map.get(&Variable::One).unwrap();
         for (instance, witness) in instance_to_witness_map.iter() {
             let r1cs_constraint = if instance.is_one() {
