@@ -19,6 +19,7 @@ ark-poly.workspace = true
 ark-serialize.workspace = true
 tracing = { workspace = true, features = ["attributes"] }
 tracing-subscriber = { workspace = true, default-features = true, optional = true }
+hashbrown = { version = "0.15", default-features = false , features = [ "default-hasher"] }
 
 [dev-dependencies]
 ark-test-curves = { workspace = true, default-features = false, features = [ "bls12_381_scalar_field" ] }

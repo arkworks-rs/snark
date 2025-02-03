@@ -22,6 +22,7 @@ use ark_std::{
     string::{String, ToString},
     vec::Vec,
 };
+use hashbrown::HashMap;
 ///////////////////////////////////////////////////////////////////////////////////////
 
 /// A GR1CS `ConstraintSystem`. Enforces constraints of the form  
@@ -70,14 +71,14 @@ pub struct ConstraintSystem<F: Field> {
 
     /// A data structure to store the linear combinations. We use map because
     /// it's easier to inline and outline the linear combinations.
-    lc_map: BTreeMap<LcIndex, LinearCombination<F>>,
+    lc_map: Vec<LinearCombination<F>>,
 
     /// A map from the the predicate labels to the predicates
     predicate_constraint_systems: BTreeMap<Label, PredicateConstraintSystem<F>>,
 
     /// A cache for the linear combination assignments. It shows evaluation
     /// result of each linear combination
-    lc_assignment_cache: Rc<RefCell<BTreeMap<LcIndex, F>>>,
+    lc_assignment_cache: Rc<RefCell<HashMap<LcIndex, F>>>,
 
     /// data structure to store the traces for each predicate
     #[cfg(feature = "std")]
@@ -104,8 +105,8 @@ impl<F: Field> ConstraintSystem<F> {
             instance_assignment: vec![F::one()],
             witness_assignment: Vec::new(),
             cache_map: Rc::new(RefCell::new(BTreeMap::new())),
-            lc_map: BTreeMap::new(),
-            lc_assignment_cache: Rc::new(RefCell::new(BTreeMap::new())),
+            lc_map: Vec::new(),
+            lc_assignment_cache: Rc::new(RefCell::new(HashMap::new())),
             mode: SynthesisMode::Prove {
                 construct_matrices: true,
             },
@@ -125,7 +126,7 @@ impl<F: Field> ConstraintSystem<F> {
 
     /// Returns a mapping from predicate label to number of constraints for that
     /// predicate
-    pub fn get_all_predicates_num_constraints(&self) -> BTreeMap<Label, usize> {
+    pub fn get_all_predicates_num_constraints(&self) -> HashMap<Label, usize> {
         self.predicate_constraint_systems
             .iter()
             .map(|(label, predicate)| (label.clone(), predicate.num_constraints()))
@@ -140,7 +141,7 @@ impl<F: Field> ConstraintSystem<F> {
     }
 
     /// Returns a mapping from predicate label to arity for that predicate
-    pub fn get_all_predicate_arities(&self) -> BTreeMap<Label, usize> {
+    pub fn get_all_predicate_arities(&self) -> HashMap<Label, usize> {
         self.predicate_constraint_systems
             .iter()
             .map(|(label, predicate)| (label.clone(), predicate.get_arity()))
@@ -234,7 +235,7 @@ impl<F: Field> ConstraintSystem<F> {
             let lc_indices = lc_vec.into_iter().map(|lc| {
                 let var = {
                     let index = LcIndex(self.num_linear_combinations);
-                    self.lc_map.insert(index, lc);
+                    self.lc_map.push(lc);
                     self.num_linear_combinations += 1;
                     Variable::SymbolicLc(index)
                 };
@@ -270,7 +271,7 @@ impl<F: Field> ConstraintSystem<F> {
     pub fn new_lc(&mut self, lc: LinearCombination<F>) -> crate::gr1cs::Result<Variable> {
         // Note: update also enforce_constraint if you change this logic.
         let index = LcIndex(self.num_linear_combinations);
-        self.lc_map.insert(index, lc);
+        self.lc_map.push(lc);
         self.num_linear_combinations += 1;
         Ok(Variable::SymbolicLc(index))
     }
@@ -394,7 +395,7 @@ impl<F: Field> ConstraintSystem<F> {
     /// Evaluate the linear combination `lc` with the assigned values and return
     /// the result.
     fn eval_lc(&self, lc: LcIndex) -> Option<F> {
-        let lc: &LinearCombination<F> = self.lc_map.get(&lc)?;
+        let lc = &self.lc_map[lc.0];
         let mut acc = F::zero();
         for (coeff, var) in lc.iter() {
             acc += *coeff * self.assigned_value(*var)?;
@@ -589,8 +590,7 @@ impl<F: Field> ConstraintSystem<F> {
     ///
     /// The transformer function is given a references of this constraint system
     /// (&self), number of times used, and a mutable reference of the linear
-    /// combination to be transformed.     (&ConstraintSystem<F>, usize,
-    /// &mut LinearCombination<F>)
+    /// combination to be transformed.
     ///
     /// The transformer function returns the number of new witness variables
     /// needed and a vector of new witness assignments (if not in the setup
@@ -604,13 +604,13 @@ impl<F: Field> ConstraintSystem<F> {
         ) -> (usize, Option<Vec<F>>),
     ) {
         // `transformed_lc_map` stores the transformed linear combinations.
-        let mut transformed_lc_map = BTreeMap::<_, LinearCombination<F>>::new();
+        let mut transformed_lc_map = BTreeMap::<LcIndex, LinearCombination<F>>::new();
         let mut num_times_used = self.lc_num_times_used(false);
 
         // This loop goes through all the LCs in the map, starting from
         // the early ones. The transformer function is applied to the
         // inlined LC, where new witness variables can be created.
-        for (&index, lc) in &self.lc_map {
+        for (index, lc) in self.lc_map.iter().enumerate() {
             let mut transformed_lc = LinearCombination::new();
 
             // Inline the LC, unwrapping symbolic LCs that may constitute it,
@@ -658,10 +658,10 @@ impl<F: Field> ConstraintSystem<F> {
 
             // Call the transformer function.
             let (num_new_witness_variables, new_witness_assignments) =
-                transformer(self, num_times_used[index.0], &mut transformed_lc);
+                transformer(self, num_times_used[index], &mut transformed_lc);
 
             // Insert the transformed LC.
-            transformed_lc_map.insert(index, transformed_lc);
+            transformed_lc_map.insert(LcIndex(index), transformed_lc);
 
             // Update the witness counter.
             self.num_witness_variables += num_new_witness_variables;
@@ -678,7 +678,7 @@ impl<F: Field> ConstraintSystem<F> {
             }
         }
         // Replace the LC map.
-        self.lc_map = transformed_lc_map;
+        self.lc_map = transformed_lc_map.into_values().collect();
     }
 
     /// Count the number of times each linear combination is used.
@@ -686,8 +686,8 @@ impl<F: Field> ConstraintSystem<F> {
         let mut num_times_used = vec![0; self.lc_map.len()];
 
         // Iterate over every lc in constraint system
-        for (index, lc) in self.lc_map.iter() {
-            num_times_used[index.0] += count_sinks as usize;
+        for (index, lc) in self.lc_map.iter().enumerate() {
+            num_times_used[index] += count_sinks as usize;
 
             // Increment the counter for each lc that this lc has a direct dependency on.
             for &(_, var) in lc.iter() {
@@ -715,7 +715,7 @@ impl<F: Field> ConstraintSystem<F> {
     /// and not clone it.
     pub fn get_lc(&self, lc_index: LcIndex) -> crate::gr1cs::Result<LinearCombination<F>> {
         self.lc_map
-            .get(&lc_index)
+            .get(lc_index.0)
             .cloned()
             .ok_or(SynthesisError::LcNotFound)
     }
@@ -760,7 +760,7 @@ impl<F: Field> ConstraintSystem<F> {
             .insert(Variable::One, Variable::Witness(self.num_witness_variables));
         self.num_witness_variables += 1;
 
-        for (_, lc) in self.lc_map.iter() {
+        for lc in self.lc_map.iter() {
             for (_, var) in lc.iter() {
                 if var.is_instance() {
                     let _witness = instance_to_witness_map
@@ -771,7 +771,7 @@ impl<F: Field> ConstraintSystem<F> {
             }
         }
 
-        for (_, lc) in self.lc_map.iter_mut() {
+        for lc in self.lc_map.iter_mut() {
             for (_, var) in lc.iter_mut() {
                 if var.is_instance() {
                     *var = instance_to_witness_map[var];
