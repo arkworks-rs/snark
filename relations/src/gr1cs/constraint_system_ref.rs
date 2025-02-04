@@ -105,6 +105,8 @@ impl<F: Field> ConstraintSystemRef<F> {
         self.inner().map_or(0, |cs| cs.borrow().num_variables())
     }
 
+
+
     #[inline]
     /// Returns the number of predicates.
     pub fn num_predicates(&self) -> usize {
