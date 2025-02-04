@@ -8,7 +8,7 @@ pub mod polynomial_constraint;
 use super::{Constraint, ConstraintSystem, LcIndex, Matrix};
 use crate::utils::{error::SynthesisError::ArityMismatch, variable::Variable::SymbolicLc};
 use ark_ff::Field;
-use ark_serialize::{CanonicalSerialize, Compress, SerializationError};
+use ark_serialize::{CanonicalDeserialize, CanonicalSerialize, Compress, SerializationError};
 use ark_std::{io::Write, vec::Vec};
 use polynomial_constraint::PolynomialPredicate;
 
@@ -22,6 +22,25 @@ pub enum PredicateType<F: Field> {
     /// captures high-degree custome gates
     Polynomial(PolynomialPredicate<F>),
     // Add other predicates in the future, e.g. lookup table
+}
+
+impl<F: Field> ark_serialize::Valid for PredicateType<F> {
+    fn check(&self) -> Result<(), SerializationError> {
+        match self {
+            PredicateType::Polynomial(p) => p.check(),
+        }
+    }
+}
+impl<F: Field> CanonicalDeserialize for PredicateType<F> {
+    fn deserialize_with_mode<R: ark_serialize::Read>(
+        reader: R,
+        compress: Compress,
+        should_validate: ark_serialize::Validate,
+    ) -> Result<Self, SerializationError> {
+        let predicate_type =
+            PolynomialPredicate::<F>::deserialize_with_mode(reader, compress, should_validate)?;
+        Ok(PredicateType::Polynomial(predicate_type))
+    }
 }
 
 impl<F: Field> CanonicalSerialize for PredicateType<F> {

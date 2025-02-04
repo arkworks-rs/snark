@@ -8,11 +8,11 @@ use ark_poly::{
     multivariate::{SparsePolynomial, SparseTerm, Term},
     DenseMVPolynomial, Polynomial,
 };
-use ark_serialize::CanonicalSerialize;
+use ark_serialize::{CanonicalDeserialize, CanonicalSerialize};
 use ark_std::vec::Vec;
 
 /// A polynomial predicat is just a polynomial
-#[derive(Debug, Clone, CanonicalSerialize)]
+#[derive(Debug, Clone, CanonicalSerialize, CanonicalDeserialize)]
 pub struct PolynomialPredicate<F: Field> {
     /// The sparse polynomial for the predicate
     pub polynomial: SparsePolynomial<F, SparseTerm>,

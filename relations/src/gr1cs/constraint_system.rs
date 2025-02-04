@@ -59,11 +59,11 @@ pub struct ConstraintSystem<F: Field> {
 
     /// Assignments to the public input variables. This is empty if `self.mode
     /// == SynthesisMode::Setup`.
-    instance_assignment: Vec<F>,
+    pub instance_assignment: Vec<F>,
 
     /// Assignments to the private input variables. This is empty if `self.mode
     /// == SynthesisMode::Setup`.
-    witness_assignment: Vec<F>,
+    pub witness_assignment: Vec<F>,
 
     /// Map for gadgets to cache computation results.
     pub cache_map: Rc<RefCell<BTreeMap<TypeId, Box<dyn Any>>>>,
@@ -227,10 +227,6 @@ impl<F: Field> ConstraintSystem<F> {
             return Err(SynthesisError::PredicateNotFound);
         }
         if self.should_construct_matrices() {
-            // TODO: Find a way to get rid of the following collect, barrier1: we need the
-            // size, possible to use ExactSizeIterator, barrier2: We will need lifetimes
-            // which leads to having two &mut refs to self
-
             let lc_indices = lc_vec.into_iter().map(|lc| {
                 let var = {
                     let index = LcIndex(self.num_linear_combinations);
@@ -754,31 +750,37 @@ impl<F: Field> ConstraintSystem<F> {
     /// and uses these witness variables in the constraints instead of instance
     /// variables. This technique is useful for verifier succinctness in some
     /// SNARKs like Garuda, Pari and PolyMath
+    /// After the function call, The instances are only used in the `c` matrix
+    /// of r1cs
     pub(crate) fn do_outline_instances(&mut self) -> crate::gr1cs::Result<()> {
+        // First build a map from instance variables to witness variables
         let mut instance_to_witness_map = BTreeMap::<Variable, Variable>::new();
-        instance_to_witness_map
-            .insert(Variable::One, Variable::Witness(self.num_witness_variables));
+        // Initialize the map with the one variable, this is done manually because we
+        // certainely need this variable and it might not show up in the lc_map
+        let one_witt = instance_to_witness_map
+            .insert(Variable::One, Variable::Witness(self.num_witness_variables))
+            .unwrap_or(Variable::Witness(self.num_witness_variables));
         self.num_witness_variables += 1;
 
-        for (_, lc) in self.lc_map.iter() {
-            for (_, var) in lc.iter() {
+        // Now, Go over all the linear combinations and create a new witness for each
+        // instance variable you see
+        for (_, lc) in self.lc_map.iter_mut() {
+            for (_, var) in lc.iter_mut() {
                 if var.is_instance() {
                     let _witness = instance_to_witness_map
                         .entry(*var)
                         .or_insert(Variable::Witness(self.num_witness_variables));
                     self.num_witness_variables += 1;
-                }
-            }
-        }
-
-        for (_, lc) in self.lc_map.iter_mut() {
-            for (_, var) in lc.iter_mut() {
-                if var.is_instance() {
                     *var = instance_to_witness_map[var];
+                } else if var.is_one() {
+                    // if the variable is one, the witness is already created, just replace it
+                    *var = one_witt;
                 }
             }
         }
 
+        // If we're not in the setup mode, we also have to update the assignments:
+        // Append the newly created witness assignments to the witness assignment vector
         if !self.is_in_setup_mode() {
             self.witness_assignment.resize(
                 self.witness_assignment.len() + instance_to_witness_map.len(),
@@ -796,13 +798,26 @@ impl<F: Field> ConstraintSystem<F> {
             }
         }
 
-        let one_witt = instance_to_witness_map.get(&Variable::One).unwrap();
+        // Now, enforce the equality between the instance and the corresponding witness
+        // variable This is done by iterating over the instance-witness map
+        // which contains the unique instance-witness pairs The equality
+        // constraints are enforced with r1cs constraints, it is assumed that a
+        // constraint system has a default r1cs predicate registered
         for (instance, witness) in instance_to_witness_map.iter() {
-            let r1cs_constraint = vec![
-                LinearCombination::from(*instance),
-                LinearCombination::from(*one_witt),
-                LinearCombination::from(*witness),
-            ];
+            let r1cs_constraint = if instance.is_one() {
+                vec![
+                    LinearCombination::from(*witness),
+                    LinearCombination::from(*witness),
+                    LinearCombination::from(*instance),
+                ]
+            } else {
+                vec![
+                    LinearCombination::from(one_witt),
+                    LinearCombination::from(*witness),
+                    LinearCombination::from(*instance),
+                ]
+            };
+
             self.enforce_constraint(R1CS_PREDICATE_LABEL, r1cs_constraint)?;
         }
 
