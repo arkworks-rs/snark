@@ -62,11 +62,11 @@ pub struct ConstraintSystem<F: Field> {
 
     /// Assignments to the public input variables. This is empty if `self.mode
     /// == SynthesisMode::Setup`.
-    instance_assignment: Vec<F>,
+    pub instance_assignment: Vec<F>,
 
     /// Assignments to the private input variables. This is empty if `self.mode
     /// == SynthesisMode::Setup`.
-    witness_assignment: Vec<F>,
+    pub witness_assignment: Vec<F>,
 
     /// Map for gadgets to cache computation results.
     pub cache_map: Rc<RefCell<BTreeMap<TypeId, Box<dyn Any>>>>,
