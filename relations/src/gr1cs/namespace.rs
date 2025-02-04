@@ -45,12 +45,11 @@ impl<F: Field> Drop for Namespace<F> {
 
 /// Creates namespaces for different parts of a circuit when generating constraints. Here, a namespace is equivalent to having a unique span for each part of the circuit. For more information on spans, see the [tracing](https://docs.rs/tracing) crate.
 /// Takes in a reference to a Constraint System and a string slice representing
-/// the name of the namespace. The name is used to identify the namespace. #
-/// Simple Example of using namespaces ```rust,ignore
+/// the name of the namespace. The name is used to identify the namespace. # Simple Example of using namespaces
+/// ```rust,ignore
 /// use ark_ff::Field;
 /// use ark_r1cs_std::prelude::*;
-/// use ark_relations::r1cs::{ConstraintSystem, ConstraintSystemRef,
-/// SynthesisError};
+/// use ark_relations::r1cs::{ConstraintSystem, ConstraintSystemRef, SynthesisError};
 ///
 /// // Define the circuit structure
 /// pub struct SimpleAdditionCircuit<F: Field> {
@@ -60,8 +59,8 @@ impl<F: Field> Drop for Namespace<F> {
 /// }
 ///
 /// impl<F: Field> SimpleAdditionCircuit<F> {
-///     pub fn generate_constraints(self, cs: ConstraintSystemRef<F>) ->
-/// Result<(), SynthesisError> {         // Create a namespace for public inputs
+///     pub fn generate_constraints(self, cs: ConstraintSystemRef<F>) -> Result<(), SynthesisError> {
+///         // Create a namespace for public inputs
 ///         let cs = ns!(cs, "public_inputs");
 ///         let a_var = FpVar::new_input(cs.clone(), || Ok(self.a))?;
 ///         let b_var = FpVar::new_input(cs.clone(), || Ok(self.b))?;
