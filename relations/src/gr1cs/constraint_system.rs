@@ -10,10 +10,7 @@ use super::{
 };
 #[cfg(feature = "std")]
 use crate::gr1cs::ConstraintTrace;
-use crate::{
-    gr1cs::{LcIndex, LinearCombination, Matrix, SynthesisError, Variable},
-    lc,
-};
+use crate::gr1cs::{LcIndex, LinearCombination, Matrix, SynthesisError, Variable};
 use ark_ff::Field;
 use ark_std::{
     any::{Any, TypeId},
