@@ -1,27 +1,27 @@
 [package]
 name = "ark-relations"
-version = "0.5.0"
-authors = [ "arkworks contributors" ]
+version.workspace = true
+authors.workspace = true
 description = "A library for generalized rank-one constraint systems"
-homepage = "https://arkworks.rs"
-repository = "https://github.com/arkworks-rs/snark"
+homepage.workspace = true
+repository.workspace = true
 documentation = "https://docs.rs/ark-relations/"
 keywords = ["zero-knowledge", "cryptography", "zkSNARK", "SNARK", "constraint-systems"]
 categories = ["cryptography"]
 include = ["Cargo.toml", "src", "README.md", "LICENSE-APACHE", "LICENSE-MIT"]
-license = "MIT/Apache-2.0"
-edition = "2021"
+license.workspace = true
+edition.workspace = true
 
 [dependencies]
-ark-ff = { version = "0.5.0", default-features = false }
-ark-std = { version = "0.5.0", default-features = false }
-ark-poly = { version = "0.5.0", default-features = false }
-ark-serialize = { version = "0.5.0", default-features = false }
-tracing = { version = "0.1", default-features = false, features = ["attributes"]}
-tracing-subscriber = { version = "0.3", default-features = true, optional = true }
+ark-ff.workspace = true
+ark-std.workspace = true
+ark-poly.workspace = true
+ark-serialize.workspace = true
+tracing = { workspace = true, features = ["attributes"] }
+tracing-subscriber = { workspace = true, default-features = true, optional = true }
 
 [dev-dependencies]
-ark-test-curves = { version = "0.5.0", default-features = false, features = [ "bls12_381_scalar_field" ] }
+ark-test-curves = { workspace = true, default-features = false, features = [ "bls12_381_scalar_field" ] }
 
 [features]
 default = []
