@@ -103,10 +103,10 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
             command: check
-            args: --examples --workspace --target aarch64-unknown-none
+            args: --examples --workspace --target aarch64-unknown-none --no-default-features
 
       - name: Build
         uses: actions-rs/cargo@v1
         with:
             command: build
-            args: --workspace --target aarch64-unknown-none
+            args: --workspace --target aarch64-unknown-none --no-default-features

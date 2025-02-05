@@ -2,6 +2,9 @@
 members = [
     "relations",
     "snark",
+
+    # concrete SNARKs
+    "abpr21",
 ]
 
 resolver = "2"
