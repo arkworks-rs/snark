@@ -3,6 +3,7 @@
 //! each of which enforce have seperate predicates and constraints. For more infomation about the terminology and the structure of the constraint system, refer to section 3.3 of https://eprint.iacr.org/2024/1245
 
 use super::{
+    instance_outliner::InstanceOutliner,
     predicate::{
         polynomial_constraint::R1CS_PREDICATE_LABEL, PredicateConstraintSystem, PredicateType,
     },
@@ -55,7 +56,7 @@ pub struct ConstraintSystem<F: Field> {
     /// It assigns a witness variable to each instance variable and enforces the
     /// equality of the instance and witness variables. Then only uses the
     /// witness variables in the constraints.
-    outline_instances: bool,
+    instance_outliner: Option<InstanceOutliner<F>>,
 
     /// Assignments to the public input variables. This is empty if `self.mode
     /// == SynthesisMode::Setup`.
@@ -99,7 +100,7 @@ impl<F: Field> ConstraintSystem<F> {
             num_instance_variables: 1,
             num_witness_variables: 0,
             num_linear_combinations: 0,
-            outline_instances: false,
+            instance_outliner: None,
             predicate_constraint_systems: BTreeMap::new(),
             instance_assignment: vec![F::one()],
             witness_assignment: Vec::new(),
@@ -109,7 +110,7 @@ impl<F: Field> ConstraintSystem<F> {
             mode: SynthesisMode::Prove {
                 construct_matrices: true,
             },
-            optimization_goal: OptimizationGoal::Constraints,
+            optimization_goal: OptimizationGoal::None,
             #[cfg(feature = "std")]
             predicate_traces: BTreeMap::new(),
         };
@@ -361,6 +362,10 @@ impl<F: Field> ConstraintSystem<F> {
         Ok(())
     }
 
+    pub fn remove_predicate(&mut self, predicate_label: &str) {
+        self.predicate_constraint_systems.remove(predicate_label);
+    }
+
     /// check if there is a predicate with the given label
     pub fn has_predicate(&self, predicate_label: &str) -> bool {
         self.predicate_constraint_systems
@@ -449,23 +454,28 @@ impl<F: Field> ConstraintSystem<F> {
     /// if an optimization goal is set).
     pub fn finalize(&mut self) {
         match self.optimization_goal {
-            OptimizationGoal::None => self.inline_all_lcs(),
             OptimizationGoal::Constraints => self.inline_all_lcs(),
             OptimizationGoal::Weight => self.outline_lcs(),
+            _ => self.inline_all_lcs(),
         };
-        if self.outline_instances {
-            let _ = self.do_outline_instances();
+        // check if should outline instance or not
+        if let Some(instance_outliner) = self.instance_outliner.take() {
+            // Check if the predicate to be outlined is in the constraint system
+            if self.has_predicate(&instance_outliner.pred_label) {
+                // Outline the instances
+                let _ = self.perform_instance_outlining(instance_outliner);
+            }
         }
     }
 
     /// Naively inlines symbolic linear combinations into the linear
     /// combinations that use them.
     ///
-    /// Useful for standard pairing-based SNARKs where addition gates are cheap.
-    /// For example, in the SNARKs such as [\[Groth16\]](https://eprint.iacr.org/2016/260) and
+    /// Useful for standard pairing-based SNARKs where addition gates are
+    /// cheap. For example, in the SNARKs such as [\[Groth16\]](https://eprint.iacr.org/2016/260) and
     /// [\[Groth-Maller17\]](https://eprint.iacr.org/2017/540), addition gates
-    /// do not contribute to the size of the multi-scalar multiplication, which
-    /// is the dominating cost.
+    /// do not contribute to the size of the multi-scalar multiplication,
+    /// which is the dominating cost.
     pub fn inline_all_lcs(&mut self) {
         // Only inline when a matrix representing R1CS is needed.
         if !self.should_construct_matrices() {
@@ -478,11 +488,11 @@ impl<F: Field> ConstraintSystem<F> {
         self.transform_lc_map(&mut |_, _, _| (0, None));
     }
 
-    /// If a `SymbolicLc` is used in more than one location and has sufficient
-    /// length, this method makes a new variable for that `SymbolicLc`, adds
-    /// a constraint ensuring the equality of the variable and the linear
-    /// combination, and then uses that variable in every location the
-    /// `SymbolicLc` is used.
+    /// If a `SymbolicLc` is used in more than one location and has
+    /// sufficient length, this method makes a new variable for that
+    /// `SymbolicLc`, adds a constraint ensuring the equality of the
+    /// variable and the linear combination, and then uses that
+    /// variable in every location the `SymbolicLc` is used.
     ///
     /// Useful for SNARKs like [\[Marlin\]](https://eprint.iacr.org/2019/1047) or
     /// [\[Fractal\]](https://eprint.iacr.org/2019/1076), where addition gates
@@ -583,10 +593,10 @@ impl<F: Field> ConstraintSystem<F> {
     /// This method is used as a subroutine of `inline_all_lcs` and
     /// `outline_lcs`.
     ///
-    /// The transformer function is given a references of this constraint system
-    /// (&self), number of times used, and a mutable reference of the linear
-    /// combination to be transformed.     (&ConstraintSystem<F>, usize,
-    /// &mut LinearCombination<F>)
+    /// The transformer function is given a references of this constraint
+    /// system (&self), number of times used, and a mutable
+    /// reference of the linear combination to be transformed.
+    /// (&ConstraintSystem<F>, usize, &mut LinearCombination<F>)
     ///
     /// The transformer function returns the number of new witness variables
     /// needed and a vector of new witness assignments (if not in the setup
@@ -707,8 +717,8 @@ impl<F: Field> ConstraintSystem<F> {
     }
 
     /// Get the linear combination corresponding to the given `lc_index`.
-    /// TODO: This function should return a reference to the linear combination
-    /// and not clone it.
+    /// TODO: This function should return a reference to the linear
+    /// combination and not clone it.
     pub fn get_lc(&self, lc_index: LcIndex) -> crate::gr1cs::Result<LinearCombination<F>> {
         self.lc_map
             .get(&lc_index)
@@ -735,24 +745,27 @@ impl<F: Field> ConstraintSystem<F> {
     }
 
     /// Sets the flag for outlining the instances
-    pub(crate) fn outline_instances(&mut self) {
-        self.outline_instances = true;
+    pub(crate) fn set_instance_outliner(&mut self, instance_outliner: InstanceOutliner<F>) {
+        self.instance_outliner = Some(instance_outliner);
     }
 
-    /// Returns the flag for outlining the instances, This is by default set to
-    /// false
+    /// Returns the flag for outlining the instances, This is by default set
+    /// to false
     pub(crate) fn should_outline_instances(&self) -> bool {
-        self.outline_instances
+        self.instance_outliner.is_some()
     }
 
     /// Outlines the instances in the constraint system
-    /// This function creates a new witness variable for each instance variable
-    /// and uses these witness variables in the constraints instead of instance
-    /// variables. This technique is useful for verifier succinctness in some
-    /// SNARKs like Garuda, Pari and PolyMath
-    /// After the function call, The instances are only used in the `c` matrix
-    /// of r1cs
-    pub(crate) fn do_outline_instances(&mut self) -> crate::gr1cs::Result<()> {
+    /// This function creates a new witness variable for each instance
+    /// variable and uses these witness variables in the constraints
+    /// instead of instance variables. This technique is useful for
+    /// verifier succinctness in some SNARKs like Garuda, Pari and
+    /// PolyMath After the function call, The instances are only
+    /// used in the `c` matrix of r1cs
+    pub fn perform_instance_outlining(
+        &mut self,
+        outliner: InstanceOutliner<F>,
+    ) -> crate::gr1cs::Result<()> {
         // First build a map from instance variables to witness variables
         let mut instance_to_witness_map = BTreeMap::<Variable, Variable>::new();
         // Initialize the map with the one variable, this is done manually because we
@@ -797,30 +810,7 @@ impl<F: Field> ConstraintSystem<F> {
                 self.witness_assignment[witness_index] = instance_value;
             }
         }
-
-        // Now, enforce the equality between the instance and the corresponding witness
-        // variable This is done by iterating over the instance-witness map
-        // which contains the unique instance-witness pairs The equality
-        // constraints are enforced with r1cs constraints, it is assumed that a
-        // constraint system has a default r1cs predicate registered
-        for (instance, witness) in instance_to_witness_map.iter() {
-            let r1cs_constraint = if instance.is_one() {
-                vec![
-                    LinearCombination::from(*witness),
-                    LinearCombination::from(*witness),
-                    LinearCombination::from(*instance),
-                ]
-            } else {
-                vec![
-                    LinearCombination::from(one_witt),
-                    LinearCombination::from(*witness),
-                    LinearCombination::from(*instance),
-                ]
-            };
-
-            self.enforce_constraint(R1CS_PREDICATE_LABEL, r1cs_constraint)?;
-        }
-
+        (outliner.func)(self, instance_to_witness_map)?;
         Ok(())
     }
 }

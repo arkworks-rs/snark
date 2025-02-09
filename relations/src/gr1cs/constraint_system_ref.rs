@@ -8,8 +8,10 @@ use core::cell::{Ref, RefCell, RefMut};
 
 use super::{
     constraint_system::ConstraintSystem,
+    instance_outliner::{self, InstanceOutliner},
     predicate::{
-        polynomial_constraint::R1CS_PREDICATE_LABEL, PredicateConstraintSystem, PredicateType,
+        polynomial_constraint::{R1CS_PREDICATE_LABEL, SR1CS_PREDICATE_LABEL},
+        PredicateConstraintSystem, PredicateType,
     },
     Label, LcIndex, LinearCombination, Matrix, OptimizationGoal, SynthesisError, SynthesisMode,
     Variable,
@@ -152,6 +154,20 @@ impl<F: Field> ConstraintSystemRef<F> {
             })
     }
 
+    #[inline]
+    pub fn enforce_sr1cs_constraint(
+        &self,
+        a: LinearCombination<F>,
+        b: LinearCombination<F>,
+    ) -> crate::gr1cs::Result<()> {
+        self.inner()
+            .ok_or(SynthesisError::MissingCS)
+            .and_then(|cs| {
+                cs.borrow_mut()
+                    .enforce_constraint(SR1CS_PREDICATE_LABEL, [a, b])
+            })
+    }
+
     /// Obtain a variable representing a linear combination.
     #[inline]
     pub fn new_lc(&self, lc: LinearCombination<F>) -> crate::gr1cs::Result<Variable> {
@@ -201,9 +217,10 @@ impl<F: Field> ConstraintSystemRef<F> {
 
     /// Sets the flag for outlining the instances
     #[inline]
-    pub fn outline_instances(&self) {
-        self.inner()
-            .map_or((), |cs| cs.borrow_mut().outline_instances())
+    pub fn set_instance_outliner(&self, instance_outliner: InstanceOutliner<F>) {
+        self.inner().map_or((), |cs| {
+            cs.borrow_mut().set_instance_outliner(instance_outliner)
+        })
     }
 
     /// Check whether or not `self` will construct matrices.
@@ -270,6 +287,11 @@ impl<F: Field> ConstraintSystemRef<F> {
                 cs.borrow_mut()
                     .register_predicate(predicate_label, predicate)
             })
+    }
+
+    pub fn remove_predicate(&self, predicate_label: &str) {
+        self.inner()
+            .map_or((), |cs| cs.borrow_mut().remove_predicate(predicate_label))
     }
 
     /// Checks if there is a predicate with the given label in the constraint

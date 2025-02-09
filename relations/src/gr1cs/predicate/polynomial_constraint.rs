@@ -61,3 +61,6 @@ impl<F: Field> PolynomialPredicate<F> {
 
 /// The label for the popular R1CS predicate
 pub const R1CS_PREDICATE_LABEL: &str = "R1CS";
+
+/// The label for the Squared R1CS predicate introduced in https://eprint.iacr.org/2017/540
+pub const SR1CS_PREDICATE_LABEL: &str = "SR1CS";

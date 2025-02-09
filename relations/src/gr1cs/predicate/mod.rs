@@ -120,6 +120,15 @@ impl<F: Field> PredicateConstraintSystem<F> {
         ))
     }
 
+    /// creates an R1CS predicate which is a special kind of polynomial
+    /// predicate
+    pub fn new_sr1cs_predicate() -> crate::utils::Result<Self> {
+        Ok(Self::new_polynomial_predicate(
+            2,
+            vec![(F::from(1u8), vec![(0, 2)]), (F::from(-1i8), vec![(1, 1)])],
+        ))
+    }
+
     /// Get the arity of the  predicate in this predicate constraint system
     pub fn get_arity(&self) -> usize {
         self.predicate_type.arity()

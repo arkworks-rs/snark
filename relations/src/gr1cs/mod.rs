@@ -1,6 +1,7 @@
 //! Core interface for working with Generalized Rank-1 Constraint Systems
 //! (GR1CS).
 mod constraint_system_ref;
+pub mod instance_outliner;
 mod namespace;
 pub mod predicate;
 #[macro_use]
