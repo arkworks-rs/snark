@@ -7,22 +7,25 @@
     <a href="https://deps.rs/repo/github/arkworks-rs/algebra"><img src="https://deps.rs/repo/github/arkworks-rs/algebra/status.svg"></a>
 </p>
 
-The arkworks ecosystem consists of Rust libraries for designing and working with __zero knowledge succinct non-interactive arguments (zkSNARKs)__. This repository contains efficient libraries that describe interfaces for zkSNARKs, as well as interfaces for programming them.
+The **arkworks** ecosystem consists of Rust libraries for designing and working with **zero-knowledge succinct non-interactive arguments (zkSNARKs)**. This repository provides efficient, modular traits for zkSNARKs and **NP relations**, forming the foundation for building and verifying zero-knowledge proofs.
 
-This library is released under the MIT License and the Apache v2 License (see [License](#license)).
+This library is released under the **MIT License** and the **Apache v2 License** (see [License](#license)).
 
-**WARNING:** This is an academic proof-of-concept prototype, and in particular has not received careful code review. This implementation is NOT ready for production use.
+> 🚨 **WARNING**: This is an **academic proof-of-concept** and has **not been audited** for security. Do **not** use it in production environments that handle sensitive data.
 
-## Directory structure
+---
 
+
+## Directory Structure
 This repository contains two Rust crates:
 
-* [`ark-snark`](snark): Provides generic traits for zkSNARKs
-* [`ark-relations`](relations): Provides generic traits for NP relations used in programming zkSNARKs, such as R1CS
+- **`ark-snark`** – Defines **generic traits** for zkSNARKs.
+- **`ark-relations`** – Provides **NP relation traits** used in programming zkSNARKs, such as **R1CS**.
 
+---
 ## Overview
 
-This repository provides the core infrastructure for using the succinct argument systems that arkworks provides. Users who want to produce arguments about various problems of interest will first reduce those problems to an NP relation, various examples of which are defined in the `ark-relations` crate. Then a SNARK system defined over that relation is used to produce a succinct argument. The `ark-snark` crate defines a `SNARK` trait that encapsulates the general functionality, as well as specific traits for various types of SNARK (those with transparent and universal setup, for instance). Different repositories within the arkworks ecosystem implement this trait for various specific SNARK constructions, such as [Groth16](https://github.com/arkworks-rs/groth16), [GM17](https://github.com/arkworks-rs/gm17), and [Marlin](https://github.com/arkworks-rs/marlin).
+This repository provides the core infrastructure for using the succinct argument systems that arkworks provides. Users who want to generate proofs for different computational problems must first reduce them to an NP relation. Examples of such relations are provided in the `ark-relations` crate. Then a SNARK system defined over that relation is used to produce a succinct argument. The `ark-snark` crate defines a `zkSNARK` trait that encapsulates the general functionality, as well as specific traits for various types of SNARK (those with transparent and universal setup, for instance). Other repositories in the arkworks ecosystem implement this trait for specific SNARK constructions, such as [Groth16](https://github.com/arkworks-rs/groth16), [GM17](https://github.com/arkworks-rs/gm17), and [Marlin](https://github.com/arkworks-rs/marlin).
 
 ## Build guide
 
@@ -31,18 +34,27 @@ The library compiles on the `stable` toolchain of the Rust compiler. To install 
 rustup install stable
 ```
 
-After that, use `cargo`, the standard Rust build tool, to build the libraries:
+Use `cargo`, the standard Rust build tool, to build the libraries:
 ```bash
 git clone https://github.com/arkworks-rs/snark.git
 cd snark
 cargo build --release
 ```
 
-## Tests
-This library comes with comprehensive unit and integration tests for each of the provided crates. Run the tests with:
+## Testing
+This library comes with comprehensive unit and integration tests for each of the provided crates. To run the tests, use:
 ```bash
 cargo test --all
 ```
+## Related Libraries
+This repository is part of the **arkworks ecosystem**. Other relevant libraries include:
+
+- [`ark-crypto-primitives`](https://github.com/arkworks-rs/crypto-primitives) – Cryptographic primitives for zkSNARKs.
+- [`ark-r1cs-std`](https://github.com/arkworks-rs/r1cs-std) – Standardized constraints for R1CS.
+- [`ark-groth16`](https://github.com/arkworks-rs/groth16) – Groth16 zkSNARK implementation.
+- [`ark-marlin`](https://github.com/arkworks-rs/marlin) – Marlin zkSNARK implementation.
+
+These libraries **extend the functionality** of `ark-snark` and `ark-relations`, making it easier to construct and verify zkSNARK proofs.
 
 ## License
 
