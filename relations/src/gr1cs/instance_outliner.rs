@@ -6,9 +6,8 @@ use super::{
     lc, predicate::polynomial_constraint::SR1CS_PREDICATE_LABEL, ConstraintSystem,
     ConstraintSystemRef, Label, SynthesisError, Variable, R1CS_PREDICATE_LABEL,
 };
-use ark_std::{collections::BTreeMap, rc::Rc};
+use ark_std::{collections::BTreeMap, rc::Rc, vec::Vec};
 use core::fmt::Debug;
-
 #[derive(Clone)]
 pub struct InstanceOutliner<F: Field> {
     pub pred_label: Label,
@@ -71,8 +70,7 @@ pub fn outline_sr1cs<F: Field>(
     // constraints are enforced with r1cs constraints, it is assumed that a
     // constraint system has a default r1cs predicate registered
     for (instance, witness) in instance_witness_map.iter() {
-        let cnstr: Vec<LinearCombination<F>> =
-            vec![lc!() + instance - witness, lc!()];
+        let cnstr: Vec<LinearCombination<F>> = vec![lc!() + instance - witness, lc!()];
         cs.enforce_constraint(SR1CS_PREDICATE_LABEL, cnstr)?;
     }
 
