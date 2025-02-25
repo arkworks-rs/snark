@@ -1,6 +1,6 @@
 //! This module contains the implementation of the `ConstraintSystem` struct.
 //! a constraint system contains multiple predicate constraint systems,
-//! each of which enforce have seperate predicates and constraints. For more infomation about the terminology and the structure of the constraint system, refer to section 3.3 of https://eprint.iacr.org/2024/1245
+//! each of which enforce have separate predicates and constraints. For more information about the terminology and the structure of the constraint system, refer to section 3.3 of https://eprint.iacr.org/2024/1245
 
 use super::{
     predicate::{
