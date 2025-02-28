@@ -1,6 +1,6 @@
 //! This module contains the implementation of the `ConstraintSystem` struct.
 //! a constraint system contains multiple predicate constraint systems,
-//! each of which enforce have seperate predicates and constraints. For more infomation about the terminology and the structure of the constraint system, refer to section 3.3 of https://eprint.iacr.org/2024/1245
+//! each of which enforce have separate predicates and constraints. For more information about the terminology and the structure of the constraint system, refer to section 3.3 of https://eprint.iacr.org/2024/1245
 
 use super::{
     predicate::{
@@ -462,8 +462,8 @@ impl<F: Field> ConstraintSystem<F> {
     /// combinations that use them.
     ///
     /// Useful for standard pairing-based SNARKs where addition gates are cheap.
-    /// For example, in the SNARKs such as [\[Groth16\]](https://eprint.iacr.org/2016/260) and
-    /// [\[Groth-Maller17\]](https://eprint.iacr.org/2017/540), addition gates
+    /// For example, in the SNARKs such as [Groth16](https://eprint.iacr.org/2016/260) and
+    /// [Groth-Maller17](https://eprint.iacr.org/2017/540), addition gates
     /// do not contribute to the size of the multi-scalar multiplication, which
     /// is the dominating cost.
     pub fn inline_all_lcs(&mut self) {
@@ -484,8 +484,8 @@ impl<F: Field> ConstraintSystem<F> {
     /// combination, and then uses that variable in every location the
     /// `SymbolicLc` is used.
     ///
-    /// Useful for SNARKs like [\[Marlin\]](https://eprint.iacr.org/2019/1047) or
-    /// [\[Fractal\]](https://eprint.iacr.org/2019/1076), where addition gates
+    /// Useful for SNARKs like [Marlin](https://eprint.iacr.org/2019/1047) or
+    /// [Fractal](https://eprint.iacr.org/2019/1076), where addition gates
     /// are not cheap.
     fn outline_lcs(&mut self) {
         // Only inline when a matrix representing R1CS is needed.
