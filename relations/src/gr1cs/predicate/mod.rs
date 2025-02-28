@@ -19,7 +19,7 @@ use polynomial_constraint::PolynomialPredicate;
 #[non_exhaustive]
 pub enum PredicateType<F: Field> {
     /// A polynomial local predicate. This is the most common predicate that
-    /// captures high-degree custome gates
+    /// captures high-degree custom gates
     Polynomial(PolynomialPredicate<F>),
     // Add other predicates in the future, e.g. lookup table
 }
