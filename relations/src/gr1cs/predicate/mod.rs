@@ -19,7 +19,7 @@ use polynomial_constraint::PolynomialPredicate;
 #[non_exhaustive]
 pub enum PredicateType<F: Field> {
     /// A polynomial local predicate. This is the most common predicate that
-    /// captures high-degree custome gates
+    /// captures high-degree custom gates
     Polynomial(PolynomialPredicate<F>),
     // Add other predicates in the future, e.g. lookup table
 }
@@ -139,7 +139,7 @@ impl<F: Field> PredicateConstraintSystem<F> {
         self.num_constraints
     }
 
-    /// Get the vector of constrints enforced by this predicate
+    /// Get the vector of constraints enforced by this predicate
     /// Each constraint is a list of linear combinations with size equal to the
     /// arity
     pub fn get_constraints(&self) -> &Vec<Constraint> {

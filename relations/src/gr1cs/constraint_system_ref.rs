@@ -103,6 +103,24 @@ impl<F: Field> ConstraintSystemRef<F> {
 
     /// Returns the number of instance variables.
     #[inline]
+    pub fn instance_assignment(&self) -> crate::gr1cs::Result<Vec<F>> {
+        self.inner()
+            .map_or(Err(SynthesisError::AssignmentMissing), |cs| {
+                Ok(cs.borrow().instance_assignment.clone())
+            })
+    }
+
+    /// Returns the number of instance variables.
+    #[inline]
+    pub fn witness_assignment(&self) -> crate::gr1cs::Result<Vec<F>> {
+        self.inner()
+            .map_or(Err(SynthesisError::AssignmentMissing), |cs| {
+                Ok(cs.borrow().witness_assignment.clone())
+            })
+    }
+
+    /// Returns the number of instance variables.
+    #[inline]
     pub fn num_variables(&self) -> usize {
         self.inner().map_or(0, |cs| cs.borrow().num_variables())
     }
@@ -137,7 +155,7 @@ impl<F: Field> ConstraintSystemRef<F> {
     /// Enforce an r1cs constraint in the constraint system. It takes a, b, and
     /// c and enforces `a * b = c`. If R1CS predicate does not exist in the
     /// constraint system, It will create one. This function is a special case
-    /// of `enforce_constraint` and is used as the legacy R1CS API to be bacward
+    /// of `enforce_constraint` and is used as the legacy R1CS API to be backward
     /// compatible with R1CS gadgets.
     #[inline]
     pub fn enforce_r1cs_constraint(
@@ -322,8 +340,9 @@ impl<F: Field> ConstraintSystemRef<F> {
     pub fn which_predicate_is_unsatisfied(&self) -> crate::utils::Result<Option<String>> {
         self.inner()
             .ok_or(SynthesisError::MissingCS)
-            .and_then(|cs| cs.borrow().which_predicate_is_unsatisfied())
+            .and_then(|cs| cs.borrow().which_is_unsatisfied())
     }
+
 
     /// Finalize the constraint system (either by outlining or inlining,
     /// if an optimization goal is set).

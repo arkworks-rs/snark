@@ -1,6 +1,6 @@
 //! This module contains the implementation of the `ConstraintSystem` struct.
 //! a constraint system contains multiple predicate constraint systems,
-//! each of which enforce have seperate predicates and constraints. For more infomation about the terminology and the structure of the constraint system, refer to section 3.3 of https://eprint.iacr.org/2024/1245
+//! each of which enforce have separate predicates and constraints. For more information about the terminology and the structure of the constraint system, refer to section 3.3 of https://eprint.iacr.org/2024/1245
 
 use super::{
     instance_outliner::InstanceOutliner,
@@ -23,6 +23,7 @@ use ark_std::{
     string::{String, ToString},
     vec::Vec,
 };
+// TODO: Prayush's PR, Hashbrown, HAshmap for nostd
 ///////////////////////////////////////////////////////////////////////////////////////
 
 /// A GR1CS `ConstraintSystem`. Enforces constraints of the form  
@@ -407,7 +408,7 @@ impl<F: Field> ConstraintSystem<F> {
     /// If `self` is unsatisfied, outputs `Ok(false)`.
     /// If `self.is_in_setup_mode()` or if `self == None`, outputs `Err(())`.
     pub fn is_satisfied(&self) -> crate::utils::Result<bool> {
-        self.which_predicate_is_unsatisfied().map(|s| s.is_none())
+        self.which_is_unsatisfied().map(|s| s.is_none())
     }
 
     /// If `self` is satisfied, outputs `Ok(None)`.
@@ -415,7 +416,7 @@ impl<F: Field> ConstraintSystem<F> {
     /// the unsatisfied prediacate and  `i` is the index of
     /// the first unsatisfied constraint in that predicate.
     /// If `self.is_in_setup_mode()` or `self == None`, outputs `Err(())`.
-    pub fn which_predicate_is_unsatisfied(&self) -> crate::utils::Result<Option<String>> {
+    pub fn which_is_unsatisfied(&self) -> crate::utils::Result<Option<String>> {
         if self.is_in_setup_mode() {
             Err(SynthesisError::AssignmentMissing)
         } else {
@@ -450,15 +451,23 @@ impl<F: Field> ConstraintSystem<F> {
         }
     }
 
+
+
+
+
     /// Finalize the constraint system (either by outlining or inlining,
     /// if an optimization goal is set).
     pub fn finalize(&mut self) {
+        let timer_finalize = start_timer!(|| "Finalize GR1CS");
+        let timer_inline_ouline_lcs = start_timer!(|| "Inline/Outline LCs");
         match self.optimization_goal {
             OptimizationGoal::Constraints => self.inline_all_lcs(),
             OptimizationGoal::Weight => self.outline_lcs(),
             _ => self.inline_all_lcs(),
         };
+        end_timer!(timer_inline_ouline_lcs);
         // check if should outline instance or not
+        let timer_instance_outlining = start_timer!(|| "Instance Outlining");
         if let Some(instance_outliner) = self.instance_outliner.take() {
             // Check if the predicate to be outlined is in the constraint system
             if self.has_predicate(&instance_outliner.pred_label) {
@@ -466,6 +475,8 @@ impl<F: Field> ConstraintSystem<F> {
                 let _ = self.perform_instance_outlining(instance_outliner);
             }
         }
+        end_timer!(timer_instance_outlining);
+        end_timer!(timer_finalize);
     }
 
     /// Naively inlines symbolic linear combinations into the linear
@@ -610,7 +621,7 @@ impl<F: Field> ConstraintSystem<F> {
         ) -> (usize, Option<Vec<F>>),
     ) {
         // `transformed_lc_map` stores the transformed linear combinations.
-        let mut transformed_lc_map = BTreeMap::<_, LinearCombination<F>>::new();
+        let mut transformed_lc_map: BTreeMap<LcIndex, LinearCombination<F>> = BTreeMap::<_, LinearCombination<F>>::new();
         let mut num_times_used = self.lc_num_times_used(false);
 
         // This loop goes through all the LCs in the map, starting from
