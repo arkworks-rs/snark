@@ -43,9 +43,9 @@ impl<F: Field> Drop for Namespace<F> {
     }
 }
 
-/// Creates namespaces for different parts of a circuit when generating constraints. 
-/// Here, a namespace is equivalent to having a unique span for each part of the circuit. 
-/// For more information on spans, see the [tracing](https://docs.rs/tracing) crate.
+/// Creates namespaces for different parts of a circuit when generating
+/// constraints. Here, a namespace is equivalent to having a unique span for
+/// each part of the circuit. For more information on spans, see the [tracing](https://docs.rs/tracing) crate.
 ///
 /// Takes in a reference to a Constraint System and a string slice representing
 /// the name of the namespace. The name is used to identify the namespace.
