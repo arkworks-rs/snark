@@ -38,12 +38,11 @@ impl<F: Field> PolynomialPredicate<F> {
 impl<F: Field> PolynomialPredicate<F> {
     /// Check if the predicate is satisfied by the given variables
     pub fn is_satisfied(&self, variables: &[F]) -> bool {
-        // TODO: Change the polynomial eval to get a slice as an evaluation point
-        !self.polynomial.evaluate(&variables.to_vec()).is_zero()
+        !self.polynomial.evaluate(variables).is_zero()
     }
     /// What is the evaluation of the polynomial predicate given the variables
     pub fn eval(&self, variables: &[F]) -> F {
-        self.polynomial.evaluate(&variables.to_vec())
+        self.polynomial.evaluate(variables)
     }
 
     /// Get the arity of the polynomial predicate
