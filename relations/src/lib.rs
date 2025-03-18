@@ -27,5 +27,8 @@ extern crate ark_std;
 /// The Generalized Rank-1 Constraint System (GR1CS) Infrastructure
 pub mod gr1cs;
 
+/// The Squared Rank-1 Constraint System (GR1CS) Infrastructure
+pub mod sr1cs;
+
 /// Functions and data structures needed for working with GR1CS
 pub mod utils;

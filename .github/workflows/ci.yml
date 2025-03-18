@@ -50,7 +50,7 @@ jobs:
           toolchain: ${{ matrix.rust }}
           override: true
 
-      - uses: actions/cache@v2
+      - uses: actions/cache@v4
         with:
           path: |
             ~/.cargo/registry
@@ -92,7 +92,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v2
 
-      - name: Install Rust (${{ matrix.rust }})
+      - name: Install Rust
         uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
