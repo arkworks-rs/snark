@@ -19,8 +19,14 @@ pub struct PolynomialPredicate<F: Field> {
 }
 
 impl<F: Field> PolynomialPredicate<F> {
-    /// Create a new polynomial predicate with a given arity (number of
-    /// variables) and terms
+    /// Create a new polynomial predicate with a given number of variables (= arity) and
+    /// number of terms.
+    ///
+    /// Here `terms` is a list of tuples of the form `(variable`, `power`) where
+    /// `variable` is the index of the variable and `power` is the exponent of the variable.
+    ///
+    /// So, for example, if `terms` is `[F::ONE, [(0, 1), (1, 2)]]`, then the polynomial is
+    /// `x_0 + x_1^2`.
     pub fn new(arity: usize, terms: impl IntoIterator<Item = (F, Vec<(usize, usize)>)>) -> Self {
         let sparse_terms = terms
             .into_iter()
