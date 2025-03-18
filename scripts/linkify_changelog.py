@@ -10,7 +10,7 @@ repo_name = ""
 # This script goes through the provided file, and replaces any " \#<number>",
 # with the valid mark down formatted link to it. e.g.
 # " [\#number](https://github.com/arkworks-rs/template/pull/<number>)
-# Note that if the number is for a an issue, github will auto-redirect you when you click the link.
+# Note that if the number is for an issue, github will auto-redirect you when you click the link.
 # It is safe to run the script multiple times in succession. 
 #
 # Example usage $ python3 linkify_changelog.py ../CHANGELOG.md
