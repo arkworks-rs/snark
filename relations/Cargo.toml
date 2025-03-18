@@ -19,6 +19,7 @@ ark-poly.workspace = true
 ark-serialize.workspace = true
 tracing = { workspace = true, features = ["attributes"] }
 tracing-subscriber = { workspace = true, default-features = true, optional = true }
+rayon = { workspace = true, optional = true }
 
 [dev-dependencies]
 ark-test-curves = { workspace = true, default-features = false, features = [ "bls12_381_scalar_field" ] }
@@ -26,6 +27,7 @@ ark-test-curves = { workspace = true, default-features = false, features = [ "bl
 [features]
 default = []
 std = [ "ark-std/std", "ark-ff/std", "tracing-subscriber", "tracing/std" ]
+parallel = [ "std", "ark-std/parallel", "ark-ff/parallel", "rayon" ]
 
 
 [[example]]

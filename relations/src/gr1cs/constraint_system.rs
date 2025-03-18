@@ -363,6 +363,7 @@ impl<F: Field> ConstraintSystem<F> {
         Ok(())
     }
 
+    /// Remove the predicate with the given label from the constraint system.
     pub fn remove_predicate(&mut self, predicate_label: &str) {
         self.predicate_constraint_systems.remove(predicate_label);
     }

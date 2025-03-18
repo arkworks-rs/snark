@@ -1,12 +1,11 @@
-use ark_ff::{FftField, Field, One, PrimeField, Zero};
-use ark_poly::EvaluationDomain;
-use ark_std::{cfg_iter, cfg_iter_mut, vec, vec::Vec};
+use ark_ff::{Field, One, Zero};
+use ark_std::{cfg_iter, vec::Vec};
 
 use crate::{
     gr1cs::{
         predicate::{self, polynomial_constraint::SR1CS_PREDICATE_LABEL},
         ConstraintSystem, ConstraintSystemRef, LinearCombination, OptimizationGoal,
-        Result as R1CSResult, SynthesisError, SynthesisMode, Variable, R1CS_PREDICATE_LABEL,
+        SynthesisError, SynthesisMode, Variable, R1CS_PREDICATE_LABEL,
     },
     lc,
 };
@@ -14,9 +13,12 @@ use ark_std::{collections::BTreeMap, ops::AddAssign};
 
 #[cfg(feature = "parallel")]
 use rayon::prelude::*;
+
+/// Helper struct to enable easy conversion from R1CS to SR1CS
 pub struct Sr1csAdapter<F: Field> {
     _phantom: core::marker::PhantomData<F>,
 }
+
 impl<F: Field> Sr1csAdapter<F> {
     /// Computes the inner product of `terms` with `assignment`.
     pub fn evaluate_constraint<'a, LHS, RHS, R>(
@@ -113,6 +115,8 @@ impl<F: Field> Sr1csAdapter<F> {
         (LinearCombination(lc), val)
     }
 
+
+    /// Converts an R1CS constraint system to an SR1CS constraint system.
     pub fn r1cs_to_sr1cs(
         cs: &ConstraintSystemRef<F>,
     ) -> Result<ConstraintSystemRef<F>, SynthesisError> {
@@ -174,7 +178,9 @@ impl<F: Field> Sr1csAdapter<F> {
         Ok(new_cs)
     }
 
-    pub fn r1cs_to_sr1cs_with_assgnmnt(
+    /// Converts an R1CS constraint system to an SR1CS constraint system,
+    /// while also converting the R1CS assignment to an equivalent SR1CS assignment.
+    pub fn r1cs_to_sr1cs_with_assignment(
         cs: &mut ConstraintSystem<F>,
     ) -> Result<ConstraintSystemRef<F>, SynthesisError> {
         let matrices = &cs.to_matrices().unwrap()[R1CS_PREDICATE_LABEL];
@@ -252,6 +258,7 @@ impl<F: Field> Sr1csAdapter<F> {
 
 #[cfg(test)]
 mod tests {
+    use ark_ff::PrimeField;
     use crate::gr1cs::ConstraintSynthesizer;
     use ark_test_curves::bls12_381::Fr;
 

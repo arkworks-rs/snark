@@ -8,7 +8,7 @@ use core::cell::{Ref, RefCell, RefMut};
 
 use super::{
     constraint_system::ConstraintSystem,
-    instance_outliner::{self, InstanceOutliner},
+    instance_outliner::InstanceOutliner,
     predicate::{
         polynomial_constraint::{R1CS_PREDICATE_LABEL, SR1CS_PREDICATE_LABEL},
         PredicateConstraintSystem, PredicateType,
@@ -152,11 +152,13 @@ impl<F: Field> ConstraintSystemRef<F> {
             .and_then(|cs| cs.borrow_mut().enforce_constraint(predicate_label, lc_vec))
     }
 
-    /// Enforce an r1cs constraint in the constraint system. It takes a, b, and
-    /// c and enforces `a * b = c`. If R1CS predicate does not exist in the
-    /// constraint system, It will create one. This function is a special case
-    /// of `enforce_constraint` and is used as the legacy R1CS API to be
-    /// backward compatible with R1CS gadgets.
+    /// Enforce an R1CS constraint in the constraint system. 
+    /// On input `a`, `b`, and `c`, this method enforces that `a * b = c`. 
+    /// If the R1CS predicate has not been already added, this method will add it.
+    /// 
+    /// This method is a special case
+    /// of `enforce_constraint` and is used to provide a low-effort way to port prior
+    /// code that assumed that R1CS is the only kind of predicate.
     #[inline]
     pub fn enforce_r1cs_constraint(
         &self,
@@ -172,6 +174,11 @@ impl<F: Field> ConstraintSystemRef<F> {
             })
     }
 
+    /// Enforce a SquareR1CS constraint in the constraint system. 
+    /// On input `a` and `b`, this method enforces that `a^2 = b`. 
+    /// If the SquareR1CS predicate has not been added to the constraint system, 
+    /// this method will add it. 
+    /// This method is a special case of `enforce_constraint`.
     #[inline]
     pub fn enforce_sr1cs_constraint(
         &self,
@@ -186,22 +193,24 @@ impl<F: Field> ConstraintSystemRef<F> {
             })
     }
 
-    /// Obtain a variable representing a linear combination.
+    /// Obtain a new variable representing the linear combination `lc`.
     #[inline]
     pub fn new_lc(&self, lc: LinearCombination<F>) -> crate::gr1cs::Result<Variable> {
         self.inner()
             .ok_or(SynthesisError::MissingCS)
             .and_then(|cs| cs.borrow_mut().new_lc(lc))
     }
+
     /// Set `self.mode` to `mode`.
-    /// Sets the mode if there exists an underlying ConstrainSystem
+    /// Sets the mode if there exists an underlying ConstraintSystem.
     pub fn set_mode(&self, mode: SynthesisMode) {
         self.inner().map_or((), |cs| cs.borrow_mut().set_mode(mode))
     }
 
     /// Check whether `self.mode == SynthesisMode::Setup`.
-    /// Returns true if 1- There is an underlying ConstraintSystem and
-    /// 2- It's in setup mode
+    /// Returns true if 
+    /// 1. There is an underlying `ConstraintSystem` and,
+    /// 2. It is in setup mode.
     #[inline]
     pub fn is_in_setup_mode(&self) -> bool {
         self.inner()
@@ -225,15 +234,17 @@ impl<F: Field> ConstraintSystemRef<F> {
             .map_or((), |cs| cs.borrow_mut().set_optimization_goal(goal))
     }
 
-    /// Returns the flag for outlining the instances, This is by default set to
-    /// false
+    /// Should we outline instances according to the optimization specified in 
+    /// Section 3, Page 11 of [Polymath](https://eprint.iacr.org/2024/916)
+    /// By default, this flag is `false`.
     #[inline]
     pub fn should_outline_instances(&self) -> bool {
         self.inner()
             .is_some_and(|cs| cs.borrow().should_outline_instances())
     }
 
-    /// Sets the flag for outlining the instances
+    /// Specify the strategy for how the instance should be outlined.
+    /// This should be compatible with the predicates in the constraint system.
     #[inline]
     pub fn set_instance_outliner(&self, instance_outliner: InstanceOutliner<F>) {
         self.inner().map_or((), |cs| {
@@ -271,7 +282,7 @@ impl<F: Field> ConstraintSystemRef<F> {
             })
     }
 
-    /// Obtain a variable representing a new private witness input.
+    /// Obtain a new variable representing a new private witness variable.
     #[inline]
     pub fn new_witness_variable<Func>(&self, f: Func) -> crate::utils::Result<Variable>
     where
@@ -307,6 +318,7 @@ impl<F: Field> ConstraintSystemRef<F> {
             })
     }
 
+    /// Remove a predicate with the given label from the constraint system.
     pub fn remove_predicate(&self, predicate_label: &str) {
         self.inner()
             .map_or((), |cs| cs.borrow_mut().remove_predicate(predicate_label))
