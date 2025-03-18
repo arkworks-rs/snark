@@ -4,8 +4,8 @@ use ark_std::{cfg_iter, vec::Vec};
 use crate::{
     gr1cs::{
         predicate::{self, polynomial_constraint::SR1CS_PREDICATE_LABEL},
-        ConstraintSystem, ConstraintSystemRef, LinearCombination, OptimizationGoal,
-        SynthesisError, SynthesisMode, Variable, R1CS_PREDICATE_LABEL,
+        ConstraintSystem, ConstraintSystemRef, LinearCombination, OptimizationGoal, SynthesisError,
+        SynthesisMode, Variable, R1CS_PREDICATE_LABEL,
     },
     lc,
 };
@@ -114,7 +114,6 @@ impl<F: Field> Sr1csAdapter<F> {
         let val = vals.into_iter().sum::<F>();
         (LinearCombination(lc), val)
     }
-
 
     /// Converts an R1CS constraint system to an SR1CS constraint system.
     pub fn r1cs_to_sr1cs(
@@ -258,8 +257,8 @@ impl<F: Field> Sr1csAdapter<F> {
 
 #[cfg(test)]
 mod tests {
-    use ark_ff::PrimeField;
     use crate::gr1cs::ConstraintSynthesizer;
+    use ark_ff::PrimeField;
     use ark_test_curves::bls12_381::Fr;
 
     use super::*;

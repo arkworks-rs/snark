@@ -152,10 +152,10 @@ impl<F: Field> ConstraintSystemRef<F> {
             .and_then(|cs| cs.borrow_mut().enforce_constraint(predicate_label, lc_vec))
     }
 
-    /// Enforce an R1CS constraint in the constraint system. 
-    /// On input `a`, `b`, and `c`, this method enforces that `a * b = c`. 
+    /// Enforce an R1CS constraint in the constraint system.
+    /// On input `a`, `b`, and `c`, this method enforces that `a * b = c`.
     /// If the R1CS predicate has not been already added, this method will add it.
-    /// 
+    ///
     /// This method is a special case
     /// of `enforce_constraint` and is used to provide a low-effort way to port prior
     /// code that assumed that R1CS is the only kind of predicate.
@@ -174,10 +174,10 @@ impl<F: Field> ConstraintSystemRef<F> {
             })
     }
 
-    /// Enforce a SquareR1CS constraint in the constraint system. 
-    /// On input `a` and `b`, this method enforces that `a^2 = b`. 
-    /// If the SquareR1CS predicate has not been added to the constraint system, 
-    /// this method will add it. 
+    /// Enforce a SquareR1CS constraint in the constraint system.
+    /// On input `a` and `b`, this method enforces that `a^2 = b`.
+    /// If the SquareR1CS predicate has not been added to the constraint system,
+    /// this method will add it.
     /// This method is a special case of `enforce_constraint`.
     #[inline]
     pub fn enforce_sr1cs_constraint(
@@ -208,7 +208,7 @@ impl<F: Field> ConstraintSystemRef<F> {
     }
 
     /// Check whether `self.mode == SynthesisMode::Setup`.
-    /// Returns true if 
+    /// Returns true if
     /// 1. There is an underlying `ConstraintSystem` and,
     /// 2. It is in setup mode.
     #[inline]
@@ -234,7 +234,7 @@ impl<F: Field> ConstraintSystemRef<F> {
             .map_or((), |cs| cs.borrow_mut().set_optimization_goal(goal))
     }
 
-    /// Should we outline instances according to the optimization specified in 
+    /// Should we outline instances according to the optimization specified in
     /// Section 3, Page 11 of [Polymath](https://eprint.iacr.org/2024/916)
     /// By default, this flag is `false`.
     #[inline]

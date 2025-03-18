@@ -3,12 +3,11 @@ use ark_ff::Field;
 use crate::gr1cs::LinearCombination;
 
 use super::{
-    lc, predicate::polynomial_constraint::SR1CS_PREDICATE_LABEL, ConstraintSystem,
-    Label, SynthesisError, Variable, R1CS_PREDICATE_LABEL,
+    lc, predicate::polynomial_constraint::SR1CS_PREDICATE_LABEL, ConstraintSystem, Label,
+    SynthesisError, Variable, R1CS_PREDICATE_LABEL,
 };
 use ark_std::{collections::BTreeMap, rc::Rc, vec::Vec};
 use core::fmt::Debug;
-
 
 /// An instance outliner is a strategy for reducing the number of constraints
 /// that public input/instance variables are involved in.
@@ -23,7 +22,7 @@ pub struct InstanceOutliner<F: Field> {
     /// the new input/instance variables and the new witness variables.
     pub pred_label: Label,
     /// The strategy for outlining the instance variables
-    /// It takes as input the constraint system, and a map from the new 
+    /// It takes as input the constraint system, and a map from the new
     /// instance variables to the new witness variables.
     pub func: Rc<
         dyn Fn(
