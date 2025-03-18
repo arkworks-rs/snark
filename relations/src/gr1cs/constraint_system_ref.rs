@@ -10,7 +10,7 @@ use hashbrown::HashMap;
 use super::{
     constraint_system::ConstraintSystem,
     predicate::{
-        polynomial_constraint::R1CS_PREDICATE_LABEL, PredicateConstraintSystem, PredicateType,
+        polynomial_constraint::R1CS_PREDICATE_LABEL, PredicateConstraintSystem, Predicate,
     },
     Label, LcIndex, LinearCombination, Matrix, OptimizationGoal, SynthesisError, SynthesisMode,
     Variable,
@@ -75,13 +75,13 @@ impl<F: Field> ConstraintSystemRef<F> {
     }
 
     /// Returns the predicate types of each predicate
-    pub fn get_all_predicate_types(&self) -> BTreeMap<Label, PredicateType<F>> {
+    pub fn get_all_predicate_types(&self) -> BTreeMap<Label, Predicate<F>> {
         self.inner()
             .map_or(BTreeMap::new(), |cs| cs.borrow().get_all_predicate_types())
     }
 
     /// Returns the predicate type of the predicate with the given label
-    pub fn get_predicate_type(&self, predicate_label: &str) -> Option<PredicateType<F>> {
+    pub fn get_predicate_type(&self, predicate_label: &str) -> Option<Predicate<F>> {
         self.inner()
             .and_then(|cs| cs.borrow().get_predicate_type(predicate_label))
     }

@@ -1,5 +1,7 @@
 use core::fmt;
 
+use crate::gr1cs::LcIndex;
+
 /// This is an error that could occur during circuit synthesis contexts,
 /// such as CRS generation, proving or verification.
 #[derive(PartialEq, Eq, Clone, Copy, Debug)]
@@ -26,7 +28,7 @@ pub enum SynthesisError {
     /// The predicate expects a different arity
     ArityMismatch,
     /// The LcIndex provided does not correspond to any Linear Combination
-    LcNotFound,
+    LcNotFound(LcIndex),
     /// The variable type is not expected for the operation
     UnexpectedVariable,
 }
@@ -56,10 +58,11 @@ impl fmt::Display for SynthesisError {
             SynthesisError::PredicateNotFound => {
                 write!(f, "The predicate was not found in the constraint system")
             },
-            SynthesisError::LcNotFound => {
+            SynthesisError::LcNotFound(ind) => {
                 write!(
                     f,
-                    "The LcIndex provided does not correspond to any Linear Combination"
+                    "The LcIndex {} does not correspond to any Linear Combination",
+                    ind.0
                 )
             },
             SynthesisError::UnexpectedVariable => {

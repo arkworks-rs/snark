@@ -17,41 +17,41 @@ use polynomial_constraint::PolynomialPredicate;
 /// In the future, we can add other types of predicates, e.g. lookup table
 #[derive(Debug, Clone)]
 #[non_exhaustive]
-pub enum PredicateType<F: Field> {
+pub enum Predicate<F: Field> {
     /// A polynomial local predicate. This is the most common predicate that
     /// captures high-degree custome gates
     Polynomial(PolynomialPredicate<F>),
     // Add other predicates in the future, e.g. lookup table
 }
 
-impl<F: Field> CanonicalSerialize for PredicateType<F> {
+impl<F: Field> CanonicalSerialize for Predicate<F> {
     fn serialize_with_mode<W: Write>(
         &self,
         writer: W,
         compress: Compress,
     ) -> Result<(), SerializationError> {
         match self {
-            PredicateType::Polynomial(p) => p.serialize_with_mode(writer, compress),
+            Predicate::Polynomial(p) => p.serialize_with_mode(writer, compress),
         }
     }
     fn serialized_size(&self, compress: Compress) -> usize {
         match self {
-            PredicateType::Polynomial(p) => p.serialized_size(compress),
+            Predicate::Polynomial(p) => p.serialized_size(compress),
         }
     }
 }
 
-impl<F: Field> PredicateType<F> {
+impl<F: Field> Predicate<F> {
     fn is_satisfied(&self, variables: &[F]) -> bool {
         match self {
-            PredicateType::Polynomial(p) => p.is_satisfied(variables),
+            Predicate::Polynomial(p) => p.is_satisfied(variables),
             // TODO: Add other predicates in the future, e.g. lookup table
         }
     }
 
     fn arity(&self) -> usize {
         match self {
-            PredicateType::Polynomial(p) => p.arity(),
+            Predicate::Polynomial(p) => p.arity(),
             // TODO: Add other predicates in the future, e.g. lookup table
         }
     }
@@ -69,30 +69,30 @@ pub struct PredicateConstraintSystem<F: Field> {
     num_constraints: usize,
 
     /// The type of the predicate enforced by this constraint system.  
-    predicate_type: PredicateType<F>,
+    predicate: Predicate<F>,
 }
 
 impl<F: Field> PredicateConstraintSystem<F> {
     /// Create a new predicate constraint system with a specific predicate
-    fn new(predicate_type: PredicateType<F>) -> Self {
+    fn new(predicate: Predicate<F>) -> Self {
         Self {
-            argument_lcs: vec![Vec::new(); predicate_type.arity()],
-            predicate_type,
+            argument_lcs: vec![Vec::new(); predicate.arity()],
+            predicate,
             num_constraints: 0,
         }
     }
 
     /// Create new polynomial predicate constraint system
-    pub fn new_polynomial_predicate(arity: usize, terms: Vec<(F, Vec<(usize, usize)>)>) -> Self {
-        Self::new(PredicateType::Polynomial(PolynomialPredicate::new(
+    pub fn new_polynomial_predicate_cs(arity: usize, terms: Vec<(F, Vec<(usize, usize)>)>) -> Self {
+        Self::new(Predicate::Polynomial(PolynomialPredicate::new(
             arity, terms,
         )))
     }
 
     /// creates an R1CS predicate which is a special kind of polynomial
     /// predicate
-    pub fn new_r1cs_predicate() -> crate::utils::Result<Self> {
-        Ok(Self::new_polynomial_predicate(
+    pub fn new_r1cs() -> crate::utils::Result<Self> {
+        Ok(Self::new_polynomial_predicate_cs(
             3,
             vec![
                 (F::from(1u8), vec![(0, 1), (1, 1)]),
@@ -103,7 +103,7 @@ impl<F: Field> PredicateConstraintSystem<F> {
 
     /// Get the arity of the  predicate in this predicate constraint system
     pub fn get_arity(&self) -> usize {
-        self.predicate_type.arity()
+        self.predicate.arity()
     }
 
     /// Get the number of constraints enforced by this predicate
@@ -120,8 +120,8 @@ impl<F: Field> PredicateConstraintSystem<F> {
 
     /// Get a reference to the  predicate in this predicate constraint
     /// system
-    pub fn get_predicate_type(&self) -> &PredicateType<F> {
-        &self.predicate_type
+    pub fn get_predicate(&self) -> &Predicate<F> {
+        &self.predicate
     }
 
     /// Enforce a constraint in this predicate constraint system
@@ -164,11 +164,10 @@ impl<F: Field> PredicateConstraintSystem<F> {
     pub fn which_constraint_is_unsatisfied(&self, cs: &ConstraintSystem<F>) -> Option<usize> {
         for (i, constraint) in self.iter_constraints().enumerate() {
             let variables: Vec<F> = constraint
-                .iter()
-                .map(|lc_index| cs.assigned_value(SymbolicLc(*lc_index)).unwrap())
+                .into_iter()
+                .map(|lc_index| cs.assigned_value(SymbolicLc(lc_index)).unwrap())
                 .collect();
-            let result = self.predicate_type.is_satisfied(&variables);
-            if result {
+            if self.predicate.is_satisfied(&variables) {
                 return Some(i);
             }
         }

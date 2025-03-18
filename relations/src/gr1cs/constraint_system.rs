@@ -4,7 +4,7 @@
 
 use super::{
     predicate::{
-        polynomial_constraint::R1CS_PREDICATE_LABEL, PredicateConstraintSystem, PredicateType,
+        polynomial_constraint::R1CS_PREDICATE_LABEL, PredicateConstraintSystem, Predicate,
     },
     ConstraintSystemRef, Label, OptimizationGoal, SynthesisMode,
 };
@@ -114,7 +114,7 @@ impl<F: Field> ConstraintSystem<F> {
             #[cfg(feature = "std")]
             predicate_traces: BTreeMap::new(),
         };
-        let r1cs_constraint_system = PredicateConstraintSystem::new_r1cs_predicate().unwrap();
+        let r1cs_constraint_system = PredicateConstraintSystem::new_r1cs().unwrap();
         let _ = cs.register_predicate(R1CS_PREDICATE_LABEL, r1cs_constraint_system);
         cs
     }
@@ -156,18 +156,18 @@ impl<F: Field> ConstraintSystem<F> {
     }
 
     /// Returns a mapping from predicate labels to their types
-    pub fn get_all_predicate_types(&self) -> BTreeMap<Label, PredicateType<F>> {
+    pub fn get_all_predicate_types(&self) -> BTreeMap<Label, Predicate<F>> {
         self.predicate_constraint_systems
             .iter()
-            .map(|(label, predicate)| (label.clone(), predicate.get_predicate_type().clone()))
+            .map(|(label, predicate)| (label.clone(), predicate.get_predicate().clone()))
             .collect()
     }
 
     /// Returns the type of the predicate with the given label
-    pub fn get_predicate_type(&self, predicate_label: &str) -> Option<PredicateType<F>> {
+    pub fn get_predicate_type(&self, predicate_label: &str) -> Option<Predicate<F>> {
         self.predicate_constraint_systems
             .get(predicate_label)
-            .map(|predicate| predicate.get_predicate_type().clone())
+            .map(|predicate| predicate.get_predicate().clone())
     }
 
     /// Returns the assignment to the public input variables of the constraint
@@ -714,10 +714,11 @@ impl<F: Field> ConstraintSystem<F> {
     /// TODO: This function should return a reference to the linear combination
     /// and not clone it.
     pub fn get_lc(&self, lc_index: LcIndex) -> crate::gr1cs::Result<LinearCombination<F>> {
+        dbg!(self.lc_map.len());
         self.lc_map
             .get(lc_index.0)
             .cloned()
-            .ok_or(SynthesisError::LcNotFound)
+            .ok_or(SynthesisError::LcNotFound(lc_index))
     }
 
     /// Given a linear combination, create a row in the matrix
