@@ -349,7 +349,7 @@ impl<F: Field> ConstraintSystemRef<F> {
     /// the unsatisfied  prediacate and  `i` is the index of
     /// the first unsatisfied constraint in that  predicate.
     /// If `self.is_in_setup_mode()` or `self == None`, outputs `Err(())`.
-    pub fn which_predicate_is_unsatisfied(&self) -> crate::utils::Result<Option<String>> {
+    pub fn which_is_unsatisfied(&self) -> crate::utils::Result<Option<String>> {
         self.inner()
             .ok_or(SynthesisError::MissingCS)
             .and_then(|cs| cs.borrow().which_is_unsatisfied())
