@@ -1,10 +1,10 @@
 <h1 align="center">SNARK and Relation Traits</h1>
 
 <p align="center">
-    <img src="https://github.com/arkworks-rs/algebra/workflows/CI/badge.svg?branch=master">
-    <a href="https://github.com/arkworks-rs/algebra/blob/master/LICENSE-APACHE"><img src="https://img.shields.io/badge/license-APACHE-blue.svg"></a>
-    <a href="https://github.com/arkworks-rs/algebra/blob/master/LICENSE-MIT"><img src="https://img.shields.io/badge/license-MIT-blue.svg"></a>
-    <a href="https://deps.rs/repo/github/arkworks-rs/algebra"><img src="https://deps.rs/repo/github/arkworks-rs/algebra/status.svg"></a>
+    <img src="https://github.com/arkworks-rs/snark/workflows/CI/badge.svg?branch=master">
+    <a href="https://github.com/arkworks-rs/snark/blob/master/LICENSE-APACHE"><img src="https://img.shields.io/badge/license-APACHE-blue.svg"></a>
+    <a href="https://github.com/arkworks-rs/snark/blob/master/LICENSE-MIT"><img src="https://img.shields.io/badge/license-MIT-blue.svg"></a>
+    <a href="https://deps.rs/repo/github/arkworks-rs/snark"><img src="https://deps.rs/repo/github/arkworks-rs/snark/status.svg"></a>
 </p>
 
 The arkworks ecosystem consists of Rust libraries for designing and working with __zero knowledge succinct non-interactive arguments (zkSNARKs)__. This repository contains efficient libraries that describe interfaces for zkSNARKs, as well as interfaces for programming them.
@@ -23,6 +23,21 @@ This repository contains two Rust crates:
 ## Overview
 
 This repository provides the core infrastructure for using the succinct argument systems that arkworks provides. Users who want to produce arguments about various problems of interest will first reduce those problems to an NP relation, various examples of which are defined in the `ark-relations` crate. Then a SNARK system defined over that relation is used to produce a succinct argument. The `ark-snark` crate defines a `SNARK` trait that encapsulates the general functionality, as well as specific traits for various types of SNARK (those with transparent and universal setup, for instance). Different repositories within the arkworks ecosystem implement this trait for various specific SNARK constructions, such as [Groth16](https://github.com/arkworks-rs/groth16), [GM17](https://github.com/arkworks-rs/gm17), and [Marlin](https://github.com/arkworks-rs/marlin).
+
+## Getting Started
+
+To start using arkworks for zero-knowledge proofs, you'll typically need:
+
+1. Define your computation in terms of a relation (e.g., R1CS) using `ark-relations`
+2. Choose an appropriate SNARK implementation that satisfies your requirements
+3. Use the SNARK traits from `ark-snark` to generate proofs and verify them
+
+Check out the [examples directory](relations/examples) for practical demonstrations of how to use these libraries.
+
+For more comprehensive documentation:
+- [API Documentation](https://docs.rs/ark-snark)
+- [Arkworks Website](https://arkworks.rs)
+- [Arkworks Book](https://github.com/arkworks-rs/r1cs-tutorial) - A tutorial for using the R1CS library
 
 ## Build guide
 
@@ -43,6 +58,10 @@ This library comes with comprehensive unit and integration tests for each of the
 ```bash
 cargo test --all
 ```
+
+## Contributing
+
+We welcome contributions to arkworks! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for contribution guidelines and details on our code review process.
 
 ## License
 
