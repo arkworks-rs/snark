@@ -110,10 +110,10 @@ fn enforce_subcircuit2<F: Field>(
     // let cs = ns!(cs, "subcircuit2").cs();
 
     // Multiplication gate 1: p3 * w3
-    let product1 = enforce_multiplication(cs.clone(), p3, p4)?;
+    let product1 = enforce_multiplication(cs.clone(), p3, w3)?;
 
     // Multiplication gate 2: p4 * w4
-    let product2 = enforce_multiplication(cs.clone(), w3, w4)?;
+    let product2 = enforce_multiplication(cs.clone(), p4, w4)?;
 
     // Final addition: product1 + product2
     let result = enforce_addition(cs, product1, product2)?;
