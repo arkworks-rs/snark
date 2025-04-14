@@ -39,14 +39,17 @@ impl<F: Field> LinearCombination<F> {
 
     /// Deduplicate entries in `self`.
     pub fn compactify(&mut self) {
-        self.0.sort_by_key(|e| e.1);
+        self.0.sort_unstable_by_key(|e| e.1);
         let mut current_var = None;
         let mut current_var_first_index = 0;
+        let mut current_var_coeff = F::ZERO;
         for i in 0..self.0.len() {
             let (f, v) = self.0[i];
             if Some(v) == current_var {
-                self.0[current_var_first_index].0 += &f;
+                current_var_coeff += f;
             } else {
+                self.0[current_var_first_index].0 = current_var_coeff;
+                current_var_coeff = F::ZERO;
                 current_var = Some(v);
                 current_var_first_index = i;
             }

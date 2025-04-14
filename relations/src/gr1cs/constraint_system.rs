@@ -23,6 +23,7 @@ use ark_std::{
     vec::Vec,
 };
 use hashbrown::HashMap;
+use smallvec::SmallVec;
 ///////////////////////////////////////////////////////////////////////////////////////
 
 /// A GR1CS `ConstraintSystem`. Enforces constraints of the form  
@@ -228,21 +229,15 @@ impl<F: Field> ConstraintSystem<F> {
             return Err(SynthesisError::PredicateNotFound);
         }
         if self.should_construct_matrices() {
-            // TODO: Find a way to get rid of the following collect, barrier1: we need the
-            // size, possible to use ExactSizeIterator, barrier2: We will need lifetimes
-            // which leads to having two &mut refs to self
+            // TODO: Find a way to get rid of the following collect, 
+            // barrier1: we need the size, possible to use ExactSizeIterator, 
+            // barrier2: We will need lifetimes which leads to having two &mut refs to self
 
             let lc_indices = lc_vec.into_iter().map(|lc| {
-                let var = {
-                    let index = LcIndex(self.num_linear_combinations);
-                    self.lc_map.push(lc);
-                    self.num_linear_combinations += 1;
-                    Variable::SymbolicLc(index)
-                };
-                match var {
-                    Variable::SymbolicLc(index) => index,
-                    _ => panic!("Unexpected variable type"),
-                }
+                let index = LcIndex(self.num_linear_combinations);
+                self.lc_map.push(lc);
+                self.num_linear_combinations += 1;
+                index
             });
             let predicate = self
                 .predicate_constraint_systems
@@ -251,6 +246,7 @@ impl<F: Field> ConstraintSystem<F> {
 
             predicate.enforce_constraint(lc_indices)?;
         }
+
         #[cfg(feature = "std")]
         {
             let trace = ConstraintTrace::capture();
@@ -261,6 +257,7 @@ impl<F: Field> ConstraintSystem<F> {
                 },
             }
         }
+
         Ok(())
     }
 
@@ -480,7 +477,7 @@ impl<F: Field> ConstraintSystem<F> {
         // A dummy closure is used, which means that
         // - it does not modify the inlined LC.
         // - it does not add new witness variables.
-        self.transform_lc_map(&mut |_, _, _| (0, None));
+        self.transform_lc_map(|_, _, _| (0, None));
     }
 
     /// If a `SymbolicLc` is used in more than one location and has sufficient
@@ -515,7 +512,7 @@ impl<F: Field> ConstraintSystem<F> {
         // iterations, and then sees if it should be outlined, and if so adds
         // the outlining to the map.
         //
-        self.transform_lc_map(&mut |cs, num_times_used, inlined_lc| {
+        self.transform_lc_map(|cs, num_times_used, inlined_lc| {
             let mut should_dedicate_a_witness_variable = false;
             let mut new_witness_index = None;
             let mut new_witness_assignment = Vec::new();
@@ -597,7 +594,7 @@ impl<F: Field> ConstraintSystem<F> {
     /// mode).
     pub fn transform_lc_map(
         &mut self,
-        transformer: &mut dyn FnMut(
+        mut transformer: impl FnMut(
             &ConstraintSystem<F>,
             usize,
             &mut LinearCombination<F>,
@@ -605,19 +602,24 @@ impl<F: Field> ConstraintSystem<F> {
     ) {
         // `transformed_lc_map` stores the transformed linear combinations.
         let mut transformed_lc_map = BTreeMap::<LcIndex, LinearCombination<F>>::new();
-        let mut num_times_used = self.lc_num_times_used(false);
+        let mut num_times_used = self.lc_num_times_used::<false>();
 
         // This loop goes through all the LCs in the map, starting from
         // the early ones. The transformer function is applied to the
         // inlined LC, where new witness variables can be created.
-        for (index, lc) in self.lc_map.iter().enumerate() {
-            let mut transformed_lc = LinearCombination::new();
+        let old_lc_map = core::mem::take(&mut self.lc_map);
+        for (index, mut lc) in old_lc_map.into_iter().enumerate() {
+            let contains_lcs = lc.iter().any(|(_, v)| v.is_lc());
+            let mut transformed_lc = if contains_lcs {
+                let mut transformed_lc = LinearCombination(Vec::with_capacity(lc.len()));
+                // Inline the LC, unwrapping symbolic LCs that may constitute it,
+                // and updating them according to transformations in prior iterations.
 
-            // Inline the LC, unwrapping symbolic LCs that may constitute it,
-            // and updating them according to transformations in prior iterations.
-            for &(coeff, var) in lc.iter() {
-                if var.is_lc() {
-                    let lc_index = var.get_lc_index().expect("should be lc");
+                transformed_lc.extend(lc.0.iter().filter(|(_, v)| !v.is_lc()).copied());
+                lc.sort_unstable_by_key(|e| e.1);
+
+                for (coeff, var) in lc.0.into_iter().filter(|(_, v)| v.is_lc()) {
+                    let lc_index = var.get_lc_index().unwrap();
 
                     // If `var` is a `SymbolicLc`, fetch the corresponding
                     // inlined LC, and substitute it in.
@@ -629,7 +631,7 @@ impl<F: Field> ConstraintSystem<F> {
                     let lc = transformed_lc_map
                         .get(&lc_index)
                         .expect("should be inlined");
-                    transformed_lc.extend((lc * coeff).0.into_iter());
+                    transformed_lc.extend(lc.iter().map(|(c, v)| (coeff * c, *v)));
 
                     // Delete linear combinations that are no longer used.
                     //
@@ -648,51 +650,48 @@ impl<F: Field> ConstraintSystem<F> {
                         // This lc is not used any more, so remove it.
                         transformed_lc_map.remove(&lc_index);
                     }
-                } else {
-                    // Otherwise, it's a concrete variable and so we
-                    // substitute it in directly.
-                    transformed_lc.push((coeff, var));
+                }
+                transformed_lc.compactify();
+                transformed_lc
+            } else {
+                lc
+            };
+            if self.optimization_goal == OptimizationGoal::Weight {
+                // Call the transformer function.
+                let (num_new_witness_variables, new_witness_assignments) =
+                    transformer(self, num_times_used[index], &mut transformed_lc);
+                // Update the witness counter.
+                self.num_witness_variables += num_new_witness_variables;
+
+                // Supply additional witness assignments if not in the
+                // setup mode and if new witness variables are created.
+                if !self.is_in_setup_mode() && num_new_witness_variables > 0 {
+                    if let Some(new_witness_assignments) = new_witness_assignments {
+                        self.witness_assignment
+                            .extend_from_slice(&new_witness_assignments);
+                    }
                 }
             }
-            transformed_lc.compactify();
-
-            // Call the transformer function.
-            let (num_new_witness_variables, new_witness_assignments) =
-                transformer(self, num_times_used[index], &mut transformed_lc);
-
             // Insert the transformed LC.
             transformed_lc_map.insert(LcIndex(index), transformed_lc);
-
-            // Update the witness counter.
-            self.num_witness_variables += num_new_witness_variables;
-
-            // Supply additional witness assignments if not in the
-            // setup mode and if new witness variables are created.
-            if !self.is_in_setup_mode() && num_new_witness_variables > 0 {
-                assert!(new_witness_assignments.is_some());
-                if let Some(new_witness_assignments) = new_witness_assignments {
-                    assert_eq!(new_witness_assignments.len(), num_new_witness_variables);
-                    self.witness_assignment
-                        .extend_from_slice(&new_witness_assignments);
-                }
-            }
         }
         // Replace the LC map.
         self.lc_map = transformed_lc_map.into_values().collect();
     }
 
     /// Count the number of times each linear combination is used.
-    fn lc_num_times_used(&self, count_sinks: bool) -> Vec<usize> {
+    fn lc_num_times_used<const COUNT_SINKS: bool>(&self) -> Vec<usize> {
         let mut num_times_used = vec![0; self.lc_map.len()];
 
         // Iterate over every lc in constraint system
         for (index, lc) in self.lc_map.iter().enumerate() {
-            num_times_used[index] += count_sinks as usize;
+            if COUNT_SINKS {
+                num_times_used[index] += 1;
+            }
 
             // Increment the counter for each lc that this lc has a direct dependency on.
             for &(_, var) in lc.iter() {
-                if var.is_lc() {
-                    let lc_index = var.get_lc_index().expect("should be lc");
+                if let Some(lc_index) = var.get_lc_index() {
                     num_times_used[lc_index.0] += 1;
                 }
             }
@@ -714,7 +713,6 @@ impl<F: Field> ConstraintSystem<F> {
     /// TODO: This function should return a reference to the linear combination
     /// and not clone it.
     pub fn get_lc(&self, lc_index: LcIndex) -> crate::gr1cs::Result<LinearCombination<F>> {
-        dbg!(self.lc_map.len());
         self.lc_map
             .get(lc_index.0)
             .cloned()

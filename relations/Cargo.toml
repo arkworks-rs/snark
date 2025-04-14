@@ -20,9 +20,11 @@ ark-serialize.workspace = true
 tracing = { workspace = true, features = ["attributes"] }
 tracing-subscriber = { workspace = true, default-features = true, optional = true }
 hashbrown = { version = "0.15", default-features = false , features = [ "default-hasher"] }
+smallvec = { version = "1.15", default-features = false }
 
 [dev-dependencies]
 ark-test-curves = { workspace = true, default-features = false, features = [ "bls12_381_scalar_field" ] }
+jemallocator = { version = "0.5" } 
 
 [features]
 default = []
