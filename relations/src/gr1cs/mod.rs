@@ -69,6 +69,9 @@ pub enum SynthesisMode {
         /// If `construct_matrices == true`, then generate
         /// the matrices as in the `Setup` case.
         construct_matrices: bool,
+        /// If `construct_matrices == true`, then generate
+        /// the matrices as in the `Setup` case.
+        generate_lc_assignments: bool,
     },
 }
 

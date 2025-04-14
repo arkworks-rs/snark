@@ -1,5 +1,5 @@
-// #[global_allocator]
-// static GLOBAL: Jemalloc = Jemalloc;
+#[global_allocator]
+static GLOBAL: Jemalloc = Jemalloc;
 
 use ark_ff::{Field, UniformRand};
 use ark_relations::gr1cs::{
@@ -82,11 +82,12 @@ fn main() {
         };
         let cs = ConstraintSystem::<Fr>::new_ref();
         cs.set_optimization_goal(OptimizationGoal::Constraints);
-        /* cs.set_mode(
+        cs.set_mode(
             SynthesisMode::Prove {
-                construct_matrices: false
+                construct_matrices: false,
+                generate_lc_assignments: true,
             }
-        ); */
+        );
         let start = std::time::Instant::now();
         circuit.generate_constraints(cs.clone()).unwrap();
         cs.finalize();

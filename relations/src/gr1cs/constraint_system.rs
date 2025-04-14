@@ -23,7 +23,6 @@ use ark_std::{
     vec::Vec,
 };
 use hashbrown::HashMap;
-use smallvec::SmallVec;
 ///////////////////////////////////////////////////////////////////////////////////////
 
 /// A GR1CS `ConstraintSystem`. Enforces constraints of the form  
@@ -59,13 +58,9 @@ pub struct ConstraintSystem<F: Field> {
     /// witness variables in the constraints.
     outline_instances: bool,
 
-    /// Assignments to the public input variables. This is empty if `self.mode
+    /// Assignments to the input, witness, and lc variables. This is empty if `self.mode
     /// == SynthesisMode::Setup`.
-    instance_assignment: Vec<F>,
-
-    /// Assignments to the private input variables. This is empty if `self.mode
-    /// == SynthesisMode::Setup`.
-    witness_assignment: Vec<F>,
+    assignments: Assignments<F>,
 
     /// Map for gadgets to cache computation results.
     pub cache_map: Rc<RefCell<BTreeMap<TypeId, Box<dyn Any>>>>,
@@ -77,14 +72,48 @@ pub struct ConstraintSystem<F: Field> {
     /// A map from the the predicate labels to the predicates
     predicate_constraint_systems: BTreeMap<Label, PredicateConstraintSystem<F>>,
 
-    /// A cache for the linear combination assignments. It shows evaluation
-    /// result of each linear combination
-    lc_assignment_cache: Rc<RefCell<HashMap<LcIndex, F>>>,
-
     /// data structure to store the traces for each predicate
     #[cfg(feature = "std")]
     pub predicate_traces: BTreeMap<Label, Vec<Option<ConstraintTrace>>>,
 }
+
+
+#[derive(Debug, Clone)]
+pub struct Assignments<F> {
+    /// Assignments to the public input variables. This is empty if `self.mode
+    /// == SynthesisMode::Setup`.
+    pub instance_assignment: Vec<F>,
+    /// Assignments to the private input variables. This is empty if `self.mode
+    /// == SynthesisMode::Setup`.
+    pub witness_assignment: Vec<F>,
+    /// A cache for the linear combination assignments. It shows evaluation
+    /// result of each linear combination
+    pub lc_assignment: Vec<F>,
+}
+
+impl<F: Field> Assignments<F> {
+    /// Obtain the assignment corresponding to the `Variable` `v`.
+    pub fn assigned_value(&self, v: Variable) -> Option<F> {
+        match v {
+            Variable::One => Some(F::one()),
+            Variable::Zero => Some(F::zero()),
+            Variable::Witness(idx) => self.witness_assignment.get(idx).copied(),
+            Variable::Instance(idx) => self.instance_assignment.get(idx).copied(),
+            Variable::SymbolicLc(idx) => self.lc_assignment.get(idx.0).copied(),
+        }
+    }
+    
+    /// Evaluate the linear combination `lc` with the assigned values and return
+    /// the result.
+    fn eval_lc(&self, lc: LcIndex, lc_map: &[LinearCombination<F>]) -> Option<F> {
+        let mut acc = F::zero();
+        for (coeff, var) in &lc_map[lc.0].0 {
+            acc += *coeff * self.assigned_value(*var)?;
+        }
+        Some(acc)
+    }
+}
+
 
 impl<F: Field> Default for ConstraintSystem<F> {
     fn default() -> Self {
@@ -103,13 +132,16 @@ impl<F: Field> ConstraintSystem<F> {
             num_linear_combinations: 0,
             outline_instances: false,
             predicate_constraint_systems: BTreeMap::new(),
-            instance_assignment: vec![F::one()],
-            witness_assignment: Vec::new(),
+            assignments: Assignments {
+                instance_assignment: vec![F::one()],
+                witness_assignment: Vec::new(),
+                lc_assignment: Vec::new(),
+            },
             cache_map: Rc::new(RefCell::new(BTreeMap::new())),
             lc_map: Vec::new(),
-            lc_assignment_cache: Rc::new(RefCell::new(HashMap::new())),
             mode: SynthesisMode::Prove {
                 construct_matrices: true,
+                generate_lc_assignments: true,
             },
             optimization_goal: OptimizationGoal::Constraints,
             #[cfg(feature = "std")]
@@ -176,7 +208,7 @@ impl<F: Field> ConstraintSystem<F> {
         if self.is_in_setup_mode() {
             return Err(SynthesisError::AssignmentMissing);
         }
-        Ok(&self.instance_assignment)
+        Ok(&self.assignments.instance_assignment)
     }
 
     /// Returns the assignment to the private input variables of the constraint
@@ -184,7 +216,7 @@ impl<F: Field> ConstraintSystem<F> {
         if self.is_in_setup_mode() {
             return Err(SynthesisError::AssignmentMissing);
         }
-        Ok(&self.witness_assignment)
+        Ok(&self.assignments.witness_assignment)
     }
 
     /// Returns the number of constraints which is the sum of the number of
@@ -223,7 +255,7 @@ impl<F: Field> ConstraintSystem<F> {
     pub fn enforce_constraint(
         &mut self,
         predicate_label: &str,
-        lc_vec: impl IntoIterator<Item = LinearCombination<F>>,
+        lcs: impl IntoIterator<Item = LinearCombination<F>>,
     ) -> crate::gr1cs::Result<()> {
         if !self.has_predicate(predicate_label) {
             return Err(SynthesisError::PredicateNotFound);
@@ -233,10 +265,18 @@ impl<F: Field> ConstraintSystem<F> {
             // barrier1: we need the size, possible to use ExactSizeIterator, 
             // barrier2: We will need lifetimes which leads to having two &mut refs to self
 
-            let lc_indices = lc_vec.into_iter().map(|lc| {
-                let index = LcIndex(self.num_linear_combinations);
-                self.lc_map.push(lc);
-                self.num_linear_combinations += 1;
+            let should_generate_lc_assignments = self.should_generate_lc_assignments();
+            let lc_map = &mut self.lc_map;
+            let num_lcs = &mut self.num_linear_combinations;
+            let assignments = &mut self.assignments;
+            let lc_indices = lcs.into_iter().map(|lc| {
+                let index = LcIndex(*num_lcs);
+                lc_map.push(lc);
+                *num_lcs += 1;
+                if should_generate_lc_assignments {
+                    let value = assignments.eval_lc(index, lc_map).unwrap();
+                    assignments.lc_assignment.push(value);
+                }
                 index
             });
             let predicate = self
@@ -270,6 +310,10 @@ impl<F: Field> ConstraintSystem<F> {
         let index = LcIndex(self.num_linear_combinations);
         self.lc_map.push(lc);
         self.num_linear_combinations += 1;
+        if self.should_generate_lc_assignments() {
+            let value = self.eval_lc(index).ok_or(SynthesisError::AssignmentMissing)?;
+            self.assignments.lc_assignment.push(value)
+        }
         Ok(Variable::SymbolicLc(index))
     }
 
@@ -310,7 +354,15 @@ impl<F: Field> ConstraintSystem<F> {
     pub fn should_construct_matrices(&self) -> bool {
         match self.mode {
             SynthesisMode::Setup => true,
-            SynthesisMode::Prove { construct_matrices } => construct_matrices,
+            SynthesisMode::Prove { construct_matrices, .. } => construct_matrices,
+        }
+    }
+
+    /// Check whether or not `self` will construct matrices.
+    pub fn should_generate_lc_assignments(&self) -> bool {
+        match self.mode {
+            SynthesisMode::Setup => false,
+            SynthesisMode::Prove { generate_lc_assignments, .. } => generate_lc_assignments,
         }
     }
 
@@ -327,7 +379,7 @@ impl<F: Field> ConstraintSystem<F> {
         self.num_instance_variables += 1;
 
         if !self.is_in_setup_mode() {
-            self.instance_assignment.push(f()?);
+            self.assignments.instance_assignment.push(f()?);
         }
         Ok(Variable::Instance(index))
     }
@@ -342,7 +394,7 @@ impl<F: Field> ConstraintSystem<F> {
         self.num_witness_variables += 1;
 
         if !self.is_in_setup_mode() {
-            self.witness_assignment.push(f()?);
+            self.assignments.witness_assignment.push(f()?);
         }
         Ok(Variable::Witness(index))
     }
@@ -371,33 +423,13 @@ impl<F: Field> ConstraintSystem<F> {
 
     /// Obtain the assignment corresponding to the `Variable` `v`.
     pub fn assigned_value(&self, v: Variable) -> Option<F> {
-        match v {
-            Variable::One => Some(F::one()),
-            Variable::Zero => Some(F::zero()),
-            Variable::Witness(idx) => self.witness_assignment.get(idx).copied(),
-            Variable::Instance(idx) => self.instance_assignment.get(idx).copied(),
-            Variable::SymbolicLc(idx) => {
-                let value = self.lc_assignment_cache.borrow().get(&idx).copied();
-                if value.is_some() {
-                    value
-                } else {
-                    let value = self.eval_lc(idx)?;
-                    self.lc_assignment_cache.borrow_mut().insert(idx, value);
-                    Some(value)
-                }
-            },
-        }
+        self.assignments.assigned_value(v)
     }
 
     /// Evaluate the linear combination `lc` with the assigned values and return
     /// the result.
     fn eval_lc(&self, lc: LcIndex) -> Option<F> {
-        let lc = &self.lc_map[lc.0];
-        let mut acc = F::zero();
-        for (coeff, var) in lc.iter() {
-            acc += *coeff * self.assigned_value(*var)?;
-        }
-        Some(acc)
+        self.assignments.eval_lc(lc, &self.lc_map)
     }
 
     /// If `self` is satisfied, outputs `Ok(true)`.
@@ -631,7 +663,11 @@ impl<F: Field> ConstraintSystem<F> {
                     let lc = transformed_lc_map
                         .get(&lc_index)
                         .expect("should be inlined");
-                    transformed_lc.extend(lc.iter().map(|(c, v)| (coeff * c, *v)));
+                    if coeff.is_one() {
+                        transformed_lc.extend(lc.iter().map(|(c, v)| (*c, *v)));
+                    } else {
+                        transformed_lc.extend(lc.iter().map(|(c, v)| (coeff * c, *v)));
+                    }
 
                     // Delete linear combinations that are no longer used.
                     //
@@ -667,7 +703,7 @@ impl<F: Field> ConstraintSystem<F> {
                 // setup mode and if new witness variables are created.
                 if !self.is_in_setup_mode() && num_new_witness_variables > 0 {
                     if let Some(new_witness_assignments) = new_witness_assignments {
-                        self.witness_assignment
+                        self.assignments.witness_assignment
                             .extend_from_slice(&new_witness_assignments);
                     }
                 }
@@ -779,8 +815,8 @@ impl<F: Field> ConstraintSystem<F> {
         }
 
         if !self.is_in_setup_mode() {
-            self.witness_assignment.resize(
-                self.witness_assignment.len() + instance_to_witness_map.len(),
+            self.assignments.witness_assignment.resize(
+                self.assignments.witness_assignment.len() + instance_to_witness_map.len(),
                 F::zero(),
             );
             for (instance, witness) in instance_to_witness_map.iter() {
@@ -791,7 +827,7 @@ impl<F: Field> ConstraintSystem<F> {
                     _ => unreachable!(),
                 };
 
-                self.witness_assignment[witness_index] = instance_value;
+                self.assignments.witness_assignment[witness_index] = instance_value;
             }
         }
 
