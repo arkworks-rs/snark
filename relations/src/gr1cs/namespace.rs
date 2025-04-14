@@ -2,7 +2,7 @@ use super::ConstraintSystemRef;
 use ark_ff::Field;
 
 /// A namespaced `ConstraintSystemRef`.
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct Namespace<F: Field> {
     inner: ConstraintSystemRef<F>,
     id: Option<tracing::Id>,
@@ -43,13 +43,19 @@ impl<F: Field> Drop for Namespace<F> {
     }
 }
 
-/// Creates namespaces for different parts of a circuit when generating constraints. Here, a namespace is equivalent to having a unique span for each part of the circuit. For more information on spans, see the [tracing](https://docs.rs/tracing) crate.
+/// Creates namespaces for different parts of a circuit when generating
+/// constraints. Here, a namespace is equivalent to having a unique span for
+/// each part of the circuit. For more information on spans, see the [tracing](https://docs.rs/tracing) crate.
+///
 /// Takes in a reference to a Constraint System and a string slice representing
-/// the name of the namespace. The name is used to identify the namespace. # Simple Example of using namespaces
+/// the name of the namespace. The name is used to identify the namespace.
+///
+/// # Simple Example of using namespaces
+///
 /// ```rust,ignore
 /// use ark_ff::Field;
 /// use ark_r1cs_std::prelude::*;
-/// use ark_relations::r1cs::{ConstraintSystem, ConstraintSystemRef, SynthesisError};
+/// use ark_relations::gr1cs::{ConstraintSystemRef, SynthesisError};
 ///
 /// // Define the circuit structure
 /// pub struct SimpleAdditionCircuit<F: Field> {
@@ -71,10 +77,11 @@ impl<F: Field> Drop for Namespace<F> {
 ///
 ///         // Create another namespace for the addition constraint
 ///         let cs = ns!(cs, "addition_constraint");
-///         let sum = a_var + b_var;
+///         let sum = &a_var + &b_var;
 ///
 ///         // Enforce that a + b = c
 ///         sum.enforce_equal(&c_var)?;
+///
 ///         Ok(())
 ///     }
 /// }

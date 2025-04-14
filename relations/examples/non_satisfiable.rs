@@ -37,7 +37,7 @@ fn main() {
     // Build the circuit
     let _result_var =
         generate_constraints(cs.clone(), p1, p2, p3, p4, w1, w2, w3, w4, expected_result).unwrap();
-    let trace = cs.which_predicate_is_unsatisfied().unwrap().unwrap();
+    let trace = cs.which_is_unsatisfied().unwrap().unwrap();
     println!(
         "The constraint system was not satisfied; here is a trace indicating which constraint was unsatisfied: \n{trace}",
     )

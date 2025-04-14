@@ -1,10 +1,18 @@
 //! Core interface for working with Generalized Rank-1 Constraint Systems
 //! (GR1CS).
 mod constraint_system_ref;
+
+/// Interface for specifying strategies for reducing the number of constraints
+/// that public input/instance variables are involved in.
+pub mod instance_outliner;
+
 mod namespace;
+
 pub mod predicate;
+
 #[macro_use]
 mod constraint_system;
+
 #[cfg(test)]
 mod tests;
 
@@ -37,9 +45,9 @@ pub use crate::{
 pub use namespace::Namespace;
 ///////////////////////////////////////////////////////////////////////////////////////
 
-/// Computations are expressed in terms of generalized rank-1 constraint systems (GR1CS).
-/// The `generate_constraints` method is called to generate constraints for
-/// both CRS generation and for proving.
+/// Computations are expressed in terms of generalized rank-1 constraint systems
+/// (GR1CS). The `generate_constraints` method is called to generate constraints
+/// for both CRS generation and for proving.
 // TODO: Think: should we replace this with just a closure?
 pub trait ConstraintSynthesizer<F: Field> {
     /// Drives generation of new constraints inside `cs`.

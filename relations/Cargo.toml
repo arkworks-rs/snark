@@ -21,6 +21,7 @@ tracing = { workspace = true, features = ["attributes"] }
 tracing-subscriber = { workspace = true, default-features = true, optional = true }
 hashbrown = { version = "0.15", default-features = false , features = [ "default-hasher"] }
 smallvec = { version = "1.15", default-features = false }
+rayon = { workspace = true, optional = true }
 
 [dev-dependencies]
 ark-test-curves = { workspace = true, default-features = false, features = [ "bls12_381_scalar_field" ] }
@@ -29,6 +30,7 @@ jemallocator = { version = "0.5" }
 [features]
 default = []
 std = [ "ark-std/std", "ark-ff/std", "tracing-subscriber", "tracing/std" ]
+parallel = [ "std", "ark-std/parallel", "ark-ff/parallel", "rayon" ]
 
 
 [[example]]

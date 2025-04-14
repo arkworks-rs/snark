@@ -1,6 +1,12 @@
 mod circuit1;
 mod circuit2;
 
+use crate::{
+    ark_std::string::ToString,
+    gr1cs::instance_outliner::{outline_r1cs, InstanceOutliner},
+};
+use ark_std::rc::Rc;
+
 use super::*;
 use ark_ff::{One, Zero};
 use ark_test_curves::bls12_381::Fr;
@@ -95,7 +101,10 @@ fn test_circuit1_matrices() {
     let cs = ConstraintSystem::<Fr>::new_ref();
     c.clone().generate_constraints(cs.clone()).unwrap();
     assert_eq!(Circuit1::get_matrices(), cs.clone().to_matrices().unwrap());
-    cs.outline_instances();
+    cs.set_instance_outliner(InstanceOutliner {
+        pred_label: R1CS_PREDICATE_LABEL.to_string(),
+        func: Rc::new(outline_r1cs),
+    });
     cs.finalize();
 }
 
@@ -120,7 +129,10 @@ fn test_circuit1_instance_outlined() {
     c.clone().generate_constraints(cs.clone()).unwrap();
     let num_instance = cs.num_instance_variables();
     let prev_num_witness = cs.num_witness_variables();
-    cs.outline_instances();
+    cs.set_instance_outliner(InstanceOutliner {
+        pred_label: R1CS_PREDICATE_LABEL.to_string(),
+        func: Rc::new(outline_r1cs),
+    });
     cs.finalize();
     let new_num_witness = cs.num_witness_variables();
     assert_eq!(num_instance, new_num_witness - prev_num_witness);

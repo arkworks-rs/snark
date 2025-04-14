@@ -96,29 +96,29 @@ impl<F: Field + core::convert::From<i8>> ConstraintSynthesizer<F> for Circuit1<F
 
         //  predicate declarations -> Polynomial predicates
 
+        let one = F::ONE;
+        let three = one + one + one;
+        let seven = three + three + one;
         let predicate_a = PredicateConstraintSystem::new_polynomial_predicate_cs(
             4,
             vec![
-                (F::from(1u8), vec![(0, 1), (1, 1)]),
-                (F::from(3u8), vec![(2, 2)]),
-                (F::from(-1i8), vec![(3, 1)]),
+                (one, vec![(0, 1), (1, 1)]),
+                (three, vec![(2, 2)]),
+                (-one, vec![(3, 1)]),
             ],
         );
         let predicate_b = PredicateConstraintSystem::new_polynomial_predicate_cs(
             3,
             vec![
-                (F::from(7u8), vec![(1, 1)]),
-                (F::from(1u8), vec![(0, 3)]),
-                (F::from(-1i8), vec![(2, 1)]),
+                (seven, vec![(1, 1)]),
+                (one, vec![(0, 3)]),
+                (-one, vec![(2, 1)]),
             ],
         );
 
         let predicate_c = PredicateConstraintSystem::new_polynomial_predicate_cs(
             3,
-            vec![
-                (F::from(1u8), vec![(0, 1), (1, 1)]),
-                (F::from(-1i8), vec![(2, 1)]),
-            ],
+            vec![(one, vec![(0, 1), (1, 1)]), (-one, vec![(2, 1)])],
         );
         cs.register_predicate("poly-predicate-A", predicate_a)?;
         cs.register_predicate("poly-predicate-B", predicate_b)?;

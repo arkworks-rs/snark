@@ -8,7 +8,7 @@ pub mod polynomial_constraint;
 use super::{Constraint, ConstraintSystem, LcIndex, Matrix};
 use crate::utils::{error::SynthesisError::ArityMismatch, variable::Variable::SymbolicLc};
 use ark_ff::Field;
-use ark_serialize::{CanonicalSerialize, Compress, SerializationError};
+use ark_serialize::{CanonicalDeserialize, CanonicalSerialize, Compress, SerializationError};
 use ark_std::{io::Write, vec::Vec};
 use polynomial_constraint::PolynomialPredicate;
 
@@ -19,9 +19,28 @@ use polynomial_constraint::PolynomialPredicate;
 #[non_exhaustive]
 pub enum Predicate<F: Field> {
     /// A polynomial local predicate. This is the most common predicate that
-    /// captures high-degree custome gates
+    /// captures high-degree custom gates
     Polynomial(PolynomialPredicate<F>),
     // Add other predicates in the future, e.g. lookup table
+}
+
+impl<F: Field> ark_serialize::Valid for Predicate<F> {
+    fn check(&self) -> Result<(), SerializationError> {
+        match self {
+            Predicate::Polynomial(p) => p.check(),
+        }
+    }
+}
+impl<F: Field> CanonicalDeserialize for Predicate<F> {
+    fn deserialize_with_mode<R: ark_serialize::Read>(
+        reader: R,
+        compress: Compress,
+        should_validate: ark_serialize::Validate,
+    ) -> Result<Self, SerializationError> {
+        let predicate_type =
+            PolynomialPredicate::<F>::deserialize_with_mode(reader, compress, should_validate)?;
+        Ok(Predicate::Polynomial(predicate_type))
+    }
 }
 
 impl<F: Field> CanonicalSerialize for Predicate<F> {
@@ -60,12 +79,14 @@ impl<F: Field> Predicate<F> {
 /// A constraint system that enforces a predicate
 #[derive(Debug, Clone)]
 pub struct PredicateConstraintSystem<F: Field> {
-    /// The list of linear combinations for each arguments of the predicate
-    /// The length of this list is equal to the arity of the predicate
-    /// Each element in the list has size equal to the number of constraints
+    /// The inputs to the predicates.
+    /// The length of this list is equal to the arity of the predicate.
+    /// That is, `argument_lcs[i]` is the list of inputs to the `i`-th
+    /// argument of the predicate.
+    /// For each `i`, `argument_lcs[i]` has size equal to `self.num_constraints`.
     argument_lcs: Vec<Vec<LcIndex>>,
 
-    /// The number of constraints enforced by this predicate
+    /// The number of constraints enforced by this predicate.
     num_constraints: usize,
 
     /// The type of the predicate enforced by this constraint system.  
@@ -94,26 +115,31 @@ impl<F: Field> PredicateConstraintSystem<F> {
     pub fn new_r1cs() -> crate::utils::Result<Self> {
         Ok(Self::new_polynomial_predicate_cs(
             3,
-            vec![
-                (F::from(1u8), vec![(0, 1), (1, 1)]),
-                (F::from(-1i8), vec![(2, 1)]),
-            ],
+            vec![(F::ONE, vec![(0, 1), (1, 1)]), (-F::ONE, vec![(2, 1)])],
         ))
     }
 
-    /// Get the arity of the  predicate in this predicate constraint system
+    /// Creates a SquareR1CS predicate.
+    pub fn new_sr1cs_predicate() -> crate::utils::Result<Self> {
+        Ok(Self::new_polynomial_predicate_cs(
+            2,
+            vec![(F::ONE, vec![(0, 2)]), (-F::ONE, vec![(1, 1)])],
+        ))
+    }
+
+    /// Get the arity of the predicate of this [`PredicateConstraintSystem`].
     pub fn get_arity(&self) -> usize {
         self.predicate.arity()
     }
 
-    /// Get the number of constraints enforced by this predicate
+    /// Get the number of constraints enforced by this predicate.
     pub fn num_constraints(&self) -> usize {
         self.num_constraints
     }
 
-    /// Get the vector of constrints enforced by this predicate
+    /// Get a list of constraints enforced in this [`PredicateConstraintSystem`].
     /// Each constraint is a list of linear combinations with size equal to the
-    /// arity
+    /// arity.
     pub fn get_constraints(&self) -> &Vec<Constraint> {
         &self.argument_lcs
     }
@@ -124,9 +150,9 @@ impl<F: Field> PredicateConstraintSystem<F> {
         &self.predicate
     }
 
-    /// Enforce a constraint in this predicate constraint system
+    /// Enforce a constraint in this [`PredicateConstraintSystem`].
     /// The constraint is a list of linear combinations with size equal to the
-    /// arity
+    /// arity.
     pub fn enforce_constraint(
         &mut self,
         constraint: impl IntoIterator<Item = LcIndex>,
@@ -148,7 +174,7 @@ impl<F: Field> PredicateConstraintSystem<F> {
     }
 
     fn iter_constraints(&self) -> impl Iterator<Item = Constraint> + '_ {
-        // Transpose the `argument_lcs` to iterate over constraints
+        // Transpose the `argument_lcs` to iterate over constraints.
         let num_constraints = self.num_constraints;
 
         (0..num_constraints).map(move |i| {
@@ -160,7 +186,7 @@ impl<F: Field> PredicateConstraintSystem<F> {
     }
 
     /// Check if the constraints enforced by this predicate are satisfied
-    /// i.e. L(x_1, x_2, ..., x_n) = 0
+    /// i.e. L(x_1, x_2, ..., x_n) = 0.
     pub fn which_constraint_is_unsatisfied(&self, cs: &ConstraintSystem<F>) -> Option<usize> {
         for (i, constraint) in self.iter_constraints().enumerate() {
             let variables: Vec<F> = constraint
@@ -174,7 +200,7 @@ impl<F: Field> PredicateConstraintSystem<F> {
         None
     }
 
-    /// Create the set of matrices for this predicate constraint system
+    /// Create the set of matrices for this [`PredicateConstraintSystem`].
     pub fn to_matrices(&self, cs: &ConstraintSystem<F>) -> Vec<Matrix<F>> {
         let mut matrices: Vec<Matrix<F>> = vec![Vec::new(); self.get_arity()];
         for constraint in self.iter_constraints() {
