@@ -3,7 +3,8 @@ static GLOBAL: Jemalloc = Jemalloc;
 
 use ark_ff::{Field, UniformRand};
 use ark_relations::gr1cs::{
-    ConstraintSynthesizer, ConstraintSystem, ConstraintSystemRef, LinearCombination, OptimizationGoal, SynthesisMode, 
+    ConstraintSynthesizer, ConstraintSystem, ConstraintSystemRef, LinearCombination,
+    OptimizationGoal, SynthesisMode,
 };
 use ark_std::rand::{Rng, SeedableRng};
 use ark_test_curves::bls12_381::Fr;
@@ -35,28 +36,32 @@ impl ConstraintSynthesizer<Fr> for BenchCircuit {
             let upper = variables.len();
 
             let a_i_lc_size = rng.gen_range(1..=NUM_COEFFS_IN_LC);
-            let a_i = LinearCombination((0..a_i_lc_size).map(|_| (Fr::ONE, variables[rng.gen_range(lower..upper)])).collect::<Vec<_>>());
+            let a_i = LinearCombination(
+                (0..a_i_lc_size)
+                    .map(|_| (Fr::ONE, variables[rng.gen_range(lower..upper)]))
+                    .collect::<Vec<_>>(),
+            );
 
             let b_i_lc_size = rng.gen_range(1..=NUM_COEFFS_IN_LC);
-            let b_i = LinearCombination((0..b_i_lc_size).map(|_| (Fr::ONE, variables[rng.gen_range(lower..upper)])).collect::<Vec<_>>());
+            let b_i = LinearCombination(
+                (0..b_i_lc_size)
+                    .map(|_| (Fr::ONE, variables[rng.gen_range(lower..upper)]))
+                    .collect::<Vec<_>>(),
+            );
 
             let c_i = variables[rng.gen_range(lower..upper)];
 
             if i % 2 == 0 {
-                let extra_lc = LinearCombination((0..a_i_lc_size).map(|_| (Fr::ONE, variables[rng.gen_range(lower..upper)])).collect::<Vec<_>>());
+                let extra_lc = LinearCombination(
+                    (0..a_i_lc_size)
+                        .map(|_| (Fr::ONE, variables[rng.gen_range(lower..upper)]))
+                        .collect::<Vec<_>>(),
+                );
                 let extra_lc = cs.new_lc(extra_lc)?;
                 lcs.push(extra_lc);
-                cs.enforce_r1cs_constraint(
-                    a_i + extra_lc,
-                    b_i,
-                    c_i.into(),
-                )?;
+                cs.enforce_r1cs_constraint(a_i + extra_lc, b_i, c_i.into())?;
             } else {
-                cs.enforce_r1cs_constraint(
-                    a_i,
-                    b_i,
-                    c_i.into(),
-                )?;
+                cs.enforce_r1cs_constraint(a_i, b_i, c_i.into())?;
             };
             let v1 = cs.new_witness_variable(|| Ok(self.a))?;
             let v2 = cs.new_witness_variable(|| Ok(self.a))?;
@@ -64,9 +69,7 @@ impl ConstraintSynthesizer<Fr> for BenchCircuit {
             variables.push(v1);
             variables.push(v2);
             variables.push(v3);
-            
         }
-
 
         Ok(())
     }
@@ -82,16 +85,18 @@ fn main() {
         };
         let cs = ConstraintSystem::<Fr>::new_ref();
         cs.set_optimization_goal(OptimizationGoal::Constraints);
-        cs.set_mode(
-            SynthesisMode::Prove {
-                construct_matrices: false,
-                generate_lc_assignments: true,
-            }
-        );
+        cs.set_mode(SynthesisMode::Prove {
+            construct_matrices: true,
+            generate_lc_assignments: false,
+        });
         let start = std::time::Instant::now();
         circuit.generate_constraints(cs.clone()).unwrap();
         cs.finalize();
         let elapsed = start.elapsed();
-        println!("Synthesizing 2^{} constraints took {:?}", log_num_constraints, elapsed.as_secs_f32());
+        println!(
+            "Synthesizing 2^{} constraints took {:?}",
+            log_num_constraints,
+            elapsed.as_secs_f32()
+        );
     }
 }

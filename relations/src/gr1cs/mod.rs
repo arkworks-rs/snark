@@ -95,6 +95,7 @@ pub enum OptimizationGoal {
     /// Minimize the total weight of the constraints (the number of nonzero
     /// entries across all constraints) by outlining the linear combinations
     /// and creating new witness variables.
+    #[deprecated]
     Weight,
 }
 

@@ -11,7 +11,8 @@ use super::{
     constraint_system::ConstraintSystem,
     instance_outliner::InstanceOutliner,
     predicate::{
-        polynomial_constraint::{R1CS_PREDICATE_LABEL, SR1CS_PREDICATE_LABEL}, PredicateConstraintSystem, Predicate,
+        polynomial_constraint::{R1CS_PREDICATE_LABEL, SR1CS_PREDICATE_LABEL},
+        Predicate, PredicateConstraintSystem,
     },
     Label, LcIndex, LinearCombination, Matrix, OptimizationGoal, SynthesisError, SynthesisMode,
     Variable,
@@ -142,7 +143,7 @@ impl<F: Field> ConstraintSystemRef<F> {
     pub fn enforce_constraint(
         &self,
         predicate_label: &str,
-        lc_vec: impl IntoIterator<Item = LinearCombination<F>>,
+        lc_vec: impl IntoIterator<Item = LinearCombination<F>, IntoIter: ExactSizeIterator>,
     ) -> crate::gr1cs::Result<()> {
         self.inner()
             .ok_or(SynthesisError::MissingCS)
@@ -419,7 +420,7 @@ impl<F: Field> ConstraintSystemRef<F> {
     pub fn get_lc(&self, lc_index: LcIndex) -> crate::utils::Result<LinearCombination<F>> {
         self.inner()
             .ok_or(SynthesisError::MissingCS)
-            .and_then(|cs| cs.borrow().get_lc(lc_index))
+            .and_then(|cs| cs.borrow().get_lc(lc_index).map(|x| x.clone()))
     }
 
     /// Given a linear combination, create a row in the matrix

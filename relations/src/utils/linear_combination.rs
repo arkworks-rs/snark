@@ -38,23 +38,36 @@ impl<F: Field> LinearCombination<F> {
     }
 
     /// Deduplicate entries in `self`.
+    /// Deduplicate entries in `self` by combining coefficients of identical variables.
     pub fn compactify(&mut self) {
+        // For 0 or 1 element, there is nothing to do.
+        if self.len() <= 1 {
+            return;
+        }
+
+        // Sort by the variable key.
         self.0.sort_unstable_by_key(|e| e.1);
-        let mut current_var = None;
-        let mut current_var_first_index = 0;
-        let mut current_var_coeff = F::ZERO;
-        for i in 0..self.0.len() {
-            let (f, v) = self.0[i];
-            if Some(v) == current_var {
-                current_var_coeff += f;
+
+        // Use write_index to indicate where to write the next unique element.
+        let mut write_index = 0;
+
+        // Iterate through the vector starting at the second element.
+        for read_index in 1..self.0.len() {
+            // Compare the current (unique) element with the next one.
+            if self.0[write_index].1 == self.0[read_index].1 {
+                // They have the same key: accumulate the coefficient.
+                let add_coeff = self.0[read_index].0; // Copy out the value to avoid borrowing issues.
+                self.0[write_index].0 += add_coeff;
             } else {
-                self.0[current_var_first_index].0 = current_var_coeff;
-                current_var_coeff = F::ZERO;
-                current_var = Some(v);
-                current_var_first_index = i;
+                // When encountering a new key, move the write pointer forward
+                // and copy the new pair.
+                write_index += 1;
+                self.0[write_index] = self.0[read_index];
             }
         }
-        self.0.dedup_by_key(|e| e.1);
+
+        // Drop any extra entries that were overwritten.
+        self.0.truncate(write_index + 1);
     }
 }
 

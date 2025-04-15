@@ -17,6 +17,7 @@ pub struct Circuit2<F: Field> {
 }
 
 impl<F: Field> Circuit2<F> {
+    #[cfg(test)]
     pub fn get_matrices() -> BTreeMap<Label, Vec<Matrix<F>>> {
         let two = F::one() + F::one();
         let one = F::one();
@@ -24,11 +25,7 @@ impl<F: Field> Circuit2<F> {
         map.insert(
             R1CS_PREDICATE_LABEL.to_string(),
             vec![
-                vec![
-                    vec![(one, 1)],
-                    vec![(one, 1)],
-                    vec![(one, 0)],
-                ],
+                vec![vec![(one, 1)], vec![(one, 1)], vec![(one, 0)]],
                 vec![
                     vec![(two, 2)],
                     vec![(one, 1), (one, 2)],

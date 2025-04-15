@@ -206,7 +206,7 @@ impl<F: Field> PredicateConstraintSystem<F> {
         for constraint in self.iter_constraints() {
             for (matrix_ind, lc_index) in constraint.iter().enumerate() {
                 let lc = cs.get_lc(*lc_index).unwrap();
-                let row = cs.make_row(&lc);
+                let row = cs.make_row(lc);
                 matrices[matrix_ind].push(row);
             }
         }
