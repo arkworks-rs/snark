@@ -17,25 +17,23 @@ pub struct Circuit2<F: Field> {
 }
 
 impl<F: Field> Circuit2<F> {
+    #[cfg(test)]
     pub fn get_matrices() -> BTreeMap<Label, Vec<Matrix<F>>> {
         let two = F::one() + F::one();
+        let one = F::one();
         let mut map: BTreeMap<Label, Vec<Matrix<F>>> = BTreeMap::new();
         map.insert(
             R1CS_PREDICATE_LABEL.to_string(),
             vec![
-                vec![
-                    vec![(F::one(), 1)],
-                    vec![(F::one(), 1)],
-                    vec![(F::one(), 0)],
-                ],
+                vec![vec![(one, 1)], vec![(one, 1)], vec![(one, 0)]],
                 vec![
                     vec![(two, 2)],
-                    vec![(F::one(), 1), (F::one(), 2)],
+                    vec![(one, 1), (one, 2)],
                     vec![(two, 1), (two, 2)],
                 ],
                 vec![
-                    vec![(F::one(), 3)],
-                    vec![(F::one(), 1), (F::one(), 2)],
+                    vec![(one, 3)],
+                    vec![(one, 1), (one, 2)],
                     vec![(two, 1), (two, 2)],
                 ],
             ],
@@ -44,7 +42,8 @@ impl<F: Field> Circuit2<F> {
         map
     }
 }
-impl<F: Field + core::convert::From<i8>> ConstraintSynthesizer<F> for Circuit2<F> {
+
+impl<F: Field> ConstraintSynthesizer<F> for Circuit2<F> {
     fn generate_constraints(self, cs: ConstraintSystemRef<F>) -> crate::utils::Result<()> {
         // Variable declarations -> Instance variables + Witness variables
         let two = F::one() + F::one();

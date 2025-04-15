@@ -6,3 +6,4 @@ cargo run --example satisfiable
 
 # Run the non-satisfiable example with the `std` feature enabled to see the output trace
 cargo run --example non-satisfiable --features std
+```

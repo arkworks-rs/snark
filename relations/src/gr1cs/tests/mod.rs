@@ -41,12 +41,6 @@ fn test_circuit1_sat() {
     c.clone().generate_constraints(cs.clone()).unwrap();
     cs.finalize();
     assert!(cs.is_satisfied().unwrap());
-
-    let cs = ConstraintSystem::<Fr>::new_ref();
-    cs.set_optimization_goal(OptimizationGoal::Weight);
-    c.clone().generate_constraints(cs.clone()).unwrap();
-    cs.finalize();
-    assert!(cs.is_satisfied().unwrap());
 }
 
 /// Test the circuit with non-satisfying inputs

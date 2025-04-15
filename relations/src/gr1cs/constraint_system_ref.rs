@@ -5,13 +5,14 @@
 
 use ark_std::collections::BTreeMap;
 use core::cell::{Ref, RefCell, RefMut};
+use hashbrown::HashMap;
 
 use super::{
     constraint_system::ConstraintSystem,
     instance_outliner::InstanceOutliner,
     predicate::{
         polynomial_constraint::{R1CS_PREDICATE_LABEL, SR1CS_PREDICATE_LABEL},
-        PredicateConstraintSystem, PredicateType,
+        Predicate, PredicateConstraintSystem,
     },
     Label, LcIndex, LinearCombination, Matrix, OptimizationGoal, SynthesisError, SynthesisMode,
     Variable,
@@ -51,8 +52,8 @@ impl<F: Field> ConstraintSystemRef<F> {
     }
 
     /// Returns the number of constraints in each predicate
-    pub fn get_all_predicates_num_constraints(&self) -> BTreeMap<Label, usize> {
-        self.inner().map_or(BTreeMap::new(), |cs| {
+    pub fn get_all_predicates_num_constraints(&self) -> HashMap<Label, usize> {
+        self.inner().map_or(HashMap::new(), |cs| {
             cs.borrow().get_all_predicates_num_constraints()
         })
     }
@@ -64,10 +65,9 @@ impl<F: Field> ConstraintSystemRef<F> {
     }
 
     /// Returns the arity of each predicate
-    pub fn get_all_predicate_arities(&self) -> BTreeMap<Label, usize> {
-        self.inner().map_or(BTreeMap::new(), |cs| {
-            cs.borrow().get_all_predicate_arities()
-        })
+    pub fn get_all_predicate_arities(&self) -> HashMap<Label, usize> {
+        self.inner()
+            .map_or(HashMap::new(), |cs| cs.borrow().get_all_predicate_arities())
     }
 
     /// Returns the predicate type of the predicate with the given label
@@ -77,13 +77,13 @@ impl<F: Field> ConstraintSystemRef<F> {
     }
 
     /// Returns the predicate types of each predicate
-    pub fn get_all_predicate_types(&self) -> BTreeMap<Label, PredicateType<F>> {
+    pub fn get_all_predicate_types(&self) -> BTreeMap<Label, Predicate<F>> {
         self.inner()
             .map_or(BTreeMap::new(), |cs| cs.borrow().get_all_predicate_types())
     }
 
     /// Returns the predicate type of the predicate with the given label
-    pub fn get_predicate_type(&self, predicate_label: &str) -> Option<PredicateType<F>> {
+    pub fn get_predicate_type(&self, predicate_label: &str) -> Option<Predicate<F>> {
         self.inner()
             .and_then(|cs| cs.borrow().get_predicate_type(predicate_label))
     }
@@ -105,18 +105,16 @@ impl<F: Field> ConstraintSystemRef<F> {
     #[inline]
     pub fn instance_assignment(&self) -> crate::gr1cs::Result<Vec<F>> {
         self.inner()
-            .map_or(Err(SynthesisError::AssignmentMissing), |cs| {
-                Ok(cs.borrow().instance_assignment.clone())
-            })
+            .ok_or(SynthesisError::AssignmentMissing)
+            .and_then(|cs| cs.borrow().instance_assignment().map(|v| v.to_vec()))
     }
 
     /// Returns the number of instance variables.
     #[inline]
     pub fn witness_assignment(&self) -> crate::gr1cs::Result<Vec<F>> {
         self.inner()
-            .map_or(Err(SynthesisError::AssignmentMissing), |cs| {
-                Ok(cs.borrow().witness_assignment.clone())
-            })
+            .ok_or(SynthesisError::AssignmentMissing)
+            .and_then(|cs| cs.borrow().witness_assignment().map(|v| v.to_vec()))
     }
 
     /// Returns the number of instance variables.
@@ -145,7 +143,7 @@ impl<F: Field> ConstraintSystemRef<F> {
     pub fn enforce_constraint(
         &self,
         predicate_label: &str,
-        lc_vec: impl IntoIterator<Item = LinearCombination<F>>,
+        lc_vec: impl IntoIterator<Item = LinearCombination<F>, IntoIter: ExactSizeIterator>,
     ) -> crate::gr1cs::Result<()> {
         self.inner()
             .ok_or(SynthesisError::MissingCS)
@@ -422,7 +420,7 @@ impl<F: Field> ConstraintSystemRef<F> {
     pub fn get_lc(&self, lc_index: LcIndex) -> crate::utils::Result<LinearCombination<F>> {
         self.inner()
             .ok_or(SynthesisError::MissingCS)
-            .and_then(|cs| cs.borrow().get_lc(lc_index))
+            .and_then(|cs| cs.borrow().get_lc(lc_index).map(|x| x.clone()))
     }
 
     /// Given a linear combination, create a row in the matrix

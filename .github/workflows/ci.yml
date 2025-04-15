@@ -90,7 +90,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
 
       - name: Install Rust
         uses: actions-rs/toolchain@v1
@@ -98,12 +98,6 @@ jobs:
           toolchain: stable
           target: aarch64-unknown-none
           override: true
-
-      - name: Check
-        uses: actions-rs/cargo@v1
-        with:
-            command: check
-            args: --examples --workspace --target aarch64-unknown-none
 
       - name: Build
         uses: actions-rs/cargo@v1

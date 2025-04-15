@@ -187,8 +187,8 @@ impl<F: Field> Sr1csAdapter<F> {
         let mut witness_variables = BTreeMap::new();
         let num_public = cs.num_instance_variables();
 
-        let mut r1cs_assignment = cs.instance_assignment.clone();
-        r1cs_assignment.extend_from_slice(&cs.witness_assignment);
+        let mut r1cs_assignment = cs.assignments.instance_assignment.clone();
+        r1cs_assignment.extend_from_slice(&cs.assignments.witness_assignment);
 
         let new_cs = ConstraintSystem::new_ref();
         new_cs.remove_predicate(R1CS_PREDICATE_LABEL);
@@ -199,6 +199,7 @@ impl<F: Field> Sr1csAdapter<F> {
         new_cs.set_optimization_goal(OptimizationGoal::Constraints);
         cs.set_mode(SynthesisMode::Prove {
             construct_matrices: true,
+            generate_lc_assignments: true,
         });
         for ((a_i, b_i), c_i) in matrices[0].iter().zip(&matrices[1]).zip(&matrices[2]) {
             let (a_i, a_val) = Self::add_to_variable_maps_witness(

@@ -39,8 +39,7 @@ fn main() {
         generate_constraints(cs.clone(), p1, p2, p3, p4, w1, w2, w3, w4, expected_result).unwrap();
     let trace = cs.which_is_unsatisfied().unwrap().unwrap();
     println!(
-        "This is the trace of non-satisfied scenario, Check out the trace:\n{}",
-        trace
+        "The constraint system was not satisfied; here is a trace indicating which constraint was unsatisfied: \n{trace}",
     )
 }
 // Function to enforce the overall constraints by combining subcircuits
