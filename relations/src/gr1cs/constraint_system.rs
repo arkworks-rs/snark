@@ -23,7 +23,8 @@ use ark_std::{
     string::{String, ToString},
     vec::Vec,
 };
-use hashbrown::HashMap;
+
+use crate::utils::IndexMap;
 #[cfg(feature = "parallel")]
 use rayon::prelude::*;
 ///////////////////////////////////////////////////////////////////////////////////////
@@ -165,7 +166,7 @@ impl<F: Field> ConstraintSystem<F> {
 
     /// Returns a mapping from predicate label to number of constraints for that
     /// predicate
-    pub fn get_all_predicates_num_constraints(&self) -> HashMap<Label, usize> {
+    pub fn get_all_predicates_num_constraints(&self) -> IndexMap<Label, usize> {
         self.predicate_constraint_systems
             .iter()
             .map(|(label, predicate)| (label.clone(), predicate.num_constraints()))
@@ -180,7 +181,7 @@ impl<F: Field> ConstraintSystem<F> {
     }
 
     /// Returns a mapping from predicate label to arity for that predicate
-    pub fn get_all_predicate_arities(&self) -> HashMap<Label, usize> {
+    pub fn get_all_predicate_arities(&self) -> IndexMap<Label, usize> {
         self.predicate_constraint_systems
             .iter()
             .map(|(label, predicate)| (label.clone(), predicate.get_arity()))

@@ -19,8 +19,9 @@ ark-poly.workspace = true
 ark-serialize.workspace = true
 tracing = { workspace = true, features = ["attributes"] }
 tracing-subscriber = { workspace = true, default-features = true, optional = true }
-hashbrown = { version = "0.15", default-features = false , features = [ "default-hasher"] }
 rayon = { workspace = true, optional = true }
+indexmap = { workspace = true }
+foldhash = { workspace = true }
 
 [dev-dependencies]
 ark-test-curves = { workspace = true, default-features = false, features = [ "bls12_381_scalar_field" ] }
@@ -28,7 +29,7 @@ jemallocator = { version = "0.5" }
 
 [features]
 default = []
-std = [ "ark-std/std", "ark-ff/std", "tracing-subscriber", "tracing/std" ]
+std = [ "ark-std/std", "ark-ff/std", "tracing-subscriber", "tracing/std", "indexmap/std", "foldhash/std" ]
 parallel = [ "std", "ark-std/parallel", "ark-ff/parallel", "rayon" ]
 
 
