@@ -79,6 +79,11 @@ pub struct ConstraintSystem<F: Field> {
     /// data structure to store the traces for each predicate
     #[cfg(feature = "std")]
     pub predicate_traces: BTreeMap<Label, Vec<Option<ConstraintTrace>>>,
+    
+    /// A mapping between unoptimized and optimized witnesses.
+    /// This is used to avoid regenerating constraints during proving.
+    /// The key is the index of the unoptimized witness, and the value is the index of the optimized witness.
+    witness_mapping: BTreeMap<usize, usize>,
 }
 
 #[derive(Debug, Clone)]
@@ -153,6 +158,7 @@ impl<F: Field> ConstraintSystem<F> {
             optimization_goal: OptimizationGoal::None,
             #[cfg(feature = "std")]
             predicate_traces: BTreeMap::new(),
+            witness_mapping: BTreeMap::new(),
         };
         let r1cs_constraint_system = PredicateConstraintSystem::new_r1cs().unwrap();
         let _ = cs.register_predicate(R1CS_PREDICATE_LABEL, r1cs_constraint_system);
@@ -291,6 +297,40 @@ impl<F: Field> ConstraintSystem<F> {
                 .unwrap();
 
             predicate.enforce_constraint(lc_indices)?;
+        } else if self.should_generate_lc_assignments() {
+            // We're in proving mode but not constructing matrices
+            // We need to evaluate the linear combinations to add them to the assignment
+            let assignments = &mut self.assignments;
+            let lc_map = &mut self.lc_map;
+            let num_lcs = &mut self.num_linear_combinations;
+            let witness_mapping = &self.witness_mapping;
+            
+            for lc in lcs {
+                // Replace any instance variables with their mapped witness variables
+                let mut mapped_lc = LinearCombination(Vec::new());
+                for (coeff, var) in lc.0 {
+                    let mapped_var = match var {
+                        Variable::Instance(i) => {
+                            if let Some(&witness_idx) = witness_mapping.get(&i) {
+                                Variable::Witness(witness_idx)
+                            } else {
+                                var
+                            }
+                        },
+                        _ => var,
+                    };
+                    mapped_lc += (coeff, mapped_var);
+                }
+                
+                // Create a temporary index for evaluation
+                let temp_index = LcIndex(*num_lcs);
+                lc_map.push(Some(mapped_lc));
+                *num_lcs += 1;
+                
+                // Evaluate and store the result
+                let value = assignments.eval_lc(temp_index, lc_map).unwrap();
+                assignments.lc_assignment.push(value);
+            }
         }
 
         #[cfg(feature = "std")]
@@ -654,6 +694,11 @@ impl<F: Field> ConstraintSystem<F> {
             let witness_var =
                 self.new_witness_variable(|| value.ok_or(SynthesisError::AssignmentMissing))?;
             instance_to_witness_map.push(witness_var);
+            
+            // Store the mapping from instance to witness variable
+            if let Variable::Witness(witness_idx) = witness_var {
+                self.witness_mapping.insert(i, witness_idx);
+            }
         }
 
         // Now, Go over all the linear combinations and create a new witness for each
@@ -671,5 +716,18 @@ impl<F: Field> ConstraintSystem<F> {
             });
         (outliner.func)(self, &instance_to_witness_map)?;
         Ok(())
+    }
+
+    /// Set the witness mapping from an external source.
+    /// This is used to avoid regenerating constraints during proving.
+    /// The mapping should be between unoptimized instance variables and optimized witness variables.
+    pub fn set_witness_mapping(&mut self, mapping: BTreeMap<usize, usize>) {
+        self.witness_mapping = mapping;
+    }
+
+    /// Get the current witness mapping.
+    /// This can be used to store the mapping in an index file.
+    pub fn get_witness_mapping(&self) -> &BTreeMap<usize, usize> {
+        &self.witness_mapping
     }
 }
