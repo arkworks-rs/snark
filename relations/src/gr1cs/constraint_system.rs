@@ -539,7 +539,7 @@ impl<F: Field> ConstraintSystem<F> {
             let lc = lc_opt.expect("LC should never be None");
             let mut out = LinearCombination(Vec::with_capacity(lc.len()));
 
-            for (coeff, var) in lc.0.into_iter() {
+            for (coeff, var) in lc.0 {
                 if let Some(lc_index) = var.get_lc_index() {
                     // Must already be transformed — guaranteed by ordering.
                     let inlined = inlined_lcs[lc_index.0]
@@ -560,13 +560,9 @@ impl<F: Field> ConstraintSystem<F> {
                     out.push((coeff, var));
                 }
             }
+            out.compactify();
             inlined_lcs.push(Some(out));
         }
-        cfg_iter_mut!(inlined_lcs).for_each(|lc| {
-            if let Some(lc) = lc {
-                lc.compactify();
-            }
-        });
         self.lc_map = inlined_lcs;
     }
 
