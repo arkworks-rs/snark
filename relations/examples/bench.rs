@@ -7,6 +7,7 @@ use ark_relations::gr1cs::{
     OptimizationGoal, SynthesisMode,
 };
 use ark_std::rand::{Rng, SeedableRng};
+use ark_std::collections::BTreeMap;
 use ark_test_curves::bls12_381::Fr;
 use jemallocator::Jemalloc;
 
@@ -76,6 +77,10 @@ impl ConstraintSynthesizer<Fr> for BenchCircuit {
 }
 
 fn main() {
+    // First run: Generate constraints and create the witness mapping
+    println!("First run: Generating constraints and creating witness mapping");
+    let mut witness_mapping = None;
+    
     for log_num_constraints in 23..24 {
         let circuit = BenchCircuit {
             a: Fr::rand(&mut ark_std::test_rng()),
@@ -95,6 +100,44 @@ fn main() {
         let elapsed = start.elapsed();
         println!(
             "Synthesizing 2^{} constraints took {:?}",
+            log_num_constraints,
+            elapsed.as_secs_f32()
+        );
+        
+        // Store the witness mapping for the second run
+        witness_mapping = cs.get_witness_mapping();
+    }
+    
+    // Second run: Use the witness mapping to skip constraint generation
+    println!("\nSecond run: Skipping constraint generation using witness mapping");
+    
+    for log_num_constraints in 23..24 {
+        let circuit = BenchCircuit {
+            a: Fr::rand(&mut ark_std::test_rng()),
+            b: Fr::rand(&mut ark_std::test_rng()),
+            c: Fr::rand(&mut ark_std::test_rng()),
+            num_constraints: 2usize.pow(log_num_constraints),
+        };
+        let cs = ConstraintSystem::<Fr>::new_ref();
+        cs.set_optimization_goal(OptimizationGoal::Constraints);
+        
+        // Set the witness mapping from the first run
+        if let Some(mapping) = witness_mapping.clone() {
+            cs.set_witness_mapping(mapping);
+        }
+        
+        // Skip constraint generation during proving
+        cs.set_mode(SynthesisMode::Prove {
+            construct_matrices: false,
+            generate_lc_assignments: true,
+        });
+        
+        let start = std::time::Instant::now();
+        circuit.generate_constraints(cs.clone()).unwrap();
+        cs.finalize();
+        let elapsed = start.elapsed();
+        println!(
+            "Synthesizing 2^{} constraints with skipping took {:?}",
             log_num_constraints,
             elapsed.as_secs_f32()
         );
