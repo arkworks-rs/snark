@@ -596,8 +596,7 @@ impl<F: Field> ConstraintSystem<F> {
     pub fn get_lc(&self, lc_index: LcIndex) -> crate::gr1cs::Result<&LinearCombination<F>> {
         self.lc_map
             .get(lc_index.0)
-            .map(|e| e.as_ref())
-            .flatten()
+            .and_then(|e| e.as_ref())
             .ok_or(SynthesisError::LcNotFound(lc_index))
     }
 
