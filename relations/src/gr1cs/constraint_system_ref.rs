@@ -423,7 +423,7 @@ impl<F: Field> ConstraintSystemRef<F> {
     pub fn get_lc(&self, lc_index: LcIndex) -> crate::utils::Result<LinearCombination<F>> {
         self.inner()
             .ok_or(SynthesisError::MissingCS)
-            .and_then(|cs| cs.borrow().get_lc(lc_index).map(|x| x.clone()))
+            .and_then(|cs| cs.borrow().get_lc(lc_index).cloned())
     }
 
     /// Given a linear combination, create a row in the matrix
