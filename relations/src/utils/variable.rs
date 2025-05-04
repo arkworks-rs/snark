@@ -83,28 +83,28 @@ impl Variable {
 
 impl PartialOrd for Variable {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        use Variable::*;
-        match (self, other) {
-            (Zero, Zero) => Some(Ordering::Equal),
-            (One, One) => Some(Ordering::Equal),
-            (Zero, _) => Some(Ordering::Less),
-            (One, _) => Some(Ordering::Less),
-            (_, Zero) => Some(Ordering::Greater),
-            (_, One) => Some(Ordering::Greater),
-
-            (Instance(i), Instance(j)) | (Witness(i), Witness(j)) => i.partial_cmp(j),
-            (Instance(_), Witness(_)) => Some(Ordering::Less),
-            (Witness(_), Instance(_)) => Some(Ordering::Greater),
-
-            (SymbolicLc(i), SymbolicLc(j)) => i.partial_cmp(j),
-            (_, SymbolicLc(_)) => Some(Ordering::Less),
-            (SymbolicLc(_), _) => Some(Ordering::Greater),
-        }
+        Some(self.cmp(other))
     }
 }
 
 impl Ord for Variable {
     fn cmp(&self, other: &Self) -> Ordering {
-        self.partial_cmp(other).unwrap()
+        use Variable::*;
+        match (self, other) {
+            (Zero, Zero) => Ordering::Equal,
+            (One, One) => Ordering::Equal,
+            (Zero, _) => Ordering::Less,
+            (One, _) => Ordering::Less,
+            (_, Zero) => Ordering::Greater,
+            (_, One) => Ordering::Greater,
+
+            (Instance(i), Instance(j)) | (Witness(i), Witness(j)) => i.cmp(j),
+            (Instance(_), Witness(_)) => Ordering::Less,
+            (Witness(_), Instance(_)) => Ordering::Greater,
+
+            (SymbolicLc(i), SymbolicLc(j)) => i.cmp(j),
+            (_, SymbolicLc(_)) => Ordering::Less,
+            (SymbolicLc(_), _) => Ordering::Greater,
+        }
     }
 }
