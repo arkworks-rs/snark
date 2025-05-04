@@ -102,6 +102,12 @@ pub enum UniversalSetupIndexError<Bound, E> {
     Other(E),
 }
 
+/// A type alias for the index result
+pub type IndexResult<PK, VK, Bound, E> = Result<
+    (PK, VK),
+    UniversalSetupIndexError<Bound, E>,
+>;
+
 /// A SNARK with universal setup. That is, a SNARK where the trusted setup is
 /// circuit-independent.
 pub trait UniversalSetupSNARK<F: PrimeField>: SNARK<F> {
@@ -126,8 +132,5 @@ pub trait UniversalSetupSNARK<F: PrimeField>: SNARK<F> {
         pp: &Self::PublicParameters,
         circuit: C,
         rng: &mut R,
-    ) -> Result<
-        (Self::ProvingKey, Self::VerifyingKey),
-        UniversalSetupIndexError<Self::ComputationBound, Self::Error>,
-    >;
+    ) -> IndexResult<Self::ProvingKey, Self::VerifyingKey, Self::ComputationBound, Self::Error>;
 }
