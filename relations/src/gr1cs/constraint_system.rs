@@ -562,6 +562,7 @@ impl<F: Field> ConstraintSystem<F> {
                     out.push((coeff, var));
                 }
             }
+            out.compactify();
             inlined_lcs.push(Some(out));
         }
         self.lc_map = inlined_lcs;
