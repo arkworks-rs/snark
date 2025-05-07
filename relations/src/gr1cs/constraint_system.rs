@@ -530,10 +530,7 @@ impl<F: Field> ConstraintSystem<F> {
             return;
         }
 
-        let (mut num_times_used, any_used) = self.lc_num_times_used();
-        if !any_used {
-            return;
-        }
+        let mut num_times_used = self.lc_num_times_used();
         let old_lc_map = core::mem::take(&mut self.lc_map);
         let mut inlined_lcs: Vec<Option<LinearCombination<_>>> =
             Vec::with_capacity(old_lc_map.len());
@@ -541,6 +538,7 @@ impl<F: Field> ConstraintSystem<F> {
         for lc_opt in old_lc_map.into_iter() {
             let lc = lc_opt.expect("LC should never be None");
             let mut out = LinearCombination(Vec::with_capacity(lc.len()));
+
             for (coeff, var) in lc.0 {
                 if let Some(lc_index) = var.get_lc_index() {
                     // Must already be transformed — guaranteed by ordering.
@@ -569,10 +567,8 @@ impl<F: Field> ConstraintSystem<F> {
     }
 
     /// Count the number of times each linear combination is used.
-    /// Also returns whether any linear combinations are used.
-    fn lc_num_times_used(&self) -> (Vec<usize>, bool) {
+    fn lc_num_times_used(&self) -> Vec<usize> {
         let mut num_times_used = vec![0; self.lc_map.len()];
-        let mut any_used = false;
 
         // Iterate over every lc in constraint system
         for lc in &self.lc_map {
@@ -580,11 +576,10 @@ impl<F: Field> ConstraintSystem<F> {
             for &(_, var) in lc.as_ref().unwrap().iter() {
                 if let Some(lc_index) = var.get_lc_index() {
                     num_times_used[lc_index.0] += 1;
-                    any_used = true;
                 }
             }
         }
-        (num_times_used, any_used)
+        num_times_used
     }
 
     /// Get the matrices corresponding to the predicates.and the
