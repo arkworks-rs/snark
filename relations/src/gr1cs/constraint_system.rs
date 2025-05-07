@@ -575,7 +575,7 @@ impl<F: Field> ConstraintSystem<F> {
         let mut any_used = false;
 
         // Iterate over every lc in constraint system
-        for lc in self.lc_map.iter().filter(|lc| lc.is_some()) {
+        for lc in &self.lc_map {
             // Increment the counter for each lc that this lc has a direct dependency on.
             for &(_, var) in lc.as_ref().unwrap().iter() {
                 if let Some(lc_index) = var.get_lc_index() {
