@@ -7,6 +7,9 @@ use super::{
 use ark_std::rc::Rc;
 use core::fmt::Debug;
 
+/// A type alias for the instance outlining function
+pub type InstanceOutliningFunction<F> = dyn Fn(&mut ConstraintSystem<F>, &[Variable]) -> Result<(), SynthesisError>;
+
 /// An instance outliner is a strategy for reducing the number of constraints
 /// that public input/instance variables are involved in.
 /// It does this as follows:
@@ -22,7 +25,7 @@ pub struct InstanceOutliner<F: Field> {
     /// The strategy for outlining the instance variables
     /// It takes as input the constraint system, and a map from the new
     /// instance variables to the new witness variables.
-    pub func: Rc<dyn Fn(&mut ConstraintSystem<F>, &[Variable]) -> Result<(), SynthesisError>>,
+    pub func: Rc<InstanceOutliningFunction<F>>,
 }
 
 impl<F: Field> Debug for InstanceOutliner<F> {
@@ -82,4 +85,4 @@ pub fn outline_sr1cs<F: Field>(
     }
 
     Ok(())
-}
+} 
