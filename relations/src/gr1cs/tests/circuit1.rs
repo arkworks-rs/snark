@@ -124,7 +124,7 @@ impl<F: Field + core::convert::From<i8>> ConstraintSynthesizer<F> for Circuit1<F
         cs.register_predicate("poly-predicate-B", predicate_b)?;
         cs.register_predicate("poly-predicate-C", predicate_c)?;
 
-        // Enforing constraints to the predicates
+        //Enforcing constraints to the predicates
 
         let predicate_a_constraint_1 = vec![lc!() + x1, lc!() + x2, lc!() + x3, lc!() + w4];
         let predicate_b_constraint_1 = vec![lc!() + x4, lc!() + w1, lc!() + w5];
