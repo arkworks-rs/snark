@@ -459,7 +459,7 @@ impl<F: Field> ConstraintSystem<F> {
 
     /// If `self` is satisfied, outputs `Ok(None)`.
     /// If `self` is unsatisfied, outputs `Some(s,i)`, where `s` is the label of
-    /// the unsatisfied prediacate and  `i` is the index of
+    /// the unsatisfied predicate and  `i` is the index of
     /// the first unsatisfied constraint in that predicate.
     /// If `self.is_in_setup_mode()` or `self == None`, outputs `Err(())`.
     pub fn which_is_unsatisfied(&self) -> crate::utils::Result<Option<String>> {
@@ -501,9 +501,9 @@ impl<F: Field> ConstraintSystem<F> {
     /// if an optimization goal is set).
     pub fn finalize(&mut self) {
         let timer_finalize = start_timer!(|| "Finalize GR1CS");
-        let timer_inline_ouline_lcs = start_timer!(|| "Inline/Outline LCs");
+        let timer_inline_outline_lcs = start_timer!(|| "Inline/Outline LCs");
         self.inline_all_lcs();
-        end_timer!(timer_inline_ouline_lcs);
+        end_timer!(timer_inline_outline_lcs);
         // check if should outline instance or not
         let timer_instance_outlining = start_timer!(|| "Instance Outlining");
         if let Some(instance_outliner) = self.instance_outliner.take() {
@@ -649,7 +649,7 @@ impl<F: Field> ConstraintSystem<F> {
         // First build a map from instance variables to witness variables
         let mut instance_to_witness_map = Vec::<Variable>::new();
         // Initialize the map with the one variable, this is done manually because we
-        // certainely need this variable and it might not show up in the lc_map
+        // certainly need this variable and it might not show up in the lc_map
         let one_witness_var = self.new_witness_variable(|| Ok(F::ONE))?;
         instance_to_witness_map.push(one_witness_var);
         let instance_assignment = &self.assignments.instance_assignment.clone();
