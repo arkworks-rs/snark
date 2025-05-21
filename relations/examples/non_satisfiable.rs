@@ -151,7 +151,7 @@ fn enforce_addition<F: Field>(
 ) -> Result<Variable, SynthesisError> {
     // let cs = ns!(cs, "addition").cs();
 
-    // Instead of + we use *, This is intentioanlly made to fail
+    // Instead of + we use *, This is intentionally made to fail
     let sum = cs.new_witness_variable(|| {
         Ok(cs.assigned_value(left).unwrap() * cs.assigned_value(right).unwrap())
     })?; // Placeholder for sum
