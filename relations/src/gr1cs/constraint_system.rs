@@ -11,13 +11,15 @@ use super::{
 };
 #[cfg(feature = "std")]
 use crate::gr1cs::ConstraintTrace;
-use crate::gr1cs::{LcIndex, LinearCombination, Matrix, SynthesisError, Variable};
+use crate::{
+    gr1cs::{LcIndex, LinearCombination, Matrix, SynthesisError, Variable},
+    utils::new_index_map,
+};
 use ark_ff::Field;
 use ark_std::{
     any::{Any, TypeId},
     boxed::Box,
     cell::RefCell,
-    collections::BTreeMap,
     format,
     rc::Rc,
     string::{String, ToString},
@@ -67,18 +69,18 @@ pub struct ConstraintSystem<F: Field> {
     pub assignments: Assignments<F>,
 
     /// Map for gadgets to cache computation results.
-    pub cache_map: Rc<RefCell<BTreeMap<TypeId, Box<dyn Any>>>>,
+    pub cache_map: Rc<RefCell<IndexMap<TypeId, Box<dyn Any>>>>,
 
     /// A data structure to store the linear combinations. We use map because
     /// it's easier to inline and outline the linear combinations.
     lc_map: Vec<Option<LinearCombination<F>>>,
 
     /// A map from the the predicate labels to the predicates
-    predicate_constraint_systems: BTreeMap<Label, PredicateConstraintSystem<F>>,
+    predicate_constraint_systems: IndexMap<Label, PredicateConstraintSystem<F>>,
 
     /// data structure to store the traces for each predicate
     #[cfg(feature = "std")]
-    pub predicate_traces: BTreeMap<Label, Vec<Option<ConstraintTrace>>>,
+    pub predicate_traces: IndexMap<Label, Vec<Option<ConstraintTrace>>>,
 }
 
 #[derive(Debug, Clone)]
@@ -138,13 +140,13 @@ impl<F: Field> ConstraintSystem<F> {
             num_witness_variables: 0,
             num_linear_combinations: 0,
             instance_outliner: None,
-            predicate_constraint_systems: BTreeMap::new(),
+            predicate_constraint_systems: new_index_map(),
             assignments: Assignments {
                 instance_assignment: vec![F::one()],
                 witness_assignment: Vec::new(),
                 lc_assignment: Vec::new(),
             },
-            cache_map: Rc::new(RefCell::new(BTreeMap::new())),
+            cache_map: Rc::new(RefCell::new(new_index_map())),
             lc_map: Vec::new(),
             mode: SynthesisMode::Prove {
                 construct_matrices: true,
@@ -152,7 +154,7 @@ impl<F: Field> ConstraintSystem<F> {
             },
             optimization_goal: OptimizationGoal::None,
             #[cfg(feature = "std")]
-            predicate_traces: BTreeMap::new(),
+            predicate_traces: new_index_map(),
         };
         let r1cs_constraint_system = PredicateConstraintSystem::new_r1cs().unwrap();
         let _ = cs.register_predicate(R1CS_PREDICATE_LABEL, r1cs_constraint_system);
@@ -196,7 +198,7 @@ impl<F: Field> ConstraintSystem<F> {
     }
 
     /// Returns a mapping from predicate labels to their types
-    pub fn get_all_predicate_types(&self) -> BTreeMap<Label, Predicate<F>> {
+    pub fn get_all_predicate_types(&self) -> IndexMap<Label, Predicate<F>> {
         self.predicate_constraint_systems
             .iter()
             .map(|(label, predicate)| (label.clone(), predicate.get_predicate().clone()))
@@ -430,7 +432,8 @@ impl<F: Field> ConstraintSystem<F> {
 
     /// Remove the predicate with the given label from the constraint system.
     pub fn remove_predicate(&mut self, predicate_label: &str) {
-        self.predicate_constraint_systems.remove(predicate_label);
+        self.predicate_constraint_systems
+            .swap_remove(predicate_label);
     }
 
     /// check if there is a predicate with the given label
@@ -589,12 +592,14 @@ impl<F: Field> ConstraintSystem<F> {
 
     /// Get the matrices corresponding to the predicates.and the
     /// corresponding set of matrices
-    pub fn to_matrices(&self) -> crate::gr1cs::Result<BTreeMap<Label, Vec<Matrix<F>>>> {
-        let mut matrices = BTreeMap::new();
-        for (label, predicate) in self.predicate_constraint_systems.iter() {
-            matrices.insert(label.clone(), predicate.to_matrices(self));
-        }
-        Ok(matrices)
+    pub fn to_matrices(&self) -> crate::gr1cs::Result<IndexMap<Label, Vec<Matrix<F>>>> {
+        self.predicate_constraint_systems
+            .iter()
+            .map(|(label, predicate)| {
+                let matrices = predicate.to_matrices(self);
+                Ok((label.clone(), matrices))
+            })
+            .collect()
     }
 
     /// Get the linear combination corresponding to the given `lc_index`.

@@ -19,3 +19,8 @@ pub type Result<T> = core::result::Result<T, SynthesisError>;
 pub type HashBuilder = foldhash::fast::SeedableRandomState;
 /// A type alias for an index map that uses the foldhash algorithm.
 pub type IndexMap<K, V> = indexmap::IndexMap<K, V, HashBuilder>;
+
+/// Creates a new `IndexMap` with the default hash builder.
+pub fn new_index_map<K, V>() -> IndexMap<K, V> {
+    IndexMap::with_hasher(HashBuilder::default())
+}

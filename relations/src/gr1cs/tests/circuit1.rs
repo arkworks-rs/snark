@@ -1,9 +1,10 @@
 use crate::{
     gr1cs::{predicate::PredicateConstraintSystem, ConstraintSynthesizer, ConstraintSystemRef},
     lc, ns,
+    utils::{new_index_map, IndexMap},
 };
 use ark_ff::Field;
-use ark_std::{collections::BTreeMap, string::ToString, vec::Vec};
+use ark_std::{string::ToString, vec::Vec};
 
 use super::{Label, Matrix, R1CS_PREDICATE_LABEL};
 
@@ -25,8 +26,8 @@ pub struct Circuit1<F: Field> {
 }
 
 impl<F: Field> Circuit1<F> {
-    pub fn get_matrices() -> BTreeMap<Label, Vec<Matrix<F>>> {
-        let mut map: BTreeMap<Label, Vec<Matrix<F>>> = BTreeMap::new();
+    pub fn get_matrices() -> IndexMap<Label, Vec<Matrix<F>>> {
+        let mut map = new_index_map();
         map.insert(
             R1CS_PREDICATE_LABEL.to_string(),
             vec![vec![], vec![], vec![]],
