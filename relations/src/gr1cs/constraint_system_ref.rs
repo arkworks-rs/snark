@@ -67,10 +67,9 @@ impl<F: Field> ConstraintSystemRef<F> {
 
     /// Returns the arity of each predicate
     pub fn get_all_predicate_arities(&self) -> IndexMap<Label, usize> {
-        self.inner()
-            .map_or(IndexMap::with_hasher(HashBuilder::default()), |cs| {
-                cs.borrow().get_all_predicate_arities()
-            })
+        self.inner().map_or(IndexMap::default(), |cs| {
+            cs.borrow().get_all_predicate_arities()
+        })
     }
 
     /// Returns the predicate type of the predicate with the given label
@@ -420,9 +419,8 @@ impl<F: Field> ConstraintSystemRef<F> {
     /// Get the linear combination corresponding to the given `lc_index`.
     /// TODO: This function should ideally return a reference to the linear
     /// combination and not clone it.
-    pub fn get_lc(&self, lc_index: LcIndex) -> crate::utils::Result<LinearCombination<F>> {
+    pub fn get_lc(&self, lc_index: LcIndex) -> Option<LinearCombination<F>> {
         self.inner()
-            .ok_or(SynthesisError::MissingCS)
             .and_then(|cs| cs.borrow().get_lc(lc_index).map(|x| x.clone()))
     }
 
