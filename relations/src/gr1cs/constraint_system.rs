@@ -294,14 +294,11 @@ impl<F: Field> ConstraintSystem<F> {
         }
 
         #[cfg(feature = "std")]
-        {
-            let trace = ConstraintTrace::capture();
-            match self.predicate_traces.get_mut(predicate_label) {
-                Some(traces) => traces.push(trace),
-                None => {
-                    eprintln!("Constraint trace requires adding the predicate constraint trace")
-                },
-            }
+        match self.predicate_traces.get_mut(predicate_label) {
+            Some(traces) => traces.push(ConstraintTrace::capture()),
+            None => {
+                eprintln!("Constraint trace requires adding the predicate constraint trace")
+            },
         }
 
         Ok(())
@@ -331,8 +328,9 @@ impl<F: Field> ConstraintSystem<F> {
     }
 
     /// Check whether `self.mode == SynthesisMode::Setup`.
-    /// Returns true if 1- There is an underlying ConstraintSystem and
-    /// 2- It's in setup mode
+    /// Returns true if
+    /// 1. There is an underlying `ConstraintSystem`, and
+    /// 2. It is in setup mode.
     pub fn is_in_setup_mode(&self) -> bool {
         self.mode == SynthesisMode::Setup
     }
@@ -598,12 +596,8 @@ impl<F: Field> ConstraintSystem<F> {
     }
 
     /// Get the linear combination corresponding to the given `lc_index`.
-    pub fn get_lc(&self, lc_index: LcIndex) -> crate::gr1cs::Result<&LinearCombination<F>> {
-        self.lc_map
-            .get(lc_index.0)
-            .map(|e| e.as_ref())
-            .flatten()
-            .ok_or(SynthesisError::LcNotFound(lc_index))
+    pub fn get_lc(&self, lc_index: LcIndex) -> Option<&LinearCombination<F>> {
+        self.lc_map.get(lc_index.0).map(|e| e.as_ref()).flatten()
     }
 
     /// Given a linear combination, create a row in the matrix
