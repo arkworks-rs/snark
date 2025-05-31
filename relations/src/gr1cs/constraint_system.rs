@@ -5,7 +5,8 @@
 use super::{
     instance_outliner::InstanceOutliner,
     predicate::{
-        polynomial_constraint::R1CS_PREDICATE_LABEL, Predicate, PredicateConstraintSystem,
+        polynomial_constraint::{R1CS_PREDICATE_LABEL, SR1CS_PREDICATE_LABEL},
+        Predicate, PredicateConstraintSystem,
     },
     ConstraintSystemRef, Label, OptimizationGoal, SynthesisMode,
 };
@@ -43,14 +44,17 @@ pub struct ConstraintSystem<F: Field> {
 
     /// The number of variables that are "public inputs" to the constraint
     /// system.
-    num_instance_variables: usize,
+    #[doc(hidden)]
+    pub num_instance_variables: usize,
 
     /// The number of variables that are "private inputs" to the constraint
     /// system.
-    num_witness_variables: usize,
+    #[doc(hidden)]
+    pub num_witness_variables: usize,
 
     /// The number of linear combinations
-    num_linear_combinations: usize,
+    #[doc(hidden)]
+    pub num_linear_combinations: usize,
 
     /// The parameter we aim to minimize in this constraint system (either the
     /// number of constraints or their total weight).
@@ -71,10 +75,12 @@ pub struct ConstraintSystem<F: Field> {
 
     /// A data structure to store the linear combinations. We use map because
     /// it's easier to inline and outline the linear combinations.
-    lc_map: Vec<Option<LinearCombination<F>>>,
+    #[doc(hidden)]
+    pub lc_map: Vec<Option<LinearCombination<F>>>,
 
     /// A map from the the predicate labels to the predicates
-    predicate_constraint_systems: BTreeMap<Label, PredicateConstraintSystem<F>>,
+    #[doc(hidden)]
+    pub predicate_constraint_systems: BTreeMap<Label, PredicateConstraintSystem<F>>,
 
     /// data structure to store the traces for each predicate
     #[cfg(feature = "std")]
@@ -262,7 +268,10 @@ impl<F: Field> ConstraintSystem<F> {
     pub fn enforce_constraint(
         &mut self,
         predicate_label: &str,
-        lcs: impl IntoIterator<Item = LinearCombination<F>, IntoIter: ExactSizeIterator>,
+        lcs: impl IntoIterator<
+            Item = Box<dyn FnOnce() -> LinearCombination<F>>,
+            IntoIter: ExactSizeIterator,
+        >,
     ) -> crate::gr1cs::Result<()> {
         if !self.has_predicate(predicate_label) {
             return Err(SynthesisError::PredicateNotFound);
@@ -276,7 +285,7 @@ impl<F: Field> ConstraintSystem<F> {
 
             let lc_indices = lcs.into_iter().map(|lc| {
                 let index = LcIndex(*num_lcs);
-                lc_map.push(Some(lc));
+                lc_map.push(Some(lc()));
                 *num_lcs += 1;
                 if should_generate_lc_assignments {
                     let value = assignments.eval_lc(index, lc_map).unwrap();
@@ -302,6 +311,167 @@ impl<F: Field> ConstraintSystem<F> {
         }
 
         Ok(())
+    }
+
+    /// Enforce a constraint for a predicate with arity 2.
+    pub fn enforce_constraint_arity_2(
+        &mut self,
+        predicate_label: &str,
+        a: impl FnOnce() -> LinearCombination<F>,
+        b: impl FnOnce() -> LinearCombination<F>,
+    ) -> crate::gr1cs::Result<()> {
+        if !self.has_predicate(predicate_label) {
+            return Err(SynthesisError::PredicateNotFound);
+        }
+
+        if self.should_construct_matrices() {
+            let a = self.new_lc(a())?.get_lc_index().unwrap();
+            let b = self.new_lc(b())?.get_lc_index().unwrap();
+
+            let predicate = self
+                .predicate_constraint_systems
+                .get_mut(predicate_label)
+                .unwrap();
+
+            predicate.enforce_constraint([a, b])?;
+        }
+
+        #[cfg(feature = "std")]
+        if let Some(traces) = self.predicate_traces.get_mut(predicate_label) {
+            traces.push(ConstraintTrace::capture())
+        }
+
+        Ok(())
+    }
+
+    /// Enforce a constraint for a predicate with arity 3.
+    pub fn enforce_constraint_arity_3(
+        &mut self,
+        predicate_label: &str,
+        a: impl FnOnce() -> LinearCombination<F>,
+        b: impl FnOnce() -> LinearCombination<F>,
+        c: impl FnOnce() -> LinearCombination<F>,
+    ) -> crate::gr1cs::Result<()> {
+        if !self.has_predicate(predicate_label) {
+            return Err(SynthesisError::PredicateNotFound);
+        }
+
+        if self.should_construct_matrices() {
+            let a = self.new_lc(a())?.get_lc_index().unwrap();
+            let b = self.new_lc(b())?.get_lc_index().unwrap();
+            let c = self.new_lc(c())?.get_lc_index().unwrap();
+
+            let predicate = self
+                .predicate_constraint_systems
+                .get_mut(predicate_label)
+                .unwrap();
+
+            predicate.enforce_constraint([a, b, c])?;
+        }
+
+        #[cfg(feature = "std")]
+        if let Some(traces) = self.predicate_traces.get_mut(predicate_label) {
+            traces.push(ConstraintTrace::capture())
+        }
+
+        Ok(())
+    }
+
+    /// Enforce a constraint for a predicate with arity 4.
+    pub fn enforce_constraint_arity_4(
+        &mut self,
+        predicate_label: &str,
+        a: impl FnOnce() -> LinearCombination<F>,
+        b: impl FnOnce() -> LinearCombination<F>,
+        c: impl FnOnce() -> LinearCombination<F>,
+        d: impl FnOnce() -> LinearCombination<F>,
+    ) -> crate::gr1cs::Result<()> {
+        if !self.has_predicate(predicate_label) {
+            return Err(SynthesisError::PredicateNotFound);
+        }
+
+        if self.should_construct_matrices() {
+            let a = self.new_lc(a())?.get_lc_index().unwrap();
+            let b = self.new_lc(b())?.get_lc_index().unwrap();
+            let c = self.new_lc(c())?.get_lc_index().unwrap();
+            let d = self.new_lc(d())?.get_lc_index().unwrap();
+
+            let predicate = self
+                .predicate_constraint_systems
+                .get_mut(predicate_label)
+                .unwrap();
+
+            predicate.enforce_constraint([a, b, c, d])?;
+        }
+
+        #[cfg(feature = "std")]
+        if let Some(traces) = self.predicate_traces.get_mut(predicate_label) {
+            traces.push(ConstraintTrace::capture())
+        }
+
+        Ok(())
+    }
+
+    /// Enforce a constraint for a predicate with arity 5.
+    pub fn enforce_constraint_arity_5(
+        &mut self,
+        predicate_label: &str,
+        a: impl FnOnce() -> LinearCombination<F>,
+        b: impl FnOnce() -> LinearCombination<F>,
+        c: impl FnOnce() -> LinearCombination<F>,
+        d: impl FnOnce() -> LinearCombination<F>,
+        e: impl FnOnce() -> LinearCombination<F>,
+    ) -> crate::gr1cs::Result<()> {
+        if !self.has_predicate(predicate_label) {
+            return Err(SynthesisError::PredicateNotFound);
+        }
+
+        if self.should_construct_matrices() {
+            let a = self.new_lc(a())?.get_lc_index().unwrap();
+            let b = self.new_lc(b())?.get_lc_index().unwrap();
+            let c = self.new_lc(c())?.get_lc_index().unwrap();
+            let d = self.new_lc(d())?.get_lc_index().unwrap();
+            let e = self.new_lc(e())?.get_lc_index().unwrap();
+
+            let predicate = self
+                .predicate_constraint_systems
+                .get_mut(predicate_label)
+                .unwrap();
+
+            predicate.enforce_constraint([a, b, c, d, e])?;
+        }
+
+        #[cfg(feature = "std")]
+        if let Some(traces) = self.predicate_traces.get_mut(predicate_label) {
+            traces.push(ConstraintTrace::capture())
+        }
+
+        Ok(())
+    }
+
+    /// Enforce a constraint in the constraint system. It takes a
+    /// predicate name and enforces a vector of linear combinations of the
+    /// length of the arity of the predicate enforces the constraint.
+    #[inline]
+    pub fn enforce_r1cs_constraint(
+        &mut self,
+        a: impl FnOnce() -> LinearCombination<F>,
+        b: impl FnOnce() -> LinearCombination<F>,
+        c: impl FnOnce() -> LinearCombination<F>,
+    ) -> crate::gr1cs::Result<()> {
+        self.enforce_constraint_arity_3(R1CS_PREDICATE_LABEL, a, b, c)
+    }
+
+    /// Enforce a constraint in the constraint system. It takes a
+    /// predicate name and enforces a vector of linear combinations of the
+    /// length of the arity of the predicate enforces the constraint.
+    #[inline]
+    pub fn enforce_sr1cs_constraint(
+        &mut self,
+        a: impl FnOnce() -> LinearCombination<F>,
+        b: impl FnOnce() -> LinearCombination<F>,
+    ) -> crate::gr1cs::Result<()> {
+        self.enforce_constraint_arity_2(SR1CS_PREDICATE_LABEL, a, b)
     }
 
     /// Adds a new linear combination to the constraint system.
