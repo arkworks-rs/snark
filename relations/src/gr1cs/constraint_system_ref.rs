@@ -502,4 +502,20 @@ impl<F: Field> ConstraintSystemRef<F> {
             None
         }
     }
+
+    /// Set the witness mapping from an external source.
+    /// This is used to avoid regenerating constraints during proving.
+    /// The mapping should be between unoptimized instance variables and optimized witness variables.
+    #[inline]
+    pub fn set_witness_mapping(&self, mapping: BTreeMap<usize, usize>) {
+        self.inner()
+            .map_or((), |cs| cs.borrow_mut().set_witness_mapping(mapping))
+    }
+
+    /// Get the current witness mapping.
+    /// This can be used to store the mapping in an index file.
+    #[inline]
+    pub fn get_witness_mapping(&self) -> Option<BTreeMap<usize, usize>> {
+        self.inner().map(|cs| cs.borrow().get_witness_mapping().clone())
+    }
 }
