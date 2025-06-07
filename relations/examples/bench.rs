@@ -59,9 +59,9 @@ impl ConstraintSynthesizer<Fr> for BenchCircuit {
                 );
                 let extra_lc = cs.new_lc(extra_lc)?;
                 lcs.push(extra_lc);
-                cs.enforce_r1cs_constraint(a_i + extra_lc, b_i, c_i.into())?;
+                cs.enforce_r1cs_constraint(|| a_i + extra_lc, || b_i, || c_i.into())?;
             } else {
-                cs.enforce_r1cs_constraint(a_i, b_i, c_i.into())?;
+                cs.enforce_r1cs_constraint(|| a_i, || b_i, || c_i.into())?;
             };
             let v1 = cs.new_witness_variable(|| Ok(self.a))?;
             let v2 = cs.new_witness_variable(|| Ok(self.a))?;

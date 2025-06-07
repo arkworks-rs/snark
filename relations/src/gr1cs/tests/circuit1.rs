@@ -126,20 +126,40 @@ impl<F: Field + core::convert::From<i8>> ConstraintSynthesizer<F> for Circuit1<F
 
         // Enforing constraints to the predicates
 
-        let predicate_a_constraint_1 = vec![lc!() + x1, lc!() + x2, lc!() + x3, lc!() + w4];
-        let predicate_b_constraint_1 = vec![lc!() + x4, lc!() + w1, lc!() + w5];
-        let predicate_b_constraint_2 = vec![lc!() + w5, lc!() + w6, lc!() + w8];
-        let predicate_c_constraint_1 = vec![lc!() + w2, lc!() + w3, lc!() + w6];
-        let predicate_c_constraint_2 = vec![lc!() + w5 + w4, lc!() + w8, lc!() + x5];
-
         ns!(cs, "Predicate A constraints");
-        cs.enforce_constraint("poly-predicate-A", predicate_a_constraint_1)?;
+        cs.enforce_constraint_arity_4(
+            "poly-predicate-A",
+            || lc!() + x1,
+            || lc!() + x2,
+            || lc!() + x3,
+            || lc!() + w4,
+        )?;
         ns!(cs, "Predicate B constraints");
-        cs.enforce_constraint("poly-predicate-B", predicate_b_constraint_1)?;
-        cs.enforce_constraint("poly-predicate-B", predicate_b_constraint_2)?;
+        cs.enforce_constraint_arity_3(
+            "poly-predicate-B",
+            || lc!() + x4,
+            || lc!() + w1,
+            || lc!() + w5,
+        )?;
+        cs.enforce_constraint_arity_3(
+            "poly-predicate-B",
+            || lc!() + w5,
+            || lc!() + w6,
+            || lc!() + w8,
+        )?;
         ns!(cs, "Predicate C constraints");
-        cs.enforce_constraint("poly-predicate-C", predicate_c_constraint_1)?;
-        cs.enforce_constraint("poly-predicate-C", predicate_c_constraint_2)?;
+        cs.enforce_constraint_arity_3(
+            "poly-predicate-C",
+            || lc!() + w2,
+            || lc!() + w3,
+            || lc!() + w6,
+        )?;
+        cs.enforce_constraint_arity_3(
+            "poly-predicate-C",
+            || lc!() + w5 + w4,
+            || lc!() + w8,
+            || lc!() + x5,
+        )?;
         Ok(())
     }
 }

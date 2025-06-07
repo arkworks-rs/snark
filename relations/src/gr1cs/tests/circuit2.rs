@@ -50,11 +50,11 @@ impl<F: Field> ConstraintSynthesizer<F> for Circuit2<F> {
         let a = cs.new_input_variable(|| Ok(self.a)).unwrap();
         let b = cs.new_witness_variable(|| Ok(self.b)).unwrap();
         let c = cs.new_witness_variable(|| Ok(self.c)).unwrap();
-        cs.enforce_r1cs_constraint(lc!() + a, lc!() + (two, b), lc!() + c)?;
+        cs.enforce_r1cs_constraint(|| lc!() + a, || lc!() + (two, b), || lc!() + c)?;
         let d = cs.new_lc(lc!() + a + b)?;
-        cs.enforce_r1cs_constraint(lc!() + a, lc!() + d, lc!() + d)?;
+        cs.enforce_r1cs_constraint(|| lc!() + a, || lc!() + d, || lc!() + d)?;
         let e = cs.new_lc(lc!() + d + d)?;
-        cs.enforce_r1cs_constraint(lc!() + Variable::One, lc!() + e, lc!() + e)?;
+        cs.enforce_r1cs_constraint(|| lc!() + Variable::One, || lc!() + e, || lc!() + e)?;
 
         Ok(())
     }
