@@ -2,6 +2,8 @@
 //! a constraint system contains multiple predicate constraint systems,
 //! each of which enforce have separate predicates and constraints. For more information about the terminology and the structure of the constraint system, refer to section 3.3 of https://eprint.iacr.org/2024/1245
 
+use core::sync::atomic::{AtomicUsize, Ordering};
+
 use super::{
     instance_outliner::InstanceOutliner,
     predicate::{
@@ -142,16 +144,16 @@ impl<F: Field> ConstraintSystem<F> {
         let mut cs = Self {
             num_instance_variables: 1,
             num_witness_variables: 0,
-            num_linear_combinations: 0,
+            num_linear_combinations: 1,
             instance_outliner: None,
             predicate_constraint_systems: BTreeMap::new(),
             assignments: Assignments {
                 instance_assignment: vec![F::one()],
                 witness_assignment: Vec::new(),
-                lc_assignment: Vec::new(),
+                lc_assignment: vec![F::zero()],
             },
             cache_map: Rc::new(RefCell::new(BTreeMap::new())),
-            lc_map: Vec::new(),
+            lc_map: vec![Some(LinearCombination::zero())],
             mode: SynthesisMode::Prove {
                 construct_matrices: true,
                 generate_lc_assignments: true,
@@ -479,17 +481,21 @@ impl<F: Field> ConstraintSystem<F> {
     /// corresponding index (using bimap)
     #[inline]
     pub fn new_lc(&mut self, lc: LinearCombination<F>) -> crate::gr1cs::Result<Variable> {
-        // Note: update also enforce_constraint if you change this logic.
-        let index = LcIndex(self.num_linear_combinations);
-        self.lc_map.push(Some(lc));
-        self.num_linear_combinations += 1;
-        if self.should_generate_lc_assignments() {
-            let value = self
-                .eval_lc(index)
-                .ok_or(SynthesisError::AssignmentMissing)?;
-            self.assignments.lc_assignment.push(value)
+        if lc.0.is_empty() {
+            Ok(Variable::SymbolicLc(LcIndex(0)))
+        } else {
+            // Note: update also enforce_constraint if you change this logic.
+            let index = LcIndex(self.num_linear_combinations);
+            self.lc_map.push(Some(lc));
+            self.num_linear_combinations += 1;
+            if self.should_generate_lc_assignments() {
+                let value = self
+                    .eval_lc(index)
+                    .ok_or(SynthesisError::AssignmentMissing)?;
+                self.assignments.lc_assignment.push(value)
+            }
+            Ok(Variable::SymbolicLc(index))
         }
-        Ok(Variable::SymbolicLc(index))
     }
 
     /// Set `self.mode` to `mode`.
@@ -516,7 +522,7 @@ impl<F: Field> ConstraintSystem<F> {
         self.num_instance_variables == 1
             && self.num_witness_variables == 0
             && self.num_constraints() == 0
-            && self.num_linear_combinations == 0
+            && self.num_linear_combinations == 1
     }
 
     /// Specify whether this constraint system should aim to optimize weight,
@@ -589,10 +595,8 @@ impl<F: Field> ConstraintSystem<F> {
         self.predicate_constraint_systems
             .insert(predicate_label.to_string(), predicate);
         #[cfg(feature = "std")]
-        {
-            self.predicate_traces
-                .insert(predicate_label.to_string(), Vec::new());
-        }
+        self.predicate_traces
+            .insert(predicate_label.to_string(), Vec::new());
         Ok(())
     }
 
@@ -638,26 +642,19 @@ impl<F: Field> ConstraintSystem<F> {
                 if let Some(unsatisfied_constraint) =
                     predicate.which_constraint_is_unsatisfied(self)
                 {
-                    let trace;
                     #[cfg(feature = "std")]
-                    {
-                        trace = self.predicate_traces[label][unsatisfied_constraint]
-                            .as_ref()
-                            .map_or_else(
-                                || {
-                                    eprintln!(
-                                        "Constraint trace requires enabling `ConstraintLayer`"
-                                    );
-                                    format!("{label} - {unsatisfied_constraint}")
-                                },
-                                |t| format!("{t}"),
-                            )
-                            .to_string();
-                    }
+                    let trace = self.predicate_traces[label][unsatisfied_constraint]
+                        .as_ref()
+                        .map_or_else(
+                            || {
+                                eprintln!("Constraint trace requires `ConstraintLayer`");
+                                format!("{label} - {unsatisfied_constraint}")
+                            },
+                            |t| format!("{t}"),
+                        )
+                        .to_string();
                     #[cfg(not(feature = "std"))]
-                    {
-                        trace = format!("{label} - {unsatisfied_constraint}");
-                    }
+                    let trace = format!("{label} - {unsatisfied_constraint}");
                     return Ok(Some(trace));
                 }
             }
@@ -739,20 +736,21 @@ impl<F: Field> ConstraintSystem<F> {
     /// Count the number of times each linear combination is used.
     /// Also returns whether any linear combinations are used.
     fn lc_num_times_used(&self) -> (Vec<usize>, bool) {
-        let mut num_times_used = vec![0; self.lc_map.len()];
-        let mut any_used = false;
-
-        // Iterate over every lc in constraint system
-        for lc in &self.lc_map {
+        let num_times_used: Vec<_> = cfg_into_iter!(0..self.lc_map.len()).map(|_| AtomicUsize::new(0)).collect();
+        let any_used =  // Iterate over every lc in constraint system
+        cfg_iter!(self.lc_map).map(|lc| {
             // Increment the counter for each lc that this lc has a direct dependency on.
             for &(_, var) in lc.as_ref().unwrap().iter() {
                 if let Some(lc_index) = var.get_lc_index() {
-                    num_times_used[lc_index.0] += 1;
-                    any_used = true;
+                    num_times_used[lc_index.0].fetch_add(1, Ordering::Relaxed);
                 }
             }
-        }
-        (num_times_used, any_used)
+            0usize
+        }).sum::<usize>();
+        let num_times_used = cfg_into_iter!(num_times_used)
+            .map(|e| e.load(Ordering::Relaxed))
+            .collect::<Vec<_>>();
+        (num_times_used, any_used != 0)
     }
 
     /// Get the matrices corresponding to the predicates.and the

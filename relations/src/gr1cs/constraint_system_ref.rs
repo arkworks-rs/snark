@@ -155,7 +155,7 @@ impl<F: Field> ConstraintSystemRef<F> {
             .ok_or(SynthesisError::MissingCS)
             .and_then(|cs| cs.borrow_mut().enforce_constraint(predicate_label, lc_vec))
     }
-    
+
     /// Enforce a constraint with arity 2.
     #[inline]
     pub fn enforce_constraint_arity_2(
@@ -166,9 +166,12 @@ impl<F: Field> ConstraintSystemRef<F> {
     ) -> crate::gr1cs::Result<()> {
         self.inner()
             .ok_or(SynthesisError::MissingCS)
-            .and_then(|cs| cs.borrow_mut().enforce_constraint_arity_2(predicate_label, a, b))
+            .and_then(|cs| {
+                cs.borrow_mut()
+                    .enforce_constraint_arity_2(predicate_label, a, b)
+            })
     }
-    
+
     /// Enforce a constraint with arity 3.
     #[inline]
     pub fn enforce_constraint_arity_3(
@@ -180,9 +183,12 @@ impl<F: Field> ConstraintSystemRef<F> {
     ) -> crate::gr1cs::Result<()> {
         self.inner()
             .ok_or(SynthesisError::MissingCS)
-            .and_then(|cs| cs.borrow_mut().enforce_constraint_arity_3(predicate_label, a, b, c))
+            .and_then(|cs| {
+                cs.borrow_mut()
+                    .enforce_constraint_arity_3(predicate_label, a, b, c)
+            })
     }
-    
+
     /// Enforce a constraint with arity 4.
     #[inline]
     pub fn enforce_constraint_arity_4(
@@ -195,9 +201,12 @@ impl<F: Field> ConstraintSystemRef<F> {
     ) -> crate::gr1cs::Result<()> {
         self.inner()
             .ok_or(SynthesisError::MissingCS)
-            .and_then(|cs| cs.borrow_mut().enforce_constraint_arity_4(predicate_label, a, b, c, d))
+            .and_then(|cs| {
+                cs.borrow_mut()
+                    .enforce_constraint_arity_4(predicate_label, a, b, c, d)
+            })
     }
-    
+
     /// Enforce a constraint with arity 5.
     #[inline]
     pub fn enforce_constraint_arity_5(
@@ -211,7 +220,10 @@ impl<F: Field> ConstraintSystemRef<F> {
     ) -> crate::gr1cs::Result<()> {
         self.inner()
             .ok_or(SynthesisError::MissingCS)
-            .and_then(|cs| cs.borrow_mut().enforce_constraint_arity_5(predicate_label, a, b, c, d, e))
+            .and_then(|cs| {
+                cs.borrow_mut()
+                    .enforce_constraint_arity_5(predicate_label, a, b, c, d, e)
+            })
     }
 
     /// Enforce an R1CS constraint in the constraint system.
@@ -264,9 +276,10 @@ impl<F: Field> ConstraintSystemRef<F> {
     /// Obtain a new variable representing the linear combination `lc`.
     #[inline]
     pub fn new_lc(&self, lc: LinearCombination<F>) -> crate::gr1cs::Result<Variable> {
-        self.inner()
-            .ok_or(SynthesisError::MissingCS)
-            .and_then(|cs| cs.borrow_mut().new_lc(lc))
+        match self.inner() {
+            Some(cs) => cs.borrow_mut().new_lc(lc),
+            None => Err(SynthesisError::MissingCS),
+        }
     }
 
     /// Set `self.mode` to `mode`.
