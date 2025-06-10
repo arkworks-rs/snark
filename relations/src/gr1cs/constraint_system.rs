@@ -285,25 +285,14 @@ impl<F: Field> ConstraintSystem<F> {
 
             let lc_indices = lcs.into_iter().map(|lc| {
                 let lc = lc();
-                match lc.0.as_slice() {
-                    // If the linear combination is empty, we return a symbolic LC with index 0.
-                    // If the linear combination is just Zero, we return a symbolic LC with index 0.
-                    [] | [(_, Variable::Zero)] => Variable::SymbolicLc(LcIndex(0)),
-                    // If the linear combination is just another linear combination
-                    // with a coefficient of 1, we return the variable directly.
-                    [(c, var)] if c.is_one() => *var,
-                    // In all other cases, we create a new linear combination
-                    _ => {
-                        let index = LcIndex(*num_lcs);
-                        lc_map.push(Some(lc));
-                        *num_lcs += 1;
-                        if should_generate_lc_assignments {
-                            let value = assignments.eval_lc(index, lc_map).unwrap();
-                            assignments.lc_assignment.push(value)
-                        }
-                        Variable::SymbolicLc(index)
-                    },
-                }
+                Self::new_lc_add_helper(
+                    num_lcs,
+                    lc_map,
+                    should_generate_lc_assignments,
+                    assignments,
+                    lc,
+                )
+                .unwrap()
             });
 
             let predicate = self
@@ -505,9 +494,35 @@ impl<F: Field> ConstraintSystem<F> {
     #[inline]
     fn new_lc_without_adding(&mut self) -> crate::gr1cs::Result<Variable> {
         let index = LcIndex(self.num_linear_combinations);
-        self.lc_map.push(None);
         self.num_linear_combinations += 1;
         Ok(Variable::SymbolicLc(index))
+    }
+
+    fn new_lc_add_helper(
+        cur_num_lcs: &mut usize,
+        lc_map: &mut Vec<Option<LinearCombination<F>>>,
+        should_generate_lc_assignments: bool,
+        assignments: &mut Assignments<F>,
+        lc: LinearCombination<F>,
+    ) -> crate::gr1cs::Result<Variable> {
+        match lc.0.as_slice() {
+            // If the linear combination is empty, we return a symbolic LC with index 0.
+            [] | [(_, Variable::Zero)] => Ok(Variable::SymbolicLc(LcIndex(0))),
+            // If the linear combination is just another variable
+            // with a coefficient of 1, we return the variable directly.
+            [(c, var)] if c.is_one() => Ok(*var),
+            // In all other cases, we create a new linear combination
+            _ => {
+                let index = LcIndex(*cur_num_lcs);
+                lc_map.push(Some(lc));
+                *cur_num_lcs += 1;
+                if should_generate_lc_assignments {
+                    let value = assignments.eval_lc(index, lc_map).unwrap();
+                    assignments.lc_assignment.push(value)
+                }
+                Ok(Variable::SymbolicLc(index))
+            },
+        }
     }
 
     /// Helper function to add a new linear combination to the constraint system.
@@ -517,28 +532,16 @@ impl<F: Field> ConstraintSystem<F> {
         lc: impl FnOnce() -> LinearCombination<F>,
     ) -> crate::gr1cs::Result<Variable> {
         let should_push = self.should_construct_matrices() || self.should_generate_lc_assignments();
+        let should_generate_lc_assignments = self.should_generate_lc_assignments();
         if should_push {
             let lc = lc();
-            match lc.0.as_slice() {
-                // If the linear combination is empty, we return a symbolic LC with index 0.
-                [] | [(_, Variable::Zero)] => Ok(Variable::SymbolicLc(LcIndex(0))),
-                // If the linear combination is just another linear combination
-                // with a coefficient of 1, we return the variable directly.
-                [(c, var)] if c.is_one() => Ok(*var),
-                // In all other cases, we create a new linear combination
-                _ => {
-                    let index = LcIndex(self.num_linear_combinations);
-                    self.lc_map.push(Some(lc));
-                    self.num_linear_combinations += 1;
-                    if self.should_generate_lc_assignments() {
-                        let value = self
-                            .eval_lc(index)
-                            .ok_or(SynthesisError::AssignmentMissing)?;
-                        self.assignments.lc_assignment.push(value)
-                    }
-                    Ok(Variable::SymbolicLc(index))
-                },
-            }
+            Self::new_lc_add_helper(
+                &mut self.num_linear_combinations,
+                &mut self.lc_map,
+                should_generate_lc_assignments,
+                &mut self.assignments,
+                lc,
+            )
         } else {
             self.new_lc_without_adding()
         }
@@ -673,12 +676,6 @@ impl<F: Field> ConstraintSystem<F> {
     /// Obtain the assignment corresponding to the `Variable` `v`.
     pub fn assigned_value(&self, v: Variable) -> Option<F> {
         self.assignments.assigned_value(v)
-    }
-
-    /// Evaluate the linear combination `lc` with the assigned values and return
-    /// the result.
-    fn eval_lc(&self, lc: LcIndex) -> Option<F> {
-        self.assignments.eval_lc(lc, &self.lc_map)
     }
 
     /// If `self` is satisfied, outputs `Ok(true)`.
