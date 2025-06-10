@@ -2,8 +2,6 @@
 //! a constraint system contains multiple predicate constraint systems,
 //! each of which enforce have separate predicates and constraints. For more information about the terminology and the structure of the constraint system, refer to section 3.3 of https://eprint.iacr.org/2024/1245
 
-use core::sync::atomic::{AtomicUsize, Ordering};
-
 use super::{
     instance_outliner::InstanceOutliner,
     predicate::{
@@ -286,14 +284,26 @@ impl<F: Field> ConstraintSystem<F> {
             let assignments = &mut self.assignments;
 
             let lc_indices = lcs.into_iter().map(|lc| {
-                let index = LcIndex(*num_lcs);
-                lc_map.push(Some(lc()));
-                *num_lcs += 1;
-                if should_generate_lc_assignments {
-                    let value = assignments.eval_lc(index, lc_map).unwrap();
-                    assignments.lc_assignment.push(value);
+                let lc = lc();
+                match lc.0.as_slice() {
+                    // If the linear combination is empty, we return a symbolic LC with index 0.
+                    // If the linear combination is just Zero, we return a symbolic LC with index 0.
+                    [] | [(_, Variable::Zero)] => Variable::SymbolicLc(LcIndex(0)),
+                    // If the linear combination is just another linear combination
+                    // with a coefficient of 1, we return the variable directly.
+                    [(c, var)] if c.is_one() => *var,
+                    // In all other cases, we create a new linear combination
+                    _ => {
+                        let index = LcIndex(*num_lcs);
+                        lc_map.push(Some(lc));
+                        *num_lcs += 1;
+                        if should_generate_lc_assignments {
+                            let value = assignments.eval_lc(index, lc_map).unwrap();
+                            assignments.lc_assignment.push(value)
+                        }
+                        Variable::SymbolicLc(index)
+                    },
                 }
-                index
             });
 
             let predicate = self
@@ -327,8 +337,8 @@ impl<F: Field> ConstraintSystem<F> {
         }
 
         if self.should_construct_matrices() {
-            let a = self.new_lc(a())?.get_lc_index().unwrap();
-            let b = self.new_lc(b())?.get_lc_index().unwrap();
+            let a = self.new_constraint_lc(a)?;
+            let b = self.new_constraint_lc(b)?;
 
             let predicate = self
                 .predicate_constraint_systems
@@ -359,9 +369,9 @@ impl<F: Field> ConstraintSystem<F> {
         }
 
         if self.should_construct_matrices() {
-            let a = self.new_lc(a())?.get_lc_index().unwrap();
-            let b = self.new_lc(b())?.get_lc_index().unwrap();
-            let c = self.new_lc(c())?.get_lc_index().unwrap();
+            let a = self.new_constraint_lc(a)?;
+            let b = self.new_constraint_lc(b)?;
+            let c = self.new_constraint_lc(c)?;
 
             let predicate = self
                 .predicate_constraint_systems
@@ -393,10 +403,10 @@ impl<F: Field> ConstraintSystem<F> {
         }
 
         if self.should_construct_matrices() {
-            let a = self.new_lc(a())?.get_lc_index().unwrap();
-            let b = self.new_lc(b())?.get_lc_index().unwrap();
-            let c = self.new_lc(c())?.get_lc_index().unwrap();
-            let d = self.new_lc(d())?.get_lc_index().unwrap();
+            let a = self.new_constraint_lc(a)?;
+            let b = self.new_constraint_lc(b)?;
+            let c = self.new_constraint_lc(c)?;
+            let d = self.new_constraint_lc(d)?;
 
             let predicate = self
                 .predicate_constraint_systems
@@ -429,11 +439,11 @@ impl<F: Field> ConstraintSystem<F> {
         }
 
         if self.should_construct_matrices() {
-            let a = self.new_lc(a())?.get_lc_index().unwrap();
-            let b = self.new_lc(b())?.get_lc_index().unwrap();
-            let c = self.new_lc(c())?.get_lc_index().unwrap();
-            let d = self.new_lc(d())?.get_lc_index().unwrap();
-            let e = self.new_lc(e())?.get_lc_index().unwrap();
+            let a = self.new_constraint_lc(a)?;
+            let b = self.new_constraint_lc(b)?;
+            let c = self.new_constraint_lc(c)?;
+            let d = self.new_constraint_lc(d)?;
+            let e = self.new_constraint_lc(e)?;
 
             let predicate = self
                 .predicate_constraint_systems
@@ -476,26 +486,75 @@ impl<F: Field> ConstraintSystem<F> {
         self.enforce_constraint_arity_2(SR1CS_PREDICATE_LABEL, a, b)
     }
 
-    /// Adds a new linear combination to the constraint system.
-    /// If the linear combination is already in the map, return the
-    /// corresponding index (using bimap)
+    /// Add a new linear combination to the constraint system.
+    /// This linear combination is to be used only for constraints, not for variables.
     #[inline]
-    pub fn new_lc(&mut self, lc: LinearCombination<F>) -> crate::gr1cs::Result<Variable> {
-        if lc.0.is_empty() {
-            Ok(Variable::SymbolicLc(LcIndex(0)))
+    fn new_constraint_lc(
+        &mut self,
+        lc: impl FnOnce() -> LinearCombination<F>,
+    ) -> crate::gr1cs::Result<Variable> {
+        if self.should_construct_matrices() {
+            self.new_lc_helper(lc)
         } else {
-            // Note: update also enforce_constraint if you change this logic.
-            let index = LcIndex(self.num_linear_combinations);
-            self.lc_map.push(Some(lc));
-            self.num_linear_combinations += 1;
-            if self.should_generate_lc_assignments() {
-                let value = self
-                    .eval_lc(index)
-                    .ok_or(SynthesisError::AssignmentMissing)?;
-                self.assignments.lc_assignment.push(value)
-            }
-            Ok(Variable::SymbolicLc(index))
+            self.new_lc_without_adding()
         }
+    }
+
+    /// Creates a new index for the linear combination without adding the concrete LC expression
+    /// to the map.
+    #[inline]
+    fn new_lc_without_adding(&mut self) -> crate::gr1cs::Result<Variable> {
+        let index = LcIndex(self.num_linear_combinations);
+        self.lc_map.push(None);
+        self.num_linear_combinations += 1;
+        Ok(Variable::SymbolicLc(index))
+    }
+
+    /// Helper function to add a new linear combination to the constraint system.
+    #[inline]
+    fn new_lc_helper(
+        &mut self,
+        lc: impl FnOnce() -> LinearCombination<F>,
+    ) -> crate::gr1cs::Result<Variable> {
+        let should_push = self.should_construct_matrices() || self.should_generate_lc_assignments();
+        if should_push {
+            let lc = lc();
+            match lc.0.as_slice() {
+                // If the linear combination is empty, we return a symbolic LC with index 0.
+                [] | [(_, Variable::Zero)] => Ok(Variable::SymbolicLc(LcIndex(0))),
+                // If the linear combination is just another linear combination
+                // with a coefficient of 1, we return the variable directly.
+                [(c, var)] if c.is_one() => Ok(*var),
+                // In all other cases, we create a new linear combination
+                _ => {
+                    let index = LcIndex(self.num_linear_combinations);
+                    self.lc_map.push(Some(lc));
+                    self.num_linear_combinations += 1;
+                    if self.should_generate_lc_assignments() {
+                        let value = self
+                            .eval_lc(index)
+                            .ok_or(SynthesisError::AssignmentMissing)?;
+                        self.assignments.lc_assignment.push(value)
+                    }
+                    Ok(Variable::SymbolicLc(index))
+                },
+            }
+        } else {
+            self.new_lc_without_adding()
+        }
+    }
+
+    /// Adds a new linear combination to the constraint system.
+    #[inline]
+    pub fn new_lc(
+        &mut self,
+        lc: impl FnOnce() -> LinearCombination<F>,
+    ) -> crate::gr1cs::Result<Variable> {
+        // Because this LC might be used to construct constraints,
+        // we need to ensure that it is added to the lc_map whenever
+        // `self.should_construct_matrices()` is true.
+        // `self.new_lc_helper` will handle this.
+        self.new_lc_helper(lc)
     }
 
     /// Set `self.mode` to `mode`.
@@ -695,7 +754,7 @@ impl<F: Field> ConstraintSystem<F> {
             return;
         }
 
-        let (mut num_times_used, any_used) = self.lc_num_times_used();
+        let any_used = self.any_lcs_used();
         if !any_used {
             return;
         }
@@ -716,12 +775,12 @@ impl<F: Field> ConstraintSystem<F> {
                     if coeff.is_one() {
                         out.extend_from_slice(&inlined.0);
                     } else {
-                        out.extend(inlined.iter().map(|(c, v)| (coeff * c, *v)));
-                    }
-                    // Decrement usage and prune if no longer needed
-                    num_times_used[lc_index.0] -= 1;
-                    if num_times_used[lc_index.0] == 0 {
-                        inlined_lcs[lc_index.0] = None;
+                        out.extend(
+                            inlined
+                                .iter()
+                                .filter(|(_, v)| !v.is_zero())
+                                .map(|(c, v)| (coeff * c, *v)),
+                        );
                     }
                 } else {
                     out.push((coeff, var));
@@ -735,22 +794,17 @@ impl<F: Field> ConstraintSystem<F> {
 
     /// Count the number of times each linear combination is used.
     /// Also returns whether any linear combinations are used.
-    fn lc_num_times_used(&self) -> (Vec<usize>, bool) {
-        let num_times_used: Vec<_> = cfg_into_iter!(0..self.lc_map.len()).map(|_| AtomicUsize::new(0)).collect();
-        let any_used =  // Iterate over every lc in constraint system
-        cfg_iter!(self.lc_map).map(|lc| {
-            // Increment the counter for each lc that this lc has a direct dependency on.
-            for &(_, var) in lc.as_ref().unwrap().iter() {
-                if let Some(lc_index) = var.get_lc_index() {
-                    num_times_used[lc_index.0].fetch_add(1, Ordering::Relaxed);
+    fn any_lcs_used(&self) -> bool {
+        cfg_iter!(self.lc_map)
+            .map(|lc| {
+                for &(_, var) in lc.as_ref().unwrap().iter() {
+                    if var.is_lc() {
+                        return true;
+                    }
                 }
-            }
-            0usize
-        }).sum::<usize>();
-        let num_times_used = cfg_into_iter!(num_times_used)
-            .map(|e| e.load(Ordering::Relaxed))
-            .collect::<Vec<_>>();
-        (num_times_used, any_used != 0)
+                false
+            })
+            .any(|x| x)
     }
 
     /// Get the matrices corresponding to the predicates.and the
@@ -764,23 +818,31 @@ impl<F: Field> ConstraintSystem<F> {
     }
 
     /// Get the linear combination corresponding to the given `lc_index`.
-    pub fn get_lc(&self, lc_index: LcIndex) -> Option<&LinearCombination<F>> {
-        self.lc_map.get(lc_index.0).map(|e| e.as_ref()).flatten()
+    pub fn get_lc(&self, var: Variable) -> LinearCombination<F> {
+        match var {
+            Variable::SymbolicLc(lc_index) => self
+                .lc_map
+                .get(lc_index.0)
+                .map(|e| e.as_ref())
+                .flatten()
+                .cloned()
+                .unwrap(),
+            Variable::Zero => LinearCombination::zero(),
+            v => v.into(),
+        }
     }
 
     /// Given a linear combination, create a row in the matrix
     #[inline]
-    pub(crate) fn make_row(&self, l: &LinearCombination<F>) -> Vec<(F, usize)> {
+    pub(crate) fn make_row(&self, l: LinearCombination<F>) -> Vec<(F, usize)> {
         let num_input = self.num_instance_variables();
-        l.0.iter()
+        l.0.into_iter()
             .filter_map(|(coeff, var)| {
-                if coeff.is_zero() {
+                if coeff.is_zero() || var.is_zero() {
                     None
                 } else {
-                    Some((
-                        *coeff,
-                        var.get_index_unchecked(num_input).expect("no symbolic LCs"),
-                    ))
+                    let index = var.get_index_unchecked(num_input);
+                    Some((coeff, index.unwrap()))
                 }
             })
             .collect()

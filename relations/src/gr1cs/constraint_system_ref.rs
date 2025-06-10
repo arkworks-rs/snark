@@ -15,8 +15,7 @@ use super::{
         polynomial_constraint::{R1CS_PREDICATE_LABEL, SR1CS_PREDICATE_LABEL},
         Predicate, PredicateConstraintSystem,
     },
-    Label, LcIndex, LinearCombination, Matrix, OptimizationGoal, SynthesisError, SynthesisMode,
-    Variable,
+    Label, LinearCombination, Matrix, OptimizationGoal, SynthesisError, SynthesisMode, Variable,
 };
 use ark_ff::Field;
 use ark_std::{rc::Rc, string::String, vec::Vec};
@@ -275,7 +274,10 @@ impl<F: Field> ConstraintSystemRef<F> {
 
     /// Obtain a new variable representing the linear combination `lc`.
     #[inline]
-    pub fn new_lc(&self, lc: LinearCombination<F>) -> crate::gr1cs::Result<Variable> {
+    pub fn new_lc(
+        &self,
+        lc: impl FnOnce() -> LinearCombination<F>,
+    ) -> crate::gr1cs::Result<Variable> {
         match self.inner() {
             Some(cs) => cs.borrow_mut().new_lc(lc),
             None => Err(SynthesisError::MissingCS),
@@ -500,13 +502,12 @@ impl<F: Field> ConstraintSystemRef<F> {
     /// Get the linear combination corresponding to the given `lc_index`.
     /// TODO: This function should ideally return a reference to the linear
     /// combination and not clone it.
-    pub fn get_lc(&self, lc_index: LcIndex) -> Option<LinearCombination<F>> {
-        self.inner()
-            .and_then(|cs| cs.borrow().get_lc(lc_index).map(|x| x.clone()))
+    pub fn get_lc(&self, var: Variable) -> Option<LinearCombination<F>> {
+        self.inner().map(|cs| cs.borrow().get_lc(var))
     }
 
     /// Given a linear combination, create a row in the matrix
-    pub fn make_row(&self, lc: &LinearCombination<F>) -> crate::utils::Result<Vec<(F, usize)>> {
+    pub fn make_row(&self, lc: LinearCombination<F>) -> crate::utils::Result<Vec<(F, usize)>> {
         self.inner()
             .ok_or(SynthesisError::MissingCS)
             .map(|cs| cs.borrow().make_row(lc))

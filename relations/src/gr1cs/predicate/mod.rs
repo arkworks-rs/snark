@@ -5,8 +5,8 @@
 
 pub mod polynomial_constraint;
 
-use super::{Constraint, ConstraintSystem, LcIndex, Matrix};
-use crate::utils::{error::SynthesisError::ArityMismatch, variable::Variable::SymbolicLc};
+use super::{Constraint, ConstraintSystem, Matrix};
+use crate::{gr1cs::Variable, utils::error::SynthesisError::ArityMismatch};
 use ark_ff::Field;
 use ark_serialize::{CanonicalDeserialize, CanonicalSerialize, Compress, SerializationError};
 use ark_std::{io::Write, vec::Vec};
@@ -84,7 +84,7 @@ pub struct PredicateConstraintSystem<F: Field> {
     /// That is, `argument_lcs[i]` is the list of inputs to the `i`-th
     /// argument of the predicate.
     /// For each `i`, `argument_lcs[i]` has size equal to `self.num_constraints`.
-    argument_lcs: Vec<Vec<LcIndex>>,
+    argument_lcs: Vec<Vec<Variable>>,
 
     /// The number of constraints enforced by this predicate.
     num_constraints: usize,
@@ -155,7 +155,7 @@ impl<F: Field> PredicateConstraintSystem<F> {
     /// arity.
     pub fn enforce_constraint(
         &mut self,
-        constraint: impl IntoIterator<Item = LcIndex>,
+        constraint: impl IntoIterator<Item = Variable>,
     ) -> crate::utils::Result<()> {
         let mut arity = 0;
         constraint
@@ -177,12 +177,7 @@ impl<F: Field> PredicateConstraintSystem<F> {
         // Transpose the `argument_lcs` to iterate over constraints.
         let num_constraints = self.num_constraints;
 
-        (0..num_constraints).map(move |i| {
-            self.argument_lcs
-                .iter()
-                .map(|lc_s| lc_s[i])
-                .collect::<Vec<LcIndex>>()
-        })
+        (0..num_constraints).map(move |i| self.argument_lcs.iter().map(|lc_s| lc_s[i]).collect())
     }
 
     /// Check if the constraints enforced by this predicate are satisfied
@@ -191,7 +186,7 @@ impl<F: Field> PredicateConstraintSystem<F> {
         for (i, constraint) in self.iter_constraints().enumerate() {
             let variables: Vec<F> = constraint
                 .into_iter()
-                .map(|lc_index| cs.assigned_value(SymbolicLc(lc_index)).unwrap())
+                .map(|variable| cs.assigned_value(variable).unwrap())
                 .collect();
             if self.predicate.is_satisfied(&variables) {
                 return Some(i);
@@ -205,7 +200,7 @@ impl<F: Field> PredicateConstraintSystem<F> {
         let mut matrices: Vec<Matrix<F>> = vec![Vec::new(); self.get_arity()];
         for constraint in self.iter_constraints() {
             for (matrix_ind, lc_index) in constraint.iter().enumerate() {
-                let lc = cs.get_lc(*lc_index).unwrap();
+                let lc = cs.get_lc(*lc_index);
                 let row = cs.make_row(lc);
                 matrices[matrix_ind].push(row);
             }

@@ -1,5 +1,7 @@
 use ark_ff::Field;
 
+use crate::lc_diff;
+
 use super::{lc, ConstraintSystem, Label, SynthesisError, Variable};
 use ark_std::rc::Rc;
 use core::fmt::Debug;
@@ -43,12 +45,12 @@ pub fn outline_r1cs<F: Field>(
     // constraints are enforced with r1cs constraints, it is assumed that a
     // constraint system has a default r1cs predicate registered
     let one = instance_witness_map[0];
-    cs.enforce_r1cs_constraint(|| lc!() + one, || lc!() + one, || lc!() + Variable::One)?;
+    cs.enforce_r1cs_constraint(|| lc![one], || lc![one], || lc![Variable::One])?;
     for (instance, witness) in instance_witness_map.iter().enumerate().skip(1) {
         cs.enforce_r1cs_constraint(
-            || lc!() + one,
-            || lc!() + *witness,
-            || lc!() + Variable::Instance(instance),
+            || lc![one],
+            || lc![*witness],
+            || lc![Variable::Instance(instance)],
         )?;
     }
 
@@ -66,7 +68,10 @@ pub fn outline_sr1cs<F: Field>(
     // constraints are enforced with r1cs constraints, it is assumed that a
     // constraint system has a default r1cs predicate registered
     for (instance, witness) in instance_witness_map.iter().enumerate() {
-        cs.enforce_sr1cs_constraint(|| lc!() + Variable::Instance(instance) - witness, || lc!())?;
+        cs.enforce_sr1cs_constraint(
+            || lc_diff![Variable::Instance(instance), *witness],
+            || lc![],
+        )?;
     }
 
     Ok(())

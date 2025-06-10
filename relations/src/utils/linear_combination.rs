@@ -6,6 +6,7 @@ use ark_std::{
     vec,
     vec::Vec,
 };
+use itertools::Itertools;
 
 use super::variable::Variable;
 
@@ -21,8 +22,22 @@ pub struct LinearCombination<F: Field>(pub Vec<(F, Variable)>);
 /// `Variable`s.
 #[macro_export]
 macro_rules! lc {
-    () => {
-        $crate::gr1cs::LinearCombination::zero()
+    // Empty input
+    () => { $crate::gr1cs::LinearCombination::new() };
+
+    // List of (coeff, var) pairs: lc![(a, b), (c, d), ...]
+    ($(($coeff:expr, $var:expr)),+ $(,)?) => { $crate::gr1cs::LinearCombination::from_sum_coeff_vars(&[$(($coeff, $var)),*]) };
+
+    // List of variables: lc![a, b, c, ...]
+    ($($var:expr),+ $(,)?) => { $crate::gr1cs::LinearCombination::sum_vars(&[$($var),*]) };
+}
+
+/// Generate a `LinearCombination` representing the difference of two variables.
+#[macro_export]
+macro_rules! lc_diff {
+    // Subtraction of two variables: lc_diff!(a, b)
+    ($a:expr, $b:expr) => {
+        $crate::gr1cs::LinearCombination::diff_vars($a, $b)
     };
 }
 
@@ -37,7 +52,6 @@ impl<F: Field> LinearCombination<F> {
         Self::new()
     }
 
-    /// Deduplicate entries in `self`.
     /// Deduplicate entries in `self` by combining coefficients of identical variables.
     pub fn compactify(&mut self) {
         // For 0 or 1 element, there is nothing to do.
@@ -69,6 +83,38 @@ impl<F: Field> LinearCombination<F> {
         // Drop any extra entries that were overwritten.
         self.0.truncate(write_index + 1);
     }
+
+    /// Create a new linear combination from the sum of two variables.
+    #[inline]
+    pub fn sum_vars(variables: &[Variable]) -> Self {
+        let lc = variables
+            .iter()
+            .map(|&var| var)
+            .into_iter()
+            .chunk_by(|&x| x)
+            .into_iter()
+            .map(|(var, group)| (F::from(group.count() as u64), var))
+            .collect::<Vec<_>>();
+        Self(lc)
+    }
+
+    /// Create a new linear combination from the difference of two variables.
+    #[inline]
+    pub fn from_sum_coeff_vars(terms: &[(F, Variable)]) -> Self {
+        let mut lc = LinearCombination(terms.to_vec());
+        lc.sort_unstable_by_key(|e| e.1);
+        lc.compactify();
+        lc
+    }
+
+    /// Create a new linear combination from the difference of two variables.
+    pub fn diff_vars(a: Variable, b: Variable) -> Self {
+        if a == b {
+            return LinearCombination::zero();
+        } else {
+            LinearCombination(vec![(F::one(), a), (-F::one(), b)])
+        }
+    }
 }
 
 impl<F: Field> Deref for LinearCombination<F> {
@@ -90,14 +136,22 @@ impl<F: Field> DerefMut for LinearCombination<F> {
 impl<F: Field> From<(F, Variable)> for LinearCombination<F> {
     #[inline]
     fn from(input: (F, Variable)) -> Self {
-        LinearCombination(vec![input])
+        if input.0.is_zero() || input.1.is_zero() {
+            return LinearCombination::zero();
+        } else {
+            LinearCombination(vec![input])
+        }
     }
 }
 
 impl<F: Field> From<Variable> for LinearCombination<F> {
     #[inline]
     fn from(var: Variable) -> Self {
-        LinearCombination(vec![(F::one(), var)])
+        if var.is_zero() {
+            LinearCombination::zero()
+        } else {
+            LinearCombination::from((F::one(), var))
+        }
     }
 }
 

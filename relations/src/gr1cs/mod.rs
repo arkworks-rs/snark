@@ -58,7 +58,7 @@ pub trait ConstraintSynthesizer<F: Field> {
 
 /// In GR1CS a constraint is a vector of linear combinations associated with a
 ///  predicate
-pub type Constraint = Vec<LcIndex>;
+pub type Constraint = Vec<Variable>;
 
 /// Each predicate is associated with a label
 pub type Label = ark_std::string::String;
