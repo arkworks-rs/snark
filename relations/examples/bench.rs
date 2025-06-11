@@ -28,7 +28,7 @@ impl ConstraintSynthesizer<Fr> for BenchCircuit {
         variables.reserve(3 * self.num_constraints);
         let mut lcs = Vec::with_capacity(self.num_constraints);
 
-        let mut rng_a = ark_std::rand::rngs::StdRng::seed_from_u64(0 as u64);
+        let mut rng_a = ark_std::rand::rngs::StdRng::seed_from_u64(0u64);
         let mut rng_b = ark_std::rand::rngs::StdRng::seed_from_u64(rng_a.gen::<u64>());
         let mut rng_c = ark_std::rand::rngs::StdRng::seed_from_u64(rng_a.gen::<u64>());
 

@@ -84,7 +84,7 @@ impl<F: Field> LinearCombination<F> {
         self.0.truncate(write_index + 1);
     }
 
-    /// Create a new linear combination from the sum of two variables.
+    /// Create a new linear combination from the sum of many variables.
     #[inline]
     pub fn sum_vars(variables: &[Variable]) -> Self {
         let lc = variables
@@ -98,11 +98,10 @@ impl<F: Field> LinearCombination<F> {
         Self(lc)
     }
 
-    /// Create a new linear combination from the difference of two variables.
+    /// Create a new linear combination from the sum of many (coefficient, variable) pairs.
     #[inline]
     pub fn from_sum_coeff_vars(terms: &[(F, Variable)]) -> Self {
         let mut lc = LinearCombination(terms.to_vec());
-        lc.sort_unstable_by_key(|e| e.1);
         lc.compactify();
         lc
     }
