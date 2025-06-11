@@ -89,13 +89,11 @@ impl<F: Field> LinearCombination<F> {
     pub fn sum_vars(variables: &[Variable]) -> Self {
         let lc = variables
             .iter()
-            .map(|&var| var)
-            .into_iter()
-            .chunk_by(|&x| x)
-            .into_iter()
-            .map(|(var, group)| (F::from(group.count() as u64), var))
+            .map(|&var| (F::ONE, var))
             .collect::<Vec<_>>();
-        Self(lc)
+        let mut lc = LinearCombination(lc);
+        lc.compactify();
+        lc
     }
 
     /// Create a new linear combination from the sum of many (coefficient, variable) pairs.
