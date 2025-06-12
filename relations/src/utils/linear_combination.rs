@@ -6,7 +6,6 @@ use ark_std::{
     vec,
     vec::Vec,
 };
-use itertools::Itertools;
 
 use super::variable::Variable;
 
