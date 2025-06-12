@@ -4,6 +4,7 @@
 //! wrappers around the functions of `ConstraintSystem`.
 
 use crate::utils::{HashBuilder, IndexMap};
+use ark_std::boxed::Box;
 use ark_std::collections::BTreeMap;
 use core::cell::{Ref, RefCell, RefMut};
 
@@ -14,8 +15,7 @@ use super::{
         polynomial_constraint::{R1CS_PREDICATE_LABEL, SR1CS_PREDICATE_LABEL},
         Predicate, PredicateConstraintSystem,
     },
-    Label, LcIndex, LinearCombination, Matrix, OptimizationGoal, SynthesisError, SynthesisMode,
-    Variable,
+    Label, LinearCombination, Matrix, OptimizationGoal, SynthesisError, SynthesisMode, Variable,
 };
 use ark_ff::Field;
 use ark_std::{rc::Rc, string::String, vec::Vec};
@@ -145,11 +145,84 @@ impl<F: Field> ConstraintSystemRef<F> {
     pub fn enforce_constraint(
         &self,
         predicate_label: &str,
-        lc_vec: impl IntoIterator<Item = LinearCombination<F>, IntoIter: ExactSizeIterator>,
+        lc_vec: impl IntoIterator<
+            Item = Box<dyn FnOnce() -> LinearCombination<F>>,
+            IntoIter: ExactSizeIterator,
+        >,
     ) -> crate::gr1cs::Result<()> {
         self.inner()
             .ok_or(SynthesisError::MissingCS)
             .and_then(|cs| cs.borrow_mut().enforce_constraint(predicate_label, lc_vec))
+    }
+
+    /// Enforce a constraint with arity 2.
+    #[inline]
+    pub fn enforce_constraint_arity_2(
+        &self,
+        predicate_label: &str,
+        a: impl FnOnce() -> LinearCombination<F>,
+        b: impl FnOnce() -> LinearCombination<F>,
+    ) -> crate::gr1cs::Result<()> {
+        self.inner()
+            .ok_or(SynthesisError::MissingCS)
+            .and_then(|cs| {
+                cs.borrow_mut()
+                    .enforce_constraint_arity_2(predicate_label, a, b)
+            })
+    }
+
+    /// Enforce a constraint with arity 3.
+    #[inline]
+    pub fn enforce_constraint_arity_3(
+        &self,
+        predicate_label: &str,
+        a: impl FnOnce() -> LinearCombination<F>,
+        b: impl FnOnce() -> LinearCombination<F>,
+        c: impl FnOnce() -> LinearCombination<F>,
+    ) -> crate::gr1cs::Result<()> {
+        self.inner()
+            .ok_or(SynthesisError::MissingCS)
+            .and_then(|cs| {
+                cs.borrow_mut()
+                    .enforce_constraint_arity_3(predicate_label, a, b, c)
+            })
+    }
+
+    /// Enforce a constraint with arity 4.
+    #[inline]
+    pub fn enforce_constraint_arity_4(
+        &self,
+        predicate_label: &str,
+        a: impl FnOnce() -> LinearCombination<F>,
+        b: impl FnOnce() -> LinearCombination<F>,
+        c: impl FnOnce() -> LinearCombination<F>,
+        d: impl FnOnce() -> LinearCombination<F>,
+    ) -> crate::gr1cs::Result<()> {
+        self.inner()
+            .ok_or(SynthesisError::MissingCS)
+            .and_then(|cs| {
+                cs.borrow_mut()
+                    .enforce_constraint_arity_4(predicate_label, a, b, c, d)
+            })
+    }
+
+    /// Enforce a constraint with arity 5.
+    #[inline]
+    pub fn enforce_constraint_arity_5(
+        &self,
+        predicate_label: &str,
+        a: impl FnOnce() -> LinearCombination<F>,
+        b: impl FnOnce() -> LinearCombination<F>,
+        c: impl FnOnce() -> LinearCombination<F>,
+        d: impl FnOnce() -> LinearCombination<F>,
+        e: impl FnOnce() -> LinearCombination<F>,
+    ) -> crate::gr1cs::Result<()> {
+        self.inner()
+            .ok_or(SynthesisError::MissingCS)
+            .and_then(|cs| {
+                cs.borrow_mut()
+                    .enforce_constraint_arity_5(predicate_label, a, b, c, d, e)
+            })
     }
 
     /// Enforce an R1CS constraint in the constraint system.
@@ -162,16 +235,19 @@ impl<F: Field> ConstraintSystemRef<F> {
     #[inline]
     pub fn enforce_r1cs_constraint(
         &self,
-        a: LinearCombination<F>,
-        b: LinearCombination<F>,
-        c: LinearCombination<F>,
+        a: impl FnOnce() -> LinearCombination<F>,
+        b: impl FnOnce() -> LinearCombination<F>,
+        c: impl FnOnce() -> LinearCombination<F>,
     ) -> crate::gr1cs::Result<()> {
+        if !self.should_construct_matrices() {
+            return Ok(());
+        }
+        if !self.has_predicate(R1CS_PREDICATE_LABEL) {
+            return Err(SynthesisError::PredicateNotFound);
+        }
         self.inner()
             .ok_or(SynthesisError::MissingCS)
-            .and_then(|cs| {
-                cs.borrow_mut()
-                    .enforce_constraint(R1CS_PREDICATE_LABEL, [a, b, c])
-            })
+            .and_then(|cs| cs.borrow_mut().enforce_r1cs_constraint(a, b, c))
     }
 
     /// Enforce a SquareR1CS constraint in the constraint system.
@@ -182,23 +258,30 @@ impl<F: Field> ConstraintSystemRef<F> {
     #[inline]
     pub fn enforce_sr1cs_constraint(
         &self,
-        a: LinearCombination<F>,
-        b: LinearCombination<F>,
+        a: impl FnOnce() -> LinearCombination<F>,
+        b: impl FnOnce() -> LinearCombination<F>,
     ) -> crate::gr1cs::Result<()> {
+        if !self.should_construct_matrices() {
+            return Ok(());
+        }
+        if !self.has_predicate(SR1CS_PREDICATE_LABEL) {
+            return Err(SynthesisError::PredicateNotFound);
+        }
         self.inner()
             .ok_or(SynthesisError::MissingCS)
-            .and_then(|cs| {
-                cs.borrow_mut()
-                    .enforce_constraint(SR1CS_PREDICATE_LABEL, [a, b])
-            })
+            .and_then(|cs| cs.borrow_mut().enforce_sr1cs_constraint(a, b))
     }
 
     /// Obtain a new variable representing the linear combination `lc`.
     #[inline]
-    pub fn new_lc(&self, lc: LinearCombination<F>) -> crate::gr1cs::Result<Variable> {
-        self.inner()
-            .ok_or(SynthesisError::MissingCS)
-            .and_then(|cs| cs.borrow_mut().new_lc(lc))
+    pub fn new_lc(
+        &self,
+        lc: impl FnOnce() -> LinearCombination<F>,
+    ) -> crate::gr1cs::Result<Variable> {
+        match self.inner() {
+            Some(cs) => cs.borrow_mut().new_lc(lc),
+            None => Err(SynthesisError::MissingCS),
+        }
     }
 
     /// Set `self.mode` to `mode`.
@@ -419,13 +502,12 @@ impl<F: Field> ConstraintSystemRef<F> {
     /// Get the linear combination corresponding to the given `lc_index`.
     /// TODO: This function should ideally return a reference to the linear
     /// combination and not clone it.
-    pub fn get_lc(&self, lc_index: LcIndex) -> Option<LinearCombination<F>> {
-        self.inner()
-            .and_then(|cs| cs.borrow().get_lc(lc_index).map(|x| x.clone()))
+    pub fn get_lc(&self, var: Variable) -> Option<LinearCombination<F>> {
+        self.inner().map(|cs| cs.borrow().get_lc(var))
     }
 
     /// Given a linear combination, create a row in the matrix
-    pub fn make_row(&self, lc: &LinearCombination<F>) -> crate::utils::Result<Vec<(F, usize)>> {
+    pub fn make_row(&self, lc: LinearCombination<F>) -> crate::utils::Result<Vec<(F, usize)>> {
         self.inner()
             .ok_or(SynthesisError::MissingCS)
             .map(|cs| cs.borrow().make_row(lc))

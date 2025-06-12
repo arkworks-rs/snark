@@ -7,7 +7,7 @@ use crate::{
         ConstraintSystem, ConstraintSystemRef, LinearCombination, OptimizationGoal, SynthesisError,
         SynthesisMode, Variable, R1CS_PREDICATE_LABEL,
     },
-    lc,
+    lc, lc_diff,
 };
 use ark_std::{collections::BTreeMap, ops::AddAssign};
 
@@ -157,22 +157,22 @@ impl<F: Field> Sr1csAdapter<F> {
             );
             let square_variable = new_cs.new_witness_variable(|| Ok(F::ONE))?;
 
-            let left_1 = a_i.clone() + &b_i;
+            let left_1 = || a_i.clone() + &b_i;
             c_i.0.iter_mut().for_each(|(c, _)| {
                 c.double_in_place().double_in_place();
             });
-            let right_1 = c_i + square_variable;
+            let right_1 = || c_i + square_variable;
             new_cs.enforce_sr1cs_constraint(left_1, right_1)?;
 
-            let left_2 = a_i - b_i;
-            let right_2 = lc!() + square_variable;
+            let left_2 = || a_i - b_i;
+            let right_2 = || lc![square_variable];
             new_cs.enforce_sr1cs_constraint(left_2, right_2)?;
         }
 
         for old_var in public_variables.values() {
             let new_var = new_cs.new_input_variable(|| Ok(F::ONE))?;
-            let lc = lc!() + old_var - new_var;
-            new_cs.enforce_sr1cs_constraint(lc, lc!())?;
+            let lc = || lc_diff![*old_var, new_var];
+            new_cs.enforce_sr1cs_constraint(lc, || lc![])?;
         }
         Ok(new_cs)
     }
@@ -228,15 +228,15 @@ impl<F: Field> Sr1csAdapter<F> {
             );
             let square_variable = new_cs.new_witness_variable(|| Ok((a_val - b_val).square()))?;
 
-            let left_1 = a_i.clone() + &b_i;
+            let left_1 = || a_i.clone() + &b_i;
             c_i.0.iter_mut().for_each(|(c, _)| {
                 c.double_in_place().double_in_place();
             });
-            let right_1 = c_i + square_variable;
+            let right_1 = || c_i + square_variable;
             new_cs.enforce_sr1cs_constraint(left_1, right_1)?;
 
-            let left_2 = a_i - &b_i;
-            let right_2 = lc!() + square_variable;
+            let left_2 = || a_i - &b_i;
+            let right_2 = || lc![square_variable];
             new_cs.enforce_sr1cs_constraint(left_2, right_2)?;
         }
 
@@ -247,8 +247,8 @@ impl<F: Field> Sr1csAdapter<F> {
                 .ok_or(SynthesisError::AssignmentMissing)?;
             let constraint_number = new_cs.num_constraints();
             let new_var = new_cs.new_input_variable(|| Ok(value))?;
-            let lc = lc!() + old_var - new_var;
-            new_cs.enforce_sr1cs_constraint(lc, lc!())?;
+            let lc = || lc_diff![*old_var, new_var];
+            new_cs.enforce_sr1cs_constraint(lc, || lc![])?;
             public_variable_polys.push(constraint_number);
         }
         new_cs.finalize();
@@ -299,10 +299,10 @@ mod tests {
             }
 
             for _ in 0..self.num_constraints - 1 {
-                cs.enforce_r1cs_constraint(lc!() + a, lc!() + b, lc!() + c)?;
+                cs.enforce_r1cs_constraint(|| lc![a], || lc![b], || lc![c])?;
             }
 
-            cs.enforce_r1cs_constraint(lc!(), lc!(), lc!())?;
+            cs.enforce_r1cs_constraint(|| lc![], || lc![], || lc![])?;
 
             Ok(())
         }

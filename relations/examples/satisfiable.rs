@@ -55,9 +55,9 @@ fn generate_constraints<F: Field>(
     let final_result = enforce_addition(cs.clone(), subcircuit1_result, subcircuit2_result)?;
     // Verify that the final result matches the expected result
     cs.enforce_r1cs_constraint(
-        LinearCombination::from(final_result),
-        LinearCombination::from(Variable::One),
-        LinearCombination::from(expected_result),
+        || LinearCombination::from(final_result),
+        || LinearCombination::from(Variable::One),
+        || LinearCombination::from(expected_result),
     )?;
 
     Ok(final_result)
@@ -123,9 +123,9 @@ fn enforce_multiplication<F: Field>(
     })?; // Placeholder for product
 
     cs.enforce_r1cs_constraint(
-        LinearCombination::from(left),
-        LinearCombination::from(right),
-        LinearCombination::from(product),
+        || LinearCombination::from(left),
+        || LinearCombination::from(right),
+        || LinearCombination::from(product),
     )?;
 
     Ok(product)
@@ -145,9 +145,9 @@ fn enforce_addition<F: Field>(
     })?; // Placeholder for sum
 
     cs.enforce_r1cs_constraint(
-        LinearCombination::from(left) + LinearCombination::from(right),
-        LinearCombination::from(Variable::One),
-        LinearCombination::from(sum),
+        || LinearCombination::from(left) + LinearCombination::from(right),
+        || LinearCombination::from(Variable::One),
+        || LinearCombination::from(sum),
     )?;
 
     Ok(sum)

@@ -1,5 +1,5 @@
 #[global_allocator]
-static GLOBAL: Jemalloc = Jemalloc;
+static GLOBAL: MiMalloc = MiMalloc;
 
 use ark_ff::{Field, UniformRand};
 use ark_relations::gr1cs::{
@@ -8,7 +8,8 @@ use ark_relations::gr1cs::{
 };
 use ark_std::rand::{Rng, SeedableRng};
 use ark_test_curves::bls12_381::Fr;
-use jemallocator::Jemalloc;
+// use jemallocator::Jemalloc;
+use mimalloc::MiMalloc;
 
 pub const NUM_COEFFS_IN_LC: usize = 10;
 
@@ -28,7 +29,7 @@ impl ConstraintSynthesizer<Fr> for BenchCircuit {
         variables.reserve(3 * self.num_constraints);
         let mut lcs = Vec::with_capacity(self.num_constraints);
 
-        let mut rng_a = ark_std::rand::rngs::StdRng::seed_from_u64(0u64);
+        let mut rng_a = ark_std::rand::rngs::StdRng::seed_from_u64(0 as u64);
         let mut rng_b = ark_std::rand::rngs::StdRng::seed_from_u64(rng_a.gen::<u64>());
         let mut rng_c = ark_std::rand::rngs::StdRng::seed_from_u64(rng_a.gen::<u64>());
 
@@ -78,6 +79,7 @@ impl ConstraintSynthesizer<Fr> for BenchCircuit {
             variables.push(v2);
             variables.push(v3);
         }
+
         Ok(())
     }
 }
@@ -93,12 +95,12 @@ fn main() {
         let cs = ConstraintSystem::<Fr>::new_ref();
         cs.set_optimization_goal(OptimizationGoal::Constraints);
         cs.set_mode(SynthesisMode::Prove {
-            construct_matrices: true,
+            construct_matrices: false,
             generate_lc_assignments: false,
         });
         let start = std::time::Instant::now();
         circuit.generate_constraints(cs.clone()).unwrap();
-        cs.finalize();
+        // cs.finalize();
         let elapsed = start.elapsed();
         println!(
             "Synthesizing 2^{} constraints took {:?}",

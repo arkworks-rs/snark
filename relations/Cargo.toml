@@ -26,6 +26,7 @@ foldhash = { workspace = true }
 [dev-dependencies]
 ark-test-curves = { workspace = true, default-features = false, features = [ "bls12_381_scalar_field" ] }
 jemallocator = { version = "0.5" } 
+mimalloc = { version = "0.1" } 
 
 [features]
 default = []

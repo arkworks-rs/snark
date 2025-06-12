@@ -5,7 +5,8 @@
 use super::{
     instance_outliner::InstanceOutliner,
     predicate::{
-        polynomial_constraint::R1CS_PREDICATE_LABEL, Predicate, PredicateConstraintSystem,
+        polynomial_constraint::{R1CS_PREDICATE_LABEL, SR1CS_PREDICATE_LABEL},
+        Predicate, PredicateConstraintSystem,
     },
     ConstraintSystemRef, Label, OptimizationGoal, SynthesisMode,
 };
@@ -43,14 +44,17 @@ pub struct ConstraintSystem<F: Field> {
 
     /// The number of variables that are "public inputs" to the constraint
     /// system.
-    num_instance_variables: usize,
+    #[doc(hidden)]
+    pub num_instance_variables: usize,
 
     /// The number of variables that are "private inputs" to the constraint
     /// system.
-    num_witness_variables: usize,
+    #[doc(hidden)]
+    pub num_witness_variables: usize,
 
     /// The number of linear combinations
-    num_linear_combinations: usize,
+    #[doc(hidden)]
+    pub num_linear_combinations: usize,
 
     /// The parameter we aim to minimize in this constraint system (either the
     /// number of constraints or their total weight).
@@ -71,10 +75,12 @@ pub struct ConstraintSystem<F: Field> {
 
     /// A data structure to store the linear combinations. We use map because
     /// it's easier to inline and outline the linear combinations.
-    lc_map: Vec<Option<LinearCombination<F>>>,
+    #[doc(hidden)]
+    pub lc_map: Vec<Option<LinearCombination<F>>>,
 
     /// A map from the the predicate labels to the predicates
-    predicate_constraint_systems: BTreeMap<Label, PredicateConstraintSystem<F>>,
+    #[doc(hidden)]
+    pub predicate_constraint_systems: BTreeMap<Label, PredicateConstraintSystem<F>>,
 
     /// data structure to store the traces for each predicate
     #[cfg(feature = "std")]
@@ -136,16 +142,16 @@ impl<F: Field> ConstraintSystem<F> {
         let mut cs = Self {
             num_instance_variables: 1,
             num_witness_variables: 0,
-            num_linear_combinations: 0,
+            num_linear_combinations: 1,
             instance_outliner: None,
             predicate_constraint_systems: BTreeMap::new(),
             assignments: Assignments {
                 instance_assignment: vec![F::one()],
                 witness_assignment: Vec::new(),
-                lc_assignment: Vec::new(),
+                lc_assignment: vec![F::zero()],
             },
             cache_map: Rc::new(RefCell::new(BTreeMap::new())),
-            lc_map: Vec::new(),
+            lc_map: vec![Some(LinearCombination::zero())],
             mode: SynthesisMode::Prove {
                 construct_matrices: true,
                 generate_lc_assignments: true,
@@ -262,7 +268,10 @@ impl<F: Field> ConstraintSystem<F> {
     pub fn enforce_constraint(
         &mut self,
         predicate_label: &str,
-        lcs: impl IntoIterator<Item = LinearCombination<F>, IntoIter: ExactSizeIterator>,
+        lcs: impl IntoIterator<
+            Item = Box<dyn FnOnce() -> LinearCombination<F>>,
+            IntoIter: ExactSizeIterator,
+        >,
     ) -> crate::gr1cs::Result<()> {
         if !self.has_predicate(predicate_label) {
             return Err(SynthesisError::PredicateNotFound);
@@ -275,14 +284,15 @@ impl<F: Field> ConstraintSystem<F> {
             let assignments = &mut self.assignments;
 
             let lc_indices = lcs.into_iter().map(|lc| {
-                let index = LcIndex(*num_lcs);
-                lc_map.push(Some(lc));
-                *num_lcs += 1;
-                if should_generate_lc_assignments {
-                    let value = assignments.eval_lc(index, lc_map).unwrap();
-                    assignments.lc_assignment.push(value);
-                }
-                index
+                let lc = lc();
+                Self::new_lc_add_helper(
+                    num_lcs,
+                    lc_map,
+                    should_generate_lc_assignments,
+                    assignments,
+                    lc,
+                )
+                .unwrap()
             });
 
             let predicate = self
@@ -304,22 +314,250 @@ impl<F: Field> ConstraintSystem<F> {
         Ok(())
     }
 
-    /// Adds a new linear combination to the constraint system.
-    /// If the linear combination is already in the map, return the
-    /// corresponding index (using bimap)
-    #[inline]
-    pub fn new_lc(&mut self, lc: LinearCombination<F>) -> crate::gr1cs::Result<Variable> {
-        // Note: update also enforce_constraint if you change this logic.
-        let index = LcIndex(self.num_linear_combinations);
-        self.lc_map.push(Some(lc));
-        self.num_linear_combinations += 1;
-        if self.should_generate_lc_assignments() {
-            let value = self
-                .eval_lc(index)
-                .ok_or(SynthesisError::AssignmentMissing)?;
-            self.assignments.lc_assignment.push(value)
+    /// Enforce a constraint for a predicate with arity 2.
+    pub fn enforce_constraint_arity_2(
+        &mut self,
+        predicate_label: &str,
+        a: impl FnOnce() -> LinearCombination<F>,
+        b: impl FnOnce() -> LinearCombination<F>,
+    ) -> crate::gr1cs::Result<()> {
+        if !self.has_predicate(predicate_label) {
+            return Err(SynthesisError::PredicateNotFound);
         }
+
+        if self.should_construct_matrices() {
+            let a = self.new_constraint_lc(a)?;
+            let b = self.new_constraint_lc(b)?;
+
+            let predicate = self
+                .predicate_constraint_systems
+                .get_mut(predicate_label)
+                .unwrap();
+
+            predicate.enforce_constraint([a, b])?;
+        }
+
+        #[cfg(feature = "std")]
+        if let Some(traces) = self.predicate_traces.get_mut(predicate_label) {
+            traces.push(ConstraintTrace::capture())
+        }
+
+        Ok(())
+    }
+
+    /// Enforce a constraint for a predicate with arity 3.
+    pub fn enforce_constraint_arity_3(
+        &mut self,
+        predicate_label: &str,
+        a: impl FnOnce() -> LinearCombination<F>,
+        b: impl FnOnce() -> LinearCombination<F>,
+        c: impl FnOnce() -> LinearCombination<F>,
+    ) -> crate::gr1cs::Result<()> {
+        if !self.has_predicate(predicate_label) {
+            return Err(SynthesisError::PredicateNotFound);
+        }
+
+        if self.should_construct_matrices() {
+            let a = self.new_constraint_lc(a)?;
+            let b = self.new_constraint_lc(b)?;
+            let c = self.new_constraint_lc(c)?;
+
+            let predicate = self
+                .predicate_constraint_systems
+                .get_mut(predicate_label)
+                .unwrap();
+
+            predicate.enforce_constraint([a, b, c])?;
+        }
+
+        #[cfg(feature = "std")]
+        if let Some(traces) = self.predicate_traces.get_mut(predicate_label) {
+            traces.push(ConstraintTrace::capture())
+        }
+
+        Ok(())
+    }
+
+    /// Enforce a constraint for a predicate with arity 4.
+    pub fn enforce_constraint_arity_4(
+        &mut self,
+        predicate_label: &str,
+        a: impl FnOnce() -> LinearCombination<F>,
+        b: impl FnOnce() -> LinearCombination<F>,
+        c: impl FnOnce() -> LinearCombination<F>,
+        d: impl FnOnce() -> LinearCombination<F>,
+    ) -> crate::gr1cs::Result<()> {
+        if !self.has_predicate(predicate_label) {
+            return Err(SynthesisError::PredicateNotFound);
+        }
+
+        if self.should_construct_matrices() {
+            let a = self.new_constraint_lc(a)?;
+            let b = self.new_constraint_lc(b)?;
+            let c = self.new_constraint_lc(c)?;
+            let d = self.new_constraint_lc(d)?;
+
+            let predicate = self
+                .predicate_constraint_systems
+                .get_mut(predicate_label)
+                .unwrap();
+
+            predicate.enforce_constraint([a, b, c, d])?;
+        }
+
+        #[cfg(feature = "std")]
+        if let Some(traces) = self.predicate_traces.get_mut(predicate_label) {
+            traces.push(ConstraintTrace::capture())
+        }
+
+        Ok(())
+    }
+
+    /// Enforce a constraint for a predicate with arity 5.
+    pub fn enforce_constraint_arity_5(
+        &mut self,
+        predicate_label: &str,
+        a: impl FnOnce() -> LinearCombination<F>,
+        b: impl FnOnce() -> LinearCombination<F>,
+        c: impl FnOnce() -> LinearCombination<F>,
+        d: impl FnOnce() -> LinearCombination<F>,
+        e: impl FnOnce() -> LinearCombination<F>,
+    ) -> crate::gr1cs::Result<()> {
+        if !self.has_predicate(predicate_label) {
+            return Err(SynthesisError::PredicateNotFound);
+        }
+
+        if self.should_construct_matrices() {
+            let a = self.new_constraint_lc(a)?;
+            let b = self.new_constraint_lc(b)?;
+            let c = self.new_constraint_lc(c)?;
+            let d = self.new_constraint_lc(d)?;
+            let e = self.new_constraint_lc(e)?;
+
+            let predicate = self
+                .predicate_constraint_systems
+                .get_mut(predicate_label)
+                .unwrap();
+
+            predicate.enforce_constraint([a, b, c, d, e])?;
+        }
+
+        #[cfg(feature = "std")]
+        if let Some(traces) = self.predicate_traces.get_mut(predicate_label) {
+            traces.push(ConstraintTrace::capture())
+        }
+
+        Ok(())
+    }
+
+    /// Enforce a constraint in the constraint system. It takes a
+    /// predicate name and enforces a vector of linear combinations of the
+    /// length of the arity of the predicate enforces the constraint.
+    #[inline]
+    pub fn enforce_r1cs_constraint(
+        &mut self,
+        a: impl FnOnce() -> LinearCombination<F>,
+        b: impl FnOnce() -> LinearCombination<F>,
+        c: impl FnOnce() -> LinearCombination<F>,
+    ) -> crate::gr1cs::Result<()> {
+        self.enforce_constraint_arity_3(R1CS_PREDICATE_LABEL, a, b, c)
+    }
+
+    /// Enforce a constraint in the constraint system. It takes a
+    /// predicate name and enforces a vector of linear combinations of the
+    /// length of the arity of the predicate enforces the constraint.
+    #[inline]
+    pub fn enforce_sr1cs_constraint(
+        &mut self,
+        a: impl FnOnce() -> LinearCombination<F>,
+        b: impl FnOnce() -> LinearCombination<F>,
+    ) -> crate::gr1cs::Result<()> {
+        self.enforce_constraint_arity_2(SR1CS_PREDICATE_LABEL, a, b)
+    }
+
+    /// Add a new linear combination to the constraint system.
+    /// This linear combination is to be used only for constraints, not for variables.
+    #[inline]
+    fn new_constraint_lc(
+        &mut self,
+        lc: impl FnOnce() -> LinearCombination<F>,
+    ) -> crate::gr1cs::Result<Variable> {
+        if self.should_construct_matrices() {
+            self.new_lc_helper(lc)
+        } else {
+            self.new_lc_without_adding()
+        }
+    }
+
+    /// Creates a new index for the linear combination without adding the concrete LC expression
+    /// to the map.
+    #[inline]
+    fn new_lc_without_adding(&mut self) -> crate::gr1cs::Result<Variable> {
+        let index = LcIndex(self.num_linear_combinations);
+        self.num_linear_combinations += 1;
         Ok(Variable::SymbolicLc(index))
+    }
+
+    fn new_lc_add_helper(
+        cur_num_lcs: &mut usize,
+        lc_map: &mut Vec<Option<LinearCombination<F>>>,
+        should_generate_lc_assignments: bool,
+        assignments: &mut Assignments<F>,
+        lc: LinearCombination<F>,
+    ) -> crate::gr1cs::Result<Variable> {
+        match lc.0.as_slice() {
+            // If the linear combination is empty, we return a symbolic LC with index 0.
+            [] | [(_, Variable::Zero)] => Ok(Variable::SymbolicLc(LcIndex(0))),
+            // If the linear combination is just another variable
+            // with a coefficient of 1, we return the variable directly.
+            [(c, var)] if c.is_one() => Ok(*var),
+            // In all other cases, we create a new linear combination
+            _ => {
+                let index = LcIndex(*cur_num_lcs);
+                lc_map.push(Some(lc));
+                *cur_num_lcs += 1;
+                if should_generate_lc_assignments {
+                    let value = assignments.eval_lc(index, lc_map).unwrap();
+                    assignments.lc_assignment.push(value)
+                }
+                Ok(Variable::SymbolicLc(index))
+            },
+        }
+    }
+
+    /// Helper function to add a new linear combination to the constraint system.
+    #[inline]
+    fn new_lc_helper(
+        &mut self,
+        lc: impl FnOnce() -> LinearCombination<F>,
+    ) -> crate::gr1cs::Result<Variable> {
+        let should_push = self.should_construct_matrices() || self.should_generate_lc_assignments();
+        let should_generate_lc_assignments = self.should_generate_lc_assignments();
+        if should_push {
+            let lc = lc();
+            Self::new_lc_add_helper(
+                &mut self.num_linear_combinations,
+                &mut self.lc_map,
+                should_generate_lc_assignments,
+                &mut self.assignments,
+                lc,
+            )
+        } else {
+            self.new_lc_without_adding()
+        }
+    }
+
+    /// Adds a new linear combination to the constraint system.
+    #[inline]
+    pub fn new_lc(
+        &mut self,
+        lc: impl FnOnce() -> LinearCombination<F>,
+    ) -> crate::gr1cs::Result<Variable> {
+        // Because this LC might be used to construct constraints,
+        // we need to ensure that it is added to the lc_map whenever
+        // `self.should_construct_matrices()` is true.
+        // `self.new_lc_helper` will handle this.
+        self.new_lc_helper(lc)
     }
 
     /// Set `self.mode` to `mode`.
@@ -346,7 +584,7 @@ impl<F: Field> ConstraintSystem<F> {
         self.num_instance_variables == 1
             && self.num_witness_variables == 0
             && self.num_constraints() == 0
-            && self.num_linear_combinations == 0
+            && self.num_linear_combinations == 1
     }
 
     /// Specify whether this constraint system should aim to optimize weight,
@@ -419,10 +657,8 @@ impl<F: Field> ConstraintSystem<F> {
         self.predicate_constraint_systems
             .insert(predicate_label.to_string(), predicate);
         #[cfg(feature = "std")]
-        {
-            self.predicate_traces
-                .insert(predicate_label.to_string(), Vec::new());
-        }
+        self.predicate_traces
+            .insert(predicate_label.to_string(), Vec::new());
         Ok(())
     }
 
@@ -440,12 +676,6 @@ impl<F: Field> ConstraintSystem<F> {
     /// Obtain the assignment corresponding to the `Variable` `v`.
     pub fn assigned_value(&self, v: Variable) -> Option<F> {
         self.assignments.assigned_value(v)
-    }
-
-    /// Evaluate the linear combination `lc` with the assigned values and return
-    /// the result.
-    fn eval_lc(&self, lc: LcIndex) -> Option<F> {
-        self.assignments.eval_lc(lc, &self.lc_map)
     }
 
     /// If `self` is satisfied, outputs `Ok(true)`.
@@ -468,26 +698,19 @@ impl<F: Field> ConstraintSystem<F> {
                 if let Some(unsatisfied_constraint) =
                     predicate.which_constraint_is_unsatisfied(self)
                 {
-                    let trace;
                     #[cfg(feature = "std")]
-                    {
-                        trace = self.predicate_traces[label][unsatisfied_constraint]
-                            .as_ref()
-                            .map_or_else(
-                                || {
-                                    eprintln!(
-                                        "Constraint trace requires enabling `ConstraintLayer`"
-                                    );
-                                    format!("{label} - {unsatisfied_constraint}")
-                                },
-                                |t| format!("{t}"),
-                            )
-                            .to_string();
-                    }
+                    let trace = self.predicate_traces[label][unsatisfied_constraint]
+                        .as_ref()
+                        .map_or_else(
+                            || {
+                                eprintln!("Constraint trace requires `ConstraintLayer`");
+                                format!("{label} - {unsatisfied_constraint}")
+                            },
+                            |t| format!("{t}"),
+                        )
+                        .to_string();
                     #[cfg(not(feature = "std"))]
-                    {
-                        trace = format!("{label} - {unsatisfied_constraint}");
-                    }
+                    let trace = format!("{label} - {unsatisfied_constraint}");
                     return Ok(Some(trace));
                 }
             }
@@ -528,7 +751,7 @@ impl<F: Field> ConstraintSystem<F> {
             return;
         }
 
-        let (mut num_times_used, any_used) = self.lc_num_times_used();
+        let any_used = self.any_lcs_used();
         if !any_used {
             return;
         }
@@ -549,12 +772,12 @@ impl<F: Field> ConstraintSystem<F> {
                     if coeff.is_one() {
                         out.extend_from_slice(&inlined.0);
                     } else {
-                        out.extend(inlined.iter().map(|(c, v)| (coeff * c, *v)));
-                    }
-                    // Decrement usage and prune if no longer needed
-                    num_times_used[lc_index.0] -= 1;
-                    if num_times_used[lc_index.0] == 0 {
-                        inlined_lcs[lc_index.0] = None;
+                        out.extend(
+                            inlined
+                                .iter()
+                                .filter(|(_, v)| !v.is_zero())
+                                .map(|(c, v)| (coeff * c, *v)),
+                        );
                     }
                 } else {
                     out.push((coeff, var));
@@ -568,21 +791,17 @@ impl<F: Field> ConstraintSystem<F> {
 
     /// Count the number of times each linear combination is used.
     /// Also returns whether any linear combinations are used.
-    fn lc_num_times_used(&self) -> (Vec<usize>, bool) {
-        let mut num_times_used = vec![0; self.lc_map.len()];
-        let mut any_used = false;
-
-        // Iterate over every lc in constraint system
-        for lc in &self.lc_map {
-            // Increment the counter for each lc that this lc has a direct dependency on.
-            for &(_, var) in lc.as_ref().unwrap().iter() {
-                if let Some(lc_index) = var.get_lc_index() {
-                    num_times_used[lc_index.0] += 1;
-                    any_used = true;
+    fn any_lcs_used(&self) -> bool {
+        cfg_iter!(self.lc_map)
+            .map(|lc| {
+                for &(_, var) in lc.as_ref().unwrap().iter() {
+                    if var.is_lc() {
+                        return true;
+                    }
                 }
-            }
-        }
-        (num_times_used, any_used)
+                false
+            })
+            .any(|x| x)
     }
 
     /// Get the matrices corresponding to the predicates.and the
@@ -596,23 +815,31 @@ impl<F: Field> ConstraintSystem<F> {
     }
 
     /// Get the linear combination corresponding to the given `lc_index`.
-    pub fn get_lc(&self, lc_index: LcIndex) -> Option<&LinearCombination<F>> {
-        self.lc_map.get(lc_index.0).map(|e| e.as_ref()).flatten()
+    pub fn get_lc(&self, var: Variable) -> LinearCombination<F> {
+        match var {
+            Variable::SymbolicLc(lc_index) => self
+                .lc_map
+                .get(lc_index.0)
+                .map(|e| e.as_ref())
+                .flatten()
+                .cloned()
+                .unwrap(),
+            Variable::Zero => LinearCombination::zero(),
+            v => v.into(),
+        }
     }
 
     /// Given a linear combination, create a row in the matrix
     #[inline]
-    pub(crate) fn make_row(&self, l: &LinearCombination<F>) -> Vec<(F, usize)> {
+    pub(crate) fn make_row(&self, l: LinearCombination<F>) -> Vec<(F, usize)> {
         let num_input = self.num_instance_variables();
-        l.0.iter()
+        l.0.into_iter()
             .filter_map(|(coeff, var)| {
-                if coeff.is_zero() {
+                if coeff.is_zero() || var.is_zero() {
                     None
                 } else {
-                    Some((
-                        *coeff,
-                        var.get_index_unchecked(num_input).expect("no symbolic LCs"),
-                    ))
+                    let index = var.get_index_unchecked(num_input);
+                    Some((coeff, index.unwrap()))
                 }
             })
             .collect()
