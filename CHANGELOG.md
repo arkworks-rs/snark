@@ -2,6 +2,8 @@
 
 ## Pending
 
+- [\#402](https://github.com/arkworks-rs/snark/pull/402) Fixed typos in function and comments across the codebase.
+
 ### Breaking changes
 
 ### Features
