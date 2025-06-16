@@ -124,7 +124,7 @@ impl<F: Field + core::convert::From<i8>> ConstraintSynthesizer<F> for Circuit1<F
         cs.register_predicate("poly-predicate-B", predicate_b)?;
         cs.register_predicate("poly-predicate-C", predicate_c)?;
 
-        // Enforing constraints to the predicates
+        // Enforcing constraints to the predicates
 
         ns!(cs, "Predicate A constraints");
         cs.enforce_constraint_arity_4(
