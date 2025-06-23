@@ -52,6 +52,7 @@ impl<F: Field> LinearCombination<F> {
     }
 
     /// Deduplicate entries in `self` by combining coefficients of identical variables.
+    #[inline]
     pub fn compactify(&mut self) {
         // For 0 or 1 element, there is nothing to do.
         if self.len() <= 1 {
