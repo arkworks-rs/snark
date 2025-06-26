@@ -784,7 +784,7 @@ impl<F: Field> ConstraintSystem<F> {
                 }
             }
             out.compactify();
-            inlined_lcs.push(out.clone());
+            inlined_lcs.push_by_ref(&out);
             out.0.clear();
         }
         self.lc_map = inlined_lcs;
@@ -950,6 +950,6 @@ impl<F: Field> core::ops::Index<usize> for LcMap<F> {
 
     #[inline(always)]
     fn index(&self, index: usize) -> &Self::Output {
-        &self.0[index]
+        self.get(index).unwrap()
     }
 }
