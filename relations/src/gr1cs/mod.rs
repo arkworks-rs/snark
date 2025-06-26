@@ -1,23 +1,24 @@
 //! Core interface for working with Generalized Rank-1 Constraint Systems
 //! (GR1CS).
 mod constraint_system_ref;
+mod namespace;
+#[macro_use]
+mod constraint_system;
+mod assignment;
+
+pub(crate) mod field_interner;
+mod lc_map;
 
 /// Interface for specifying strategies for reducing the number of constraints
 /// that public input/instance variables are involved in.
 pub mod instance_outliner;
-
-mod namespace;
-
 pub mod predicate;
-
-#[macro_use]
-mod constraint_system;
-
-#[cfg(test)]
-mod tests;
 
 #[cfg(feature = "std")]
 pub mod trace;
+
+#[cfg(test)]
+mod tests;
 ///////////////////////////////////////////////////////////////////////////////////////
 
 #[cfg(feature = "std")]
@@ -30,7 +31,8 @@ pub use ark_ff::{Field, ToConstraintField};
 
 pub use crate::{
     gr1cs::{
-        constraint_system::ConstraintSystem, constraint_system_ref::ConstraintSystemRef,
+        assignment::Assignments, constraint_system::ConstraintSystem,
+        constraint_system_ref::ConstraintSystemRef,
         predicate::polynomial_constraint::R1CS_PREDICATE_LABEL,
     },
     lc,

@@ -85,7 +85,7 @@ impl Variable {
             None
         }
     }
-    
+
     /// Returns `Some(usize)` if `!self.is_lc()`, and `None` otherwise.
     #[inline(always)]
     pub const fn get_variable_index(&self, witness_offset: usize) -> Option<usize> {
@@ -97,13 +97,13 @@ impl Variable {
             _ => None,
         }
     }
-    
+
     /// Returns the tag of the variable.
     #[inline(always)]
     const fn tag(self) -> u8 {
         (self.0 & Self::TAG_MASK) as u8
     }
-    
+
     /// Unconditionally returns the payload of the variable.
     /// Note that when `self.tag() == 0` or `self.tag() == 1`, the data
     /// value is not meaningful.

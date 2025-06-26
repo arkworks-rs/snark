@@ -3,7 +3,7 @@
 //! inner struct. Most of the functions of `ConstraintSystemRef` are just
 //! wrappers around the functions of `ConstraintSystem`.
 
-use crate::utils::{HashBuilder, IndexMap};
+use crate::utils::IndexMap;
 use ark_std::boxed::Box;
 use ark_std::collections::BTreeMap;
 use core::cell::{Ref, RefCell, RefMut};
@@ -53,10 +53,9 @@ impl<F: Field> ConstraintSystemRef<F> {
 
     /// Returns the number of constraints in each predicate
     pub fn get_all_predicates_num_constraints(&self) -> IndexMap<Label, usize> {
-        self.inner()
-            .map_or(IndexMap::with_hasher(HashBuilder::default()), |cs| {
-                cs.borrow().get_all_predicates_num_constraints()
-            })
+        self.inner().map_or_else(IndexMap::default, |cs| {
+            cs.borrow().get_all_predicates_num_constraints()
+        })
     }
 
     /// Returns the number of constraints in the predicate with the given label
@@ -67,7 +66,7 @@ impl<F: Field> ConstraintSystemRef<F> {
 
     /// Returns the arity of each predicate
     pub fn get_all_predicate_arities(&self) -> IndexMap<Label, usize> {
-        self.inner().map_or(IndexMap::default(), |cs| {
+        self.inner().map_or_else(IndexMap::default, |cs| {
             cs.borrow().get_all_predicate_arities()
         })
     }

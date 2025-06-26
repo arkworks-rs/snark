@@ -12,9 +12,11 @@ use super::{
 };
 #[cfg(feature = "std")]
 use crate::gr1cs::ConstraintTrace;
-use crate::{
-    gr1cs::{LinearCombination, Matrix, SynthesisError, Variable},
-    utils::variable::VarKind,
+use crate::gr1cs::{
+    assignment::Assignments,
+    field_interner::FieldInterner,
+    lc_map::{to_non_interned_lc, LcMap},
+    LinearCombination, Matrix, SynthesisError, Variable,
 };
 use ark_ff::Field;
 use ark_std::{
@@ -81,6 +83,8 @@ pub struct ConstraintSystem<F: Field> {
     #[doc(hidden)]
     pub lc_map: LcMap<F>,
 
+    field_interner: FieldInterner<F>,
+
     /// A map from the the predicate labels to the predicates
     #[doc(hidden)]
     pub predicate_constraint_systems: BTreeMap<Label, PredicateConstraintSystem<F>>,
@@ -88,45 +92,6 @@ pub struct ConstraintSystem<F: Field> {
     /// data structure to store the traces for each predicate
     #[cfg(feature = "std")]
     pub predicate_traces: BTreeMap<Label, Vec<Option<ConstraintTrace>>>,
-}
-
-#[derive(Debug, Clone)]
-pub struct Assignments<F> {
-    /// Assignments to the public input variables. This is empty if `self.mode
-    /// == SynthesisMode::Setup`.
-    pub instance_assignment: Vec<F>,
-    /// Assignments to the private input variables. This is empty if `self.mode
-    /// == SynthesisMode::Setup`.
-    pub witness_assignment: Vec<F>,
-    /// A cache for the linear combination assignments. It shows evaluation
-    /// result of each linear combination
-    pub lc_assignment: Vec<F>,
-}
-
-impl<F: Field> Assignments<F> {
-    /// Obtain the assignment corresponding to the `Variable` `v`.
-    #[inline]
-    pub fn assigned_value(&self, v: Variable) -> Option<F> {
-        let idx = v.index();
-        match v.kind() {
-            VarKind::Zero => Some(F::ZERO),
-            VarKind::One => Some(F::ONE),
-            VarKind::Instance => self.instance_assignment.get(idx?).copied(),
-            VarKind::Witness => self.witness_assignment.get(idx?).copied(),
-            VarKind::SymbolicLc => self.lc_assignment.get(idx?).copied(),
-        }
-    }
-
-    /// Evaluate the linear combination `lc` with the assigned values and return
-    /// the result.
-    #[inline]
-    fn eval_lc(&self, lc: usize, lc_map: &LcMap<F>) -> Option<F> {
-        let acc = lc_map[lc]
-            .iter()
-            .map(|(coeff, var)| *coeff * self.assigned_value(*var).unwrap())
-            .sum();
-        Some(acc)
-    }
 }
 
 impl<F: Field> Default for ConstraintSystem<F> {
@@ -140,8 +105,9 @@ impl<F: Field> ConstraintSystem<F> {
     /// Note that by default, the constraint system is
     /// registered with the R1CS predicate.
     pub fn new() -> Self {
+        let mut field_interner = FieldInterner::new();
         let mut lc_map = LcMap::new();
-        lc_map.push(LinearCombination::zero());
+        lc_map.push(LinearCombination::zero(), &mut field_interner);
 
         let mut cs = Self {
             num_instance_variables: 1,
@@ -156,6 +122,7 @@ impl<F: Field> ConstraintSystem<F> {
             },
             cache_map: Rc::new(RefCell::new(BTreeMap::new())),
             lc_map,
+            field_interner,
             mode: SynthesisMode::Prove {
                 construct_matrices: true,
                 generate_lc_assignments: true,
@@ -286,15 +253,17 @@ impl<F: Field> ConstraintSystem<F> {
             let lc_map = &mut self.lc_map;
             let num_lcs = &mut self.num_linear_combinations;
             let assignments = &mut self.assignments;
+            let field_interner = &mut self.field_interner;
 
             let lc_indices = lcs.into_iter().map(|lc| {
                 let lc = lc();
                 Self::new_lc_add_helper(
+                    lc,
                     num_lcs,
                     lc_map,
                     should_generate_lc_assignments,
                     assignments,
-                    lc,
+                    field_interner,
                 )
                 .unwrap()
             });
@@ -503,11 +472,12 @@ impl<F: Field> ConstraintSystem<F> {
     }
 
     fn new_lc_add_helper(
+        lc: LinearCombination<F>,
         cur_num_lcs: &mut usize,
         lc_map: &mut LcMap<F>,
         should_generate_lc_assignments: bool,
         assignments: &mut Assignments<F>,
-        lc: LinearCombination<F>,
+        field_interner: &mut FieldInterner<F>,
     ) -> crate::gr1cs::Result<Variable> {
         match lc.0.as_slice() {
             // If the linear combination is empty, we return a symbolic LC with index 0.
@@ -518,10 +488,11 @@ impl<F: Field> ConstraintSystem<F> {
             // In all other cases, we create a new linear combination
             _ => {
                 let index = *cur_num_lcs;
-                lc_map.push(lc);
+                assert_eq!(*cur_num_lcs, lc_map.len());
+                lc_map.push(lc, field_interner);
                 *cur_num_lcs += 1;
                 if should_generate_lc_assignments {
-                    let value = assignments.eval_lc(index, lc_map).unwrap();
+                    let value = assignments.eval_lc(index, lc_map, field_interner).unwrap();
                     assignments.lc_assignment.push(value)
                 }
                 Ok(Variable::SymbolicLc(index))
@@ -540,11 +511,12 @@ impl<F: Field> ConstraintSystem<F> {
         if should_push {
             let lc = lc();
             Self::new_lc_add_helper(
+                lc,
                 &mut self.num_linear_combinations,
                 &mut self.lc_map,
                 should_generate_lc_assignments,
                 &mut self.assignments,
-                lc,
+                &mut self.field_interner,
             )
         } else {
             self.new_lc_without_adding()
@@ -760,32 +732,34 @@ impl<F: Field> ConstraintSystem<F> {
             return;
         }
         let old_lc_map = core::mem::take(&mut self.lc_map);
-        let mut inlined_lcs = LcMap::with_capacity(old_lc_map.len());
+        let mut inlined_lcs = LcMap::<F>::with_capacity(old_lc_map.len());
 
         let mut out = LinearCombination(Vec::with_capacity(10));
         for lc in old_lc_map.iter() {
+            let lc = to_non_interned_lc(lc, &self.field_interner);
             for (coeff, var) in lc {
                 if let Some(lc_index) = var.get_lc_index() {
                     // Must already be transformed — guaranteed by ordering.
-                    let inlined = &inlined_lcs[lc_index];
+                    let inlined = inlined_lcs.get(lc_index).unwrap();
+                    let inlined = to_non_interned_lc(inlined, &self.field_interner);
 
                     if coeff.is_one() {
-                        out.extend_from_slice(inlined);
+                        out.extend(inlined);
                     } else {
                         out.extend(
                             inlined
-                                .iter()
-                                .filter(|(_, v)| !v.is_zero())
-                                .map(|(c, v)| (*coeff * c, *v)),
+                                .filter(|(c, v)| !v.is_zero() && !c.is_zero())
+                                .map(|(c, v)| (coeff * c, v)),
                         );
                     }
                 } else {
-                    out.push((*coeff, *var));
+                    out.push((coeff, var));
                 }
             }
             out.compactify();
-            inlined_lcs.push_by_ref(&out);
-            out.0.clear();
+
+            inlined_lcs.push_by_ref(out.iter(), &mut self.field_interner);
+            out.clear();
         }
         self.lc_map = inlined_lcs;
     }
@@ -793,7 +767,7 @@ impl<F: Field> ConstraintSystem<F> {
     /// Returns whether any linear combinations are used
     /// by other LCs.
     fn any_lcs_used(&self) -> bool {
-        cfg_iter!(self.lc_map).any(|lc| lc.iter().any(|(_, v)| v.is_lc()))
+        cfg_iter!(self.lc_map).any(|mut lc| lc.any(|(_, v)| v.is_lc()))
     }
 
     /// Get the matrices corresponding to the predicates.and the
@@ -811,8 +785,10 @@ impl<F: Field> ConstraintSystem<F> {
         if var.is_zero() {
             LinearCombination::zero()
         } else if var.is_lc() {
-            let lc_index = var.index().unwrap();
-            LinearCombination(self.lc_map[lc_index].to_vec())
+            let idx = var.index().unwrap();
+            LinearCombination(
+                to_non_interned_lc(self.lc_map.get(idx).unwrap(), &self.field_interner).collect(),
+            )
         } else {
             LinearCombination::from(var)
         }
@@ -874,7 +850,7 @@ impl<F: Field> ConstraintSystem<F> {
         // Now, Go over all the linear combinations and create a new witness for each
         // instance variable you see
         cfg_iter_mut!(self.lc_map).for_each(|lc| {
-            for (_, var) in lc.iter_mut() {
+            for (_, var) in lc {
                 if var.is_instance() {
                     *var = instance_to_witness_map[var.index().unwrap()];
                 } else if var.is_one() {
@@ -884,72 +860,5 @@ impl<F: Field> ConstraintSystem<F> {
         });
         (outliner.func)(self, &instance_to_witness_map)?;
         Ok(())
-    }
-}
-
-#[derive(Clone, Debug, Default)]
-pub struct LcMap<F: Field>(Vec<LinearCombination<F>>);
-
-impl<F: Field> LcMap<F> {
-    #[inline(always)]
-    pub fn new() -> Self {
-        Self(Vec::with_capacity(10))
-    }
-
-    #[inline(always)]
-    pub fn with_capacity(capacity: usize) -> Self {
-        Self(Vec::with_capacity(capacity))
-    }
-
-    #[inline(always)]
-    pub fn push(&mut self, v: impl IntoIterator<Item = (F, Variable)>) {
-        self.0.push(LinearCombination(v.into_iter().collect()));
-    }
-
-    #[inline(always)]
-    pub fn push_by_ref(&mut self, v: &[(F, Variable)]) {
-        self.0.push(LinearCombination(v.to_vec()));
-    }
-
-    #[inline(always)]
-    pub fn iter(&self) -> impl Iterator<Item = &[(F, Variable)]> {
-        self.0.iter().map(|lc| lc.0.as_slice())
-    }
-
-    #[cfg(feature = "parallel")]
-    #[inline(always)]
-    pub fn par_iter(&self) -> impl ParallelIterator<Item = &[(F, Variable)]> {
-        self.0.par_iter().map(|lc| lc.0.as_slice())
-    }
-
-    #[inline(always)]
-    pub fn iter_mut(&mut self) -> impl Iterator<Item = &mut [(F, Variable)]> {
-        self.0.iter_mut().map(|lc| lc.0.as_mut_slice())
-    }
-
-    #[cfg(feature = "parallel")]
-    #[inline(always)]
-    pub fn par_iter_mut(&mut self) -> impl ParallelIterator<Item = &mut [(F, Variable)]> {
-        self.0.par_iter_mut().map(|lc| lc.0.as_mut_slice())
-    }
-
-    #[inline(always)]
-    pub fn len(&self) -> usize {
-        self.0.len()
-    }
-
-    #[inline(always)]
-    #[allow(unsafe_code)]
-    pub fn get(&self, idx: usize) -> Option<&[(F, Variable)]> {
-        self.0.get(idx).map(|lc| lc.0.as_slice())
-    }
-}
-
-impl<F: Field> core::ops::Index<usize> for LcMap<F> {
-    type Output = [(F, Variable)];
-
-    #[inline(always)]
-    fn index(&self, index: usize) -> &Self::Output {
-        self.get(index).unwrap()
     }
 }
