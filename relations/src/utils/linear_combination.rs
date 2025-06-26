@@ -9,10 +9,6 @@ use ark_std::{
 
 use super::variable::Variable;
 
-#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Hash)]
-/// An opaque counter for symbolic linear combinations.
-pub struct LcIndex(pub usize);
-
 /// A linear combination of variables according to associated coefficients.
 #[derive(Debug, Clone, PartialEq, Eq, Default, PartialOrd, Ord)]
 pub struct LinearCombination<F: Field>(pub Vec<(F, Variable)>);
@@ -149,6 +145,16 @@ impl<F: Field> From<Variable> for LinearCombination<F> {
         } else {
             LinearCombination::from((F::one(), var))
         }
+    }
+}
+
+impl<F: Field> IntoIterator for LinearCombination<F> {
+    type Item = (F, Variable);
+    type IntoIter = ark_std::vec::IntoIter<(F, Variable)>;
+
+    #[inline]
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.into_iter()
     }
 }
 

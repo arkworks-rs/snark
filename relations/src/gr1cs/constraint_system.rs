@@ -12,7 +12,10 @@ use super::{
 };
 #[cfg(feature = "std")]
 use crate::gr1cs::ConstraintTrace;
-use crate::gr1cs::{LcIndex, LinearCombination, Matrix, SynthesisError, Variable};
+use crate::{
+    gr1cs::{LinearCombination, Matrix, SynthesisError, Variable},
+    utils::variable::VarKind,
+};
 use ark_ff::Field;
 use ark_std::{
     any::{Any, TypeId},
@@ -76,7 +79,7 @@ pub struct ConstraintSystem<F: Field> {
     /// A data structure to store the linear combinations. We use map because
     /// it's easier to inline and outline the linear combinations.
     #[doc(hidden)]
-    pub lc_map: Vec<Option<LinearCombination<F>>>,
+    pub lc_map: LcMap<F>,
 
     /// A map from the the predicate labels to the predicates
     #[doc(hidden)]
@@ -104,23 +107,21 @@ impl<F: Field> Assignments<F> {
     /// Obtain the assignment corresponding to the `Variable` `v`.
     #[inline]
     pub fn assigned_value(&self, v: Variable) -> Option<F> {
-        match v {
-            Variable::One => Some(F::one()),
-            Variable::Zero => Some(F::zero()),
-            Variable::Witness(idx) => self.witness_assignment.get(idx).copied(),
-            Variable::Instance(idx) => self.instance_assignment.get(idx).copied(),
-            Variable::SymbolicLc(idx) => self.lc_assignment.get(idx.0).copied(),
+        let idx = v.index();
+        match v.kind() {
+            VarKind::Zero => Some(F::ZERO),
+            VarKind::One => Some(F::ONE),
+            VarKind::Instance => self.instance_assignment.get(idx?).copied(),
+            VarKind::Witness => self.witness_assignment.get(idx?).copied(),
+            VarKind::SymbolicLc => self.lc_assignment.get(idx?).copied(),
         }
     }
 
     /// Evaluate the linear combination `lc` with the assigned values and return
     /// the result.
     #[inline]
-    fn eval_lc(&self, lc: LcIndex, lc_map: &[Option<LinearCombination<F>>]) -> Option<F> {
-        let acc = lc_map[lc.0]
-            .as_ref()
-            .unwrap()
-            .0
+    fn eval_lc(&self, lc: usize, lc_map: &LcMap<F>) -> Option<F> {
+        let acc = lc_map[lc]
             .iter()
             .map(|(coeff, var)| *coeff * self.assigned_value(*var).unwrap())
             .sum();
@@ -139,6 +140,9 @@ impl<F: Field> ConstraintSystem<F> {
     /// Note that by default, the constraint system is
     /// registered with the R1CS predicate.
     pub fn new() -> Self {
+        let mut lc_map = LcMap::new();
+        lc_map.push(LinearCombination::zero());
+
         let mut cs = Self {
             num_instance_variables: 1,
             num_witness_variables: 0,
@@ -151,7 +155,7 @@ impl<F: Field> ConstraintSystem<F> {
                 lc_assignment: vec![F::zero()],
             },
             cache_map: Rc::new(RefCell::new(BTreeMap::new())),
-            lc_map: vec![Some(LinearCombination::zero())],
+            lc_map,
             mode: SynthesisMode::Prove {
                 construct_matrices: true,
                 generate_lc_assignments: true,
@@ -493,28 +497,28 @@ impl<F: Field> ConstraintSystem<F> {
     /// to the map.
     #[inline]
     fn new_lc_without_adding(&mut self) -> crate::gr1cs::Result<Variable> {
-        let index = LcIndex(self.num_linear_combinations);
+        let index = self.num_linear_combinations;
         self.num_linear_combinations += 1;
         Ok(Variable::SymbolicLc(index))
     }
 
     fn new_lc_add_helper(
         cur_num_lcs: &mut usize,
-        lc_map: &mut Vec<Option<LinearCombination<F>>>,
+        lc_map: &mut LcMap<F>,
         should_generate_lc_assignments: bool,
         assignments: &mut Assignments<F>,
         lc: LinearCombination<F>,
     ) -> crate::gr1cs::Result<Variable> {
         match lc.0.as_slice() {
             // If the linear combination is empty, we return a symbolic LC with index 0.
-            [] | [(_, Variable::Zero)] => Ok(Variable::SymbolicLc(LcIndex(0))),
+            [] | [(_, Variable::Zero)] => Ok(Variable::SymbolicLc(0)),
             // If the linear combination is just another variable
             // with a coefficient of 1, we return the variable directly.
             [(c, var)] if c.is_one() => Ok(*var),
             // In all other cases, we create a new linear combination
             _ => {
-                let index = LcIndex(*cur_num_lcs);
-                lc_map.push(Some(lc));
+                let index = *cur_num_lcs;
+                lc_map.push(lc);
                 *cur_num_lcs += 1;
                 if should_generate_lc_assignments {
                     let value = assignments.eval_lc(index, lc_map).unwrap();
@@ -756,52 +760,40 @@ impl<F: Field> ConstraintSystem<F> {
             return;
         }
         let old_lc_map = core::mem::take(&mut self.lc_map);
-        let mut inlined_lcs: Vec<Option<LinearCombination<_>>> =
-            Vec::with_capacity(old_lc_map.len());
+        let mut inlined_lcs = LcMap::with_capacity(old_lc_map.len());
 
-        for lc_opt in old_lc_map.into_iter() {
-            let lc = lc_opt.expect("LC should never be None");
-            let mut out = LinearCombination(Vec::with_capacity(lc.len()));
-            for (coeff, var) in lc.0 {
+        let mut out = LinearCombination(Vec::with_capacity(10));
+        for lc in old_lc_map.iter() {
+            for (coeff, var) in lc {
                 if let Some(lc_index) = var.get_lc_index() {
                     // Must already be transformed — guaranteed by ordering.
-                    let inlined = inlined_lcs[lc_index.0]
-                        .as_ref()
-                        .expect("inlined LC must exist");
+                    let inlined = &inlined_lcs[lc_index];
 
                     if coeff.is_one() {
-                        out.extend_from_slice(&inlined.0);
+                        out.extend_from_slice(inlined);
                     } else {
                         out.extend(
                             inlined
                                 .iter()
                                 .filter(|(_, v)| !v.is_zero())
-                                .map(|(c, v)| (coeff * c, *v)),
+                                .map(|(c, v)| (*coeff * c, *v)),
                         );
                     }
                 } else {
-                    out.push((coeff, var));
+                    out.push((*coeff, *var));
                 }
             }
             out.compactify();
-            inlined_lcs.push(Some(out));
+            inlined_lcs.push_by_ref(&out);
+            out.0.clear();
         }
         self.lc_map = inlined_lcs;
     }
 
-    /// Count the number of times each linear combination is used.
-    /// Also returns whether any linear combinations are used.
+    /// Returns whether any linear combinations are used
+    /// by other LCs.
     fn any_lcs_used(&self) -> bool {
-        cfg_iter!(self.lc_map)
-            .map(|lc| {
-                for &(_, var) in lc.as_ref().unwrap().iter() {
-                    if var.is_lc() {
-                        return true;
-                    }
-                }
-                false
-            })
-            .any(|x| x)
+        cfg_iter!(self.lc_map).any(|lc| lc.iter().any(|(_, v)| v.is_lc()))
     }
 
     /// Get the matrices corresponding to the predicates.and the
@@ -816,16 +808,17 @@ impl<F: Field> ConstraintSystem<F> {
 
     /// Get the linear combination corresponding to the given `lc_index`.
     pub fn get_lc(&self, var: Variable) -> LinearCombination<F> {
-        match var {
-            Variable::SymbolicLc(lc_index) => self
-                .lc_map
-                .get(lc_index.0)
-                .map(|e| e.as_ref())
-                .flatten()
-                .cloned()
-                .unwrap(),
-            Variable::Zero => LinearCombination::zero(),
-            v => v.into(),
+        if var.is_zero() {
+            LinearCombination::zero()
+        } else if var.is_lc() {
+            // If the variable is a symbolic linear combination, we return the
+            // linear combination corresponding to that index.
+            let lc_index = var.index().unwrap();
+            LinearCombination(self.lc_map[lc_index].to_vec())
+        } else {
+            // If the variable is not a linear combination, we convert it to a
+            // linear combination.
+            LinearCombination::from(var)
         }
     }
 
@@ -838,7 +831,7 @@ impl<F: Field> ConstraintSystem<F> {
                 if coeff.is_zero() || var.is_zero() {
                     None
                 } else {
-                    let index = var.get_index_unchecked(num_input);
+                    let index = var.get_variable_index(num_input);
                     Some((coeff, index.unwrap()))
                 }
             })
@@ -884,18 +877,86 @@ impl<F: Field> ConstraintSystem<F> {
 
         // Now, Go over all the linear combinations and create a new witness for each
         // instance variable you see
-        cfg_iter_mut!(self.lc_map)
-            .filter(|lc| lc.is_some())
-            .for_each(|lc| {
-                for (_, var) in lc.as_mut().unwrap().iter_mut() {
-                    if let Variable::Instance(i) = var {
-                        *var = instance_to_witness_map[*i];
-                    } else if let Variable::One = var {
+        cfg_iter_mut!(self.lc_map).for_each(|lc| {
+            for (_, var) in lc.iter_mut() {
+                if var.is_instance() {
+                    *var = instance_to_witness_map[var.index().unwrap()];
+                } else if var.is_one() {
                         *var = one_witness_var;
                     }
                 }
             });
         (outliner.func)(self, &instance_to_witness_map)?;
         Ok(())
+    }
+}
+
+#[derive(Clone, Debug, Default)]
+pub struct LcMap<F: Field>(Vec<LinearCombination<F>>);
+
+impl<F: Field> LcMap<F> {
+    #[inline(always)]
+    pub fn new() -> Self {
+        Self(Vec::with_capacity(10))
+    }
+
+    #[inline(always)]
+    pub fn with_capacity(capacity: usize) -> Self {
+        Self(Vec::with_capacity(capacity))
+    }
+
+    #[inline(always)]
+    pub fn push(&mut self, v: impl IntoIterator<Item = (F, Variable)>) {
+        self.0.push(LinearCombination(v.into_iter().collect()));
+    }
+
+    #[inline(always)]
+    pub fn push_by_ref(&mut self, v: &[(F, Variable)]) {
+        self.0.push(LinearCombination(v.to_vec()));
+    }
+
+    #[inline(always)]
+    pub fn iter(&self) -> impl Iterator<Item = &[(F, Variable)]> {
+        self.0.iter().map(|lc| lc.0.as_slice())
+    }
+
+    #[cfg(feature = "parallel")]
+    #[inline(always)]
+    pub fn par_iter(&self) -> impl ParallelIterator<Item = &[(F, Variable)]> {
+        self.0.par_iter().map(|lc| lc.0.as_slice())
+    }
+
+    #[inline(always)]
+    pub fn iter_mut(&mut self) -> impl Iterator<Item = &mut [(F, Variable)]> {
+        self.0
+            .iter_mut()
+            .map(|lc| lc.0.as_mut_slice())
+    }
+
+    #[cfg(feature = "parallel")]
+    #[inline(always)]
+    pub fn par_iter_mut(&mut self) -> impl ParallelIterator<Item = &mut [(F, Variable)]> {
+        self.0.par_iter_mut().map(|lc| lc.0.as_mut_slice())
+    }
+
+    #[inline(always)]
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
+
+    #[inline(always)]
+    #[allow(unsafe_code)]
+    pub fn get(&self, idx: usize) -> Option<&[(F, Variable)]> {
+        self.0.get(idx).map(|lc| lc.0.as_slice())
+    }
+}
+
+impl<F: Field> core::ops::Index<usize> for LcMap<F> {
+    type Output = [(F, Variable)];
+
+    #[inline(always)]
+    fn index(&self, index: usize) -> &Self::Output {
+        self.get(index)
+            .expect(&format!("Index out of bounds {index}"))
     }
 }

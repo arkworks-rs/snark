@@ -36,7 +36,7 @@ pub use crate::{
     lc,
     utils::{
         error::SynthesisError,
-        linear_combination::{LcIndex, LinearCombination},
+        linear_combination::LinearCombination,
         matrix::{mat_vec_mul, transpose, Matrix},
         variable::Variable,
         Result,
