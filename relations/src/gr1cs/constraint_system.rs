@@ -878,10 +878,10 @@ impl<F: Field> ConstraintSystem<F> {
                 if var.is_instance() {
                     *var = instance_to_witness_map[var.index().unwrap()];
                 } else if var.is_one() {
-                        *var = one_witness_var;
-                    }
+                    *var = one_witness_var;
                 }
-            });
+            }
+        });
         (outliner.func)(self, &instance_to_witness_map)?;
         Ok(())
     }
@@ -924,9 +924,7 @@ impl<F: Field> LcMap<F> {
 
     #[inline(always)]
     pub fn iter_mut(&mut self) -> impl Iterator<Item = &mut [(F, Variable)]> {
-        self.0
-            .iter_mut()
-            .map(|lc| lc.0.as_mut_slice())
+        self.0.iter_mut().map(|lc| lc.0.as_mut_slice())
     }
 
     #[cfg(feature = "parallel")]
