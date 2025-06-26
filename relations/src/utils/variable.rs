@@ -1,8 +1,5 @@
-use core::cmp::Ordering;
-
 /// Variables in [`ConstraintSystem`]s
-#[derive(Copy, Clone, Eq, PartialEq, Hash)]
-#[repr(transparent)]
+#[derive(Copy, Clone, Eq, PartialEq, Hash, PartialOrd, Ord)]
 pub struct Variable(u64);
 
 impl Variable {
@@ -52,7 +49,7 @@ impl Variable {
     /// Is `self` an instance variable?
     #[inline(always)]
     pub const fn is_instance(self) -> bool {
-        matches!(self.kind(), VarKind::Instance)
+        self.tag() == VarKind::Instance as u8
     }
 
     /// Construct a new witness variable.
@@ -64,7 +61,7 @@ impl Variable {
     /// Is `self` a witness variable?
     #[inline(always)]
     pub const fn is_witness(self) -> bool {
-        matches!(self.kind(), VarKind::Witness)
+        self.tag() == VarKind::Witness as u8
     }
 
     /// Construct a symbolic linear combination variable.
@@ -76,41 +73,56 @@ impl Variable {
     /// Is `self` a symbolic linear combination variable?
     #[inline(always)]
     pub const fn is_lc(self) -> bool {
-        matches!(self.kind(), VarKind::SymbolicLc)
+        self.tag() == VarKind::SymbolicLc as u8
     }
 
     /// Get the `usize` in `self` if `self.is_lc()`.
     #[inline(always)]
     pub const fn get_lc_index(&self) -> Option<usize> {
         if self.is_lc() {
-            Some(self.index().unwrap() as usize)
+            Some(self.payload() as usize)
         } else {
             None
         }
     }
-
+    
     /// Returns `Some(usize)` if `!self.is_lc()`, and `None` otherwise.
     #[inline(always)]
     pub const fn get_variable_index(&self, witness_offset: usize) -> Option<usize> {
         match self.kind() {
             // The one variable always has index 0
             VarKind::One => Some(0),
-            VarKind::Instance => self.index(),
-            VarKind::Witness => Some(self.index().unwrap() + witness_offset),
+            VarKind::Instance => Some(self.payload() as usize),
+            VarKind::Witness => Some(self.payload() as usize + witness_offset),
             _ => None,
         }
+    }
+    
+    /// Returns the tag of the variable.
+    #[inline(always)]
+    const fn tag(self) -> u8 {
+        (self.0 & Self::TAG_MASK) as u8
+    }
+    
+    /// Unconditionally returns the payload of the variable.
+    /// Note that when `self.tag() == 0` or `self.tag() == 1`, the data
+    /// value is not meaningful.
+    #[inline(always)]
+    const fn payload(self) -> u64 {
+        self.0 >> Self::PAYLOAD_SHIFT
     }
 
     /// What kind of variable is this?
     #[inline(always)]
+    #[allow(unsafe_code)]
     pub const fn kind(self) -> VarKind {
-        match self.0 & Self::TAG_MASK {
+        match self.tag() {
             0 => VarKind::Zero,
             1 => VarKind::One,
             2 => VarKind::Instance,
             3 => VarKind::Witness,
             4 => VarKind::SymbolicLc,
-            _ => unreachable!(),
+            _ => unsafe { core::hint::unreachable_unchecked() },
         }
     }
 
@@ -137,11 +149,11 @@ impl Variable {
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
 #[allow(missing_docs)]
 pub enum VarKind {
-    Zero,
-    One,
-    Instance,
-    Witness,
-    SymbolicLc,
+    Zero = 0,
+    One = 1,
+    Instance = 2,
+    Witness = 3,
+    SymbolicLc = 4,
 }
 
 impl core::fmt::Debug for Variable {
@@ -157,34 +169,3 @@ impl core::fmt::Debug for Variable {
 
 // Compile-time proof it really is 8 B.
 const _: () = assert!(core::mem::size_of::<Variable>() == 8);
-
-impl PartialOrd for Variable {
-    #[inline]
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        Some(self.cmp(other))
-    }
-}
-
-impl Ord for Variable {
-    #[inline]
-    fn cmp(&self, other: &Self) -> Ordering {
-        use VarKind::*;
-        match (self.kind(), other.kind()) {
-            (Zero, Zero) => Ordering::Equal,
-            (One, One) => Ordering::Equal,
-            (Zero, _) => Ordering::Less,
-            (One, _) => Ordering::Less,
-            (_, Zero) => Ordering::Greater,
-            (_, One) => Ordering::Greater,
-
-            (Instance, Instance) | (Witness, Witness) | (SymbolicLc, SymbolicLc) => {
-                self.index().cmp(&other.index())
-            },
-
-            (Instance, Witness) => Ordering::Less,
-            (Witness, Instance) => Ordering::Greater,
-            (_, SymbolicLc) => Ordering::Less,
-            (SymbolicLc, _) => Ordering::Greater,
-        }
-    }
-}
