@@ -811,13 +811,9 @@ impl<F: Field> ConstraintSystem<F> {
         if var.is_zero() {
             LinearCombination::zero()
         } else if var.is_lc() {
-            // If the variable is a symbolic linear combination, we return the
-            // linear combination corresponding to that index.
             let lc_index = var.index().unwrap();
             LinearCombination(self.lc_map[lc_index].to_vec())
         } else {
-            // If the variable is not a linear combination, we convert it to a
-            // linear combination.
             LinearCombination::from(var)
         }
     }
