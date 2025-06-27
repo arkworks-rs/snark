@@ -21,8 +21,11 @@ pub struct InstanceOutliner<F: Field> {
     /// The strategy for outlining the instance variables
     /// It takes as input the constraint system, and a map from the new
     /// instance variables to the new witness variables.
-    pub func: Rc<dyn Fn(&mut ConstraintSystem<F>, &[Variable]) -> Result<(), SynthesisError>>,
+    pub func: OutliningFunc<F>,
 }
+
+type OutliningFunc<F> =
+    Rc<dyn Fn(&mut ConstraintSystem<F>, &[Variable]) -> Result<(), SynthesisError>>;
 
 impl<F: Field> Debug for InstanceOutliner<F> {
     fn fmt(&self, f: &mut ark_std::fmt::Formatter<'_>) -> ark_std::fmt::Result {

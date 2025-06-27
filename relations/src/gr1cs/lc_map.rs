@@ -12,14 +12,18 @@ use crate::gr1cs::{
 };
 
 /// The following invariant must always be maintained:
-/// 1. `self.offsets` is a non-empty vector of length `n + 1`, where `n` is the number of linear combinations.
-/// 2. `self.offsets[i]` is the index in `self.coeffs` and `self.vars` where the `i`-th linear combination starts.
-/// 3. `self.offsets[i + 1]` is the index in `self.coeffs` and `self.vars` where the `i`-th linear combination ends.
-/// 4. `self.coeffs` and `self.vars` are of the same length, and they contain the coefficients and variables of the linear combinations respectively.
+/// 1. `self.offsets` is a non-empty vector of length `n + 1`, where
+///    `n` is the number of linear combinations.
+/// 2. `self.offsets[i]` is the index in `self.coeffs` and `self.vars`
+///    where the `i`-th linear combination starts.
+/// 3. `self.offsets[i + 1]` is the index in `self.coeffs` and `self.vars`
+///    where the `i`-th linear combination ends.
+/// 4. `self.coeffs` and `self.vars` are of the same length,
+///    and they contain the coefficients and variables of the linear combinations respectively.
 /// 5. `self.coeffs` and `self.vars` are interleaved such that for each linear combination `i`,
-/// the coefficients and variables are stored in the same order, i.e.,
-/// letting `start = self.offsets[i]` and `end = self.offsets[i + 1]`, then
-/// `self.vars[start..end]` corresponds to `self.coeffs[start..end]
+///    the coefficients and variables are stored in the same order, i.e.,
+///    letting `start = self.offsets[i]` and `end = self.offsets[i + 1]`, then
+///    `self.vars[start..end]` corresponds to `self.coeffs[start..end]
 ///
 /// Invariants 2 and 3 imply the following lemma:
 /// Lemma 1. `self.offsets[i] <= self.offsets[i + 1]` for all `i` in `0..n`.
@@ -39,6 +43,7 @@ use crate::gr1cs::{
 ///   Assume not. Then there exists an `i` such that either
 ///   * `self.offsets[i + 1] - self.offsets[i] > self.vars.len()`
 ///   * `self.offsets[i + 1] - self.offsets[i] > self.coeffs.len()`
+///
 ///   In both cases, this would imply that the `i`-th linear combination
 ///   has more variables or coefficients than the total number of variables or coefficients,
 ///   which contradicts invariant 5.
@@ -228,8 +233,8 @@ unsafe fn windowed_access<'a>(
 
 /// Preconditions:
 /// 1. `w` is a slice of length 2.
-/// 2.`w[0] <= w[1]`.
-/// 3.`w[1] - w[0] < vars.len()`.
+/// 2. `w[0] <= w[1]`.
+/// 3. `w[1] - w[0] < vars.len()`.
 ///
 /// Note that precondition 3 here differs from that in `windowed_access`;
 /// instead of requiring that `w[1] < vars.len()`,
