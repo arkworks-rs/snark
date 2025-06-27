@@ -3,23 +3,27 @@
 pub struct Variable(u64);
 
 impl Variable {
-    // [ tag: 3 bits | payload: 61 bits ]
+    // [ tag: payload: 61 bits | 3 bits ]
     const TAG_BITS: u64 = 3;
-    const TAG_MASK: u64 = (1 << Self::TAG_BITS) - 1;
-    const PAYLOAD_SHIFT: u64 = Self::TAG_BITS;
+
+    /// Bit position where the tag field starts (61 = 64 − 3).
+    const TAG_SHIFT: u64 = 64 - Self::TAG_BITS;
+
+    /// Mask for the payload (low 61 bits) when the tag is in the top byte.
+    const PAYLOAD_MASK: u64 = (1u64 << Self::TAG_SHIFT) - 1;
 
     /// The zero variable.
     #[allow(non_upper_case_globals)]
-    pub const Zero: Variable = Variable(0);
+    pub const Zero: Variable = Variable::pack_unchecked(0, 0);
 
     /// The one variable.
     #[allow(non_upper_case_globals)]
-    pub const One: Variable = Variable(1);
+    pub const One: Variable = Variable::pack_unchecked(1, 0);
 
     /// The zero variable.
     #[inline(always)]
     pub const fn zero() -> Self {
-        Self(0)
+        Self::Zero
     }
 
     /// Is `self` the zero variable?
@@ -31,19 +35,19 @@ impl Variable {
     /// Is `self` the one variable?
     #[inline(always)]
     pub const fn is_one(&self) -> bool {
-        self.0 == 1
+        self.0 == Self::One.0
     }
 
     /// The `one` variable.
     #[inline(always)]
     pub const fn one() -> Self {
-        Self(1)
+        Self::One
     }
 
     /// Construct an instance variable.
     #[inline(always)]
     pub const fn instance(i: usize) -> Self {
-        Self::pack(0b010, i as u64)
+        Self::pack_unchecked(0b010, i as u64)
     }
 
     /// Is `self` an instance variable?
@@ -55,7 +59,7 @@ impl Variable {
     /// Construct a new witness variable.
     #[inline(always)]
     pub const fn witness(i: usize) -> Self {
-        Self::pack(0b011, i as u64)
+        Self::pack_unchecked(0b011, i as u64)
     }
 
     /// Is `self` a witness variable?
@@ -67,7 +71,7 @@ impl Variable {
     /// Construct a symbolic linear combination variable.
     #[inline(always)]
     pub const fn symbolic_lc(i: usize) -> Self {
-        Self::pack(0b100, i as u64)
+        Self::pack_unchecked(0b100, i as u64)
     }
 
     /// Is `self` a symbolic linear combination variable?
@@ -101,7 +105,7 @@ impl Variable {
     /// Returns the tag of the variable.
     #[inline(always)]
     const fn tag(self) -> u8 {
-        (self.0 & Self::TAG_MASK) as u8
+        (self.0 >> Self::TAG_SHIFT) as u8
     }
 
     /// Unconditionally returns the payload of the variable.
@@ -109,7 +113,7 @@ impl Variable {
     /// value is not meaningful.
     #[inline(always)]
     const fn payload(self) -> u64 {
-        self.0 >> Self::PAYLOAD_SHIFT
+        self.0 & Self::PAYLOAD_MASK
     }
 
     /// What kind of variable is this?
@@ -132,16 +136,25 @@ impl Variable {
     pub const fn index(self) -> Option<usize> {
         match self.kind() {
             VarKind::Zero | VarKind::One => None,
-            _ => Some((self.0 >> Self::PAYLOAD_SHIFT) as usize),
+            _ => Some(self.payload() as usize),
         }
     }
 
-    const fn pack(tag: u64, payload: u64) -> Self {
-        debug_assert!(
-            payload >> (64 - Self::PAYLOAD_SHIFT) == 0,
-            "payload too large"
-        );
-        Self((payload << Self::PAYLOAD_SHIFT) | tag)
+    /// Does not check that the tag and payload are valid.
+    const fn pack_unchecked(tag: u64, payload: u64) -> Self {
+        debug_assert!(payload <= Self::PAYLOAD_MASK);
+        Variable(((tag as u64) << Self::TAG_SHIFT) | payload & Self::PAYLOAD_MASK)
+    }
+
+    #[cfg(test)]
+    const fn new(kind: VarKind, index: usize) -> Self {
+        match kind {
+            VarKind::Zero => Self::Zero,
+            VarKind::One => Self::One,
+            VarKind::Instance => Self::instance(index),
+            VarKind::Witness => Self::witness(index),
+            VarKind::SymbolicLc => Self::symbolic_lc(index),
+        }
     }
 }
 
@@ -169,3 +182,73 @@ impl core::fmt::Debug for Variable {
 
 // Compile-time proof it really is 8 B.
 const _: () = assert!(core::mem::size_of::<Variable>() == 8);
+
+#[cfg(test)]
+mod tests {
+    // test PartialOrd and Ord vs Eq and PartialEq
+    use super::*;
+
+    use ark_std::rand::Rng;
+
+    #[test]
+    fn test_variable_ordering() {
+        use core::cmp::Ordering::*;
+        use VarKind::*;
+        let mut rng = ark_std::test_rng();
+        let kinds = [Zero, One, Instance, Witness, SymbolicLc];
+        for this_kind in kinds {
+            let this_payload: u32 = rng.gen();
+            let this = Variable::new(this_kind, this_payload as usize);
+            for other_kind in kinds {
+                let other_1 = Variable::new(other_kind, this_payload as usize);
+
+                let other_payload: u32 = rng.gen();
+                let other_2 = Variable::new(other_kind, other_payload as usize);
+
+                let eq_case_with_payload = || {
+                    assert_eq!(this, other_1, "{this:?} != {other_1:?}");
+                    if this_payload < other_payload {
+                        assert!(this < other_2, "{this:?} >= {other_2:?}");
+                    } else if this_payload > other_payload {
+                        assert!(this > other_2, "{this:?} <= {other_2:?}");
+                    } else {
+                        assert_eq!(this, other_2, "{this:?} != {other_2:?}");
+                    }
+                    assert_eq!(this.cmp(&other_1), Equal);
+                };
+                let eq_case = || {
+                    assert_eq!(this, other_1, "{this:?} != {other_1:?}");
+                    assert_eq!(this, other_2, "{this:?} != {other_2:?}");
+                    assert_eq!(this.cmp(&other_1), Equal);
+                };
+                let lt_case = || {
+                    assert!(this < other_1, "{this:?} >= {other_1:?}");
+                    assert!(this < other_2, "{this:?} >= {other_2:?}");
+                };
+                let gt_case = || {
+                    assert!(this > other_1, "{this:?} <= {other_1:?}");
+                    assert!(this > other_2, "{this:?} <= {other_2:?}");
+                };
+                match (this_kind, other_kind) {
+                    (Zero, Zero) => eq_case(),
+                    (One, One) => eq_case(),
+                    (Instance, Instance) => eq_case_with_payload(),
+                    (Witness, Witness) => eq_case_with_payload(),
+                    (SymbolicLc, SymbolicLc) => eq_case_with_payload(),
+
+                    (Zero, _) => lt_case(),
+                    (_, Zero) => gt_case(),
+
+                    (One, _) => lt_case(),
+                    (_, One) => gt_case(),
+
+                    (Instance, _) => lt_case(),
+                    (_, Instance) => gt_case(),
+
+                    (Witness, _) => lt_case(),
+                    (_, Witness) => gt_case(),
+                }
+            }
+        }
+    }
+}

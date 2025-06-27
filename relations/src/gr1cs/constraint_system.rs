@@ -488,7 +488,7 @@ impl<F: Field> ConstraintSystem<F> {
             // In all other cases, we create a new linear combination
             _ => {
                 let index = *cur_num_lcs;
-                assert_eq!(*cur_num_lcs, lc_map.len());
+                debug_assert_eq!(*cur_num_lcs, lc_map.num_lcs());
                 lc_map.push(lc, field_interner);
                 *cur_num_lcs += 1;
                 if should_generate_lc_assignments {
@@ -732,7 +732,8 @@ impl<F: Field> ConstraintSystem<F> {
             return;
         }
         let old_lc_map = core::mem::take(&mut self.lc_map);
-        let mut inlined_lcs = LcMap::<F>::with_capacity(old_lc_map.len());
+        let mut inlined_lcs =
+            LcMap::<F>::with_capacity(old_lc_map.num_lcs(), old_lc_map.total_lc_size());
 
         let mut out = LinearCombination(Vec::with_capacity(10));
         for lc in old_lc_map.iter() {

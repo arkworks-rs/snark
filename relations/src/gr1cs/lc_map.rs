@@ -75,11 +75,11 @@ impl<F: Field> LcMap<F> {
     }
 
     #[inline(always)]
-    pub fn with_capacity(capacity: usize) -> Self {
+    pub fn with_capacity(expected_num_lcs: usize, expected_total_lc_size: usize) -> Self {
         let mut result = Self::new();
-        result.vars.reserve(capacity * 2);
-        result.coeffs.reserve(capacity * 2);
-        result.offsets.reserve(capacity + 1);
+        result.vars.reserve(expected_total_lc_size);
+        result.coeffs.reserve(expected_total_lc_size);
+        result.offsets.reserve(expected_num_lcs + 1);
         result
     }
 
@@ -162,14 +162,19 @@ impl<F: Field> LcMap<F> {
     }
 
     #[inline(always)]
-    pub fn len(&self) -> usize {
+    pub fn num_lcs(&self) -> usize {
         self.offsets.len() - 1
+    }
+
+    #[inline(always)]
+    pub fn total_lc_size(&self) -> usize {
+        self.vars.len()
     }
 
     #[allow(unsafe_code)]
     #[inline(always)]
     pub fn get(&self, idx: usize) -> Option<LcMapIterItem<'_>> {
-        if idx >= self.len() || self.offsets.len() < 2 {
+        if idx >= self.num_lcs() || self.offsets.len() < 2 {
             return cold();
         } else {
             unsafe {
