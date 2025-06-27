@@ -23,7 +23,7 @@ use crate::gr1cs::{
 /// 5. `self.coeffs` and `self.vars` are interleaved such that for each linear combination `i`,
 ///    the coefficients and variables are stored in the same order, i.e.,
 ///    letting `start = self.offsets[i]` and `end = self.offsets[i + 1]`, then
-///    `self.vars[start..end]` corresponds to `self.coeffs[start..end]
+///    `self.vars[start..end]` corresponds to `self.coeffs[start..end]`.
 ///
 /// Invariants 2 and 3 imply the following lemma:
 /// Lemma 1. `self.offsets[i] <= self.offsets[i + 1]` for all `i` in `0..n`.

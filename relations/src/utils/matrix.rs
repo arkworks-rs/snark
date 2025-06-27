@@ -4,6 +4,7 @@ use ark_std::vec::Vec;
 pub type Matrix<F> = Vec<Vec<(F, usize)>>;
 
 /// Transpose a matrix of field elements.
+#[must_use]
 pub fn transpose<F: Field>(matrix: &Matrix<F>, num_col: usize) -> Matrix<F> {
     // Initialize the transposed matrix with empty vectors
     let mut transposed: Matrix<F> = vec![Vec::new(); num_col];

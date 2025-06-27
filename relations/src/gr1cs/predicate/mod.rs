@@ -1,4 +1,4 @@
-//! This module contains the implementation of a general  predicate, defined in https://eprint.iacr.org/2024/1245
+//! This module contains the implementation of a general  predicate, defined in <https://eprint.iacr.org/2024/1245>.
 //! A  predicate is a function from t (arity) variables to a boolean
 //! variable A predicate can be as simple as f(a,b,c)=a.b-c=0 or as
 //! complex as a lookup table
@@ -181,7 +181,7 @@ impl<F: Field> PredicateConstraintSystem<F> {
     }
 
     /// Check if the constraints enforced by this predicate are satisfied
-    /// i.e. L(x_1, x_2, ..., x_n) = 0.
+    /// i.e. `L(x_1, x_2, ..., x_n) == 0`.
     pub fn which_constraint_is_unsatisfied(&self, cs: &ConstraintSystem<F>) -> Option<usize> {
         for (i, constraint) in self.iter_constraints().enumerate() {
             let variables: Vec<F> = constraint

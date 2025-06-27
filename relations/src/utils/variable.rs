@@ -1,5 +1,6 @@
 /// Variables in [`ConstraintSystem`]s
 #[derive(Copy, Clone, Eq, PartialEq, Hash, PartialOrd, Ord)]
+#[must_use]
 pub struct Variable(u64);
 
 impl Variable {
@@ -28,12 +29,14 @@ impl Variable {
 
     /// Is `self` the zero variable?
     #[inline(always)]
+    #[must_use]
     pub const fn is_zero(&self) -> bool {
         self.0 == 0
     }
 
     /// Is `self` the one variable?
     #[inline(always)]
+    #[must_use]
     pub const fn is_one(&self) -> bool {
         self.0 == Self::One.0
     }
@@ -52,6 +55,7 @@ impl Variable {
 
     /// Is `self` an instance variable?
     #[inline(always)]
+    #[must_use]
     pub const fn is_instance(self) -> bool {
         self.tag() == VarKind::Instance as u8
     }
@@ -64,6 +68,7 @@ impl Variable {
 
     /// Is `self` a witness variable?
     #[inline(always)]
+    #[must_use]
     pub const fn is_witness(self) -> bool {
         self.tag() == VarKind::Witness as u8
     }
@@ -76,12 +81,15 @@ impl Variable {
 
     /// Is `self` a symbolic linear combination variable?
     #[inline(always)]
+    #[must_use]
     pub const fn is_lc(self) -> bool {
         self.tag() == VarKind::SymbolicLc as u8
     }
 
     /// Get the `usize` in `self` if `self.is_lc()`.
     #[inline(always)]
+    #[must_use]
+    #[allow(clippy::cast_possible_truncation)]
     pub const fn get_lc_index(&self) -> Option<usize> {
         if self.is_lc() {
             Some(self.payload() as usize)
@@ -92,6 +100,8 @@ impl Variable {
 
     /// Returns `Some(usize)` if `!self.is_lc()`, and `None` otherwise.
     #[inline(always)]
+    #[must_use]
+    #[allow(clippy::cast_possible_truncation)]
     pub const fn get_variable_index(&self, witness_offset: usize) -> Option<usize> {
         match self.kind() {
             // The one variable always has index 0
@@ -133,6 +143,8 @@ impl Variable {
     /// If `self` is an instance, witness, or symbolic linear combination,
     /// returns the index of that variable.
     #[inline(always)]
+    #[must_use]
+    #[allow(clippy::cast_possible_truncation)]
     pub const fn index(self) -> Option<usize> {
         match self.kind() {
             VarKind::Zero | VarKind::One => None,
@@ -161,6 +173,7 @@ impl Variable {
 /// The kinds of variables that can be used in a constraint system.
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
 #[allow(missing_docs)]
+#[must_use]
 pub enum VarKind {
     Zero = 0,
     One = 1,

@@ -116,6 +116,11 @@ impl<F: Field> Sr1csAdapter<F> {
     }
 
     /// Converts an R1CS constraint system to an SR1CS constraint system.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the constraint system does not have the R1CS predicate registered or
+    /// if there is more than one predicate registered.
     pub fn r1cs_to_sr1cs(
         cs: &ConstraintSystemRef<F>,
     ) -> Result<ConstraintSystemRef<F>, SynthesisError> {
@@ -179,6 +184,10 @@ impl<F: Field> Sr1csAdapter<F> {
 
     /// Converts an R1CS constraint system to an SR1CS constraint system,
     /// while also converting the R1CS assignment to an equivalent SR1CS assignment.
+    ///
+    /// # Panics
+    ///
+    /// Panics is the constraint system does not have the R1CS predicate registered.
     pub fn r1cs_to_sr1cs_with_assignment(
         cs: &mut ConstraintSystem<F>,
     ) -> Result<ConstraintSystemRef<F>, SynthesisError> {

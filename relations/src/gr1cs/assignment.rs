@@ -43,13 +43,11 @@ impl<F: Field> Assignments<F> {
         lc_map: &LcMap<F>,
         f_interner: &FieldInterner<F>,
     ) -> Option<F> {
-        let acc = lc_map
-            .get(lc)
-            .unwrap()
-            .map(|(&coeff, &var)| {
+        lc_map.get(lc).map(|lc| {
+            lc.map(|(&coeff, &var)| {
                 f_interner.value(coeff).unwrap() * self.assigned_value(var).unwrap()
             })
-            .sum();
-        Some(acc)
+            .sum()
+        })
     }
 }

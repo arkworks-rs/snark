@@ -1,6 +1,6 @@
 //! This module contains the implementation of the `ConstraintSystem` struct.
 //! a constraint system contains multiple predicate constraint systems,
-//! each of which enforce have separate predicates and constraints. For more information about the terminology and the structure of the constraint system, refer to section 3.3 of https://eprint.iacr.org/2024/1245
+//! each of which enforce have separate predicates and constraints. For more information about the terminology and the structure of the constraint system, refer to section 3.3 of <https://eprint.iacr.org/2024/1245>
 
 use super::{
     instance_outliner::InstanceOutliner,
@@ -35,9 +35,11 @@ use crate::utils::IndexMap;
 use rayon::prelude::*;
 ///////////////////////////////////////////////////////////////////////////////////////
 
-/// A GR1CS `ConstraintSystem`. Enforces constraints of the form  
-/// `L_i(⟨M_{i,1}, z⟩ , ⟨M_{i,2}, z⟩ , ..., ⟨M_{i,t_i}, z⟩)=0`
-/// More Information: https://eprint.iacr.org/2024/1245
+/// A GR1CS `ConstraintSystem`. Enforces constraints of the form
+///
+/// `L_i(⟨M_{i,1}, z⟩ , ⟨M_{i,2}, z⟩ , ..., ⟨M_{i,t_i}, z⟩) = 0`
+///
+/// More Information: <https://eprint.iacr.org/2024/1245>
 #[derive(Debug, Clone)]
 pub struct ConstraintSystem<F: Field> {
     /// The mode in which the constraint system is operating. `self` can either
@@ -65,7 +67,7 @@ pub struct ConstraintSystem<F: Field> {
     /// number of constraints or their total weight).
     optimization_goal: OptimizationGoal,
 
-    /// If true, the constraint system will outline the instances. Outlining the instances is a technique used for verification succinctness in some SNARKs like Polymath, Garuda, and Pari. For more information, refer to https://eprint.iacr.org/2024/1245
+    /// If true, the constraint system will outline the instances. Outlining the instances is a technique used for verification succinctness in some SNARKs like Polymath, Garuda, and Pari. For more information, refer to <https://eprint.iacr.org/2024/1245>.
     /// It assigns a witness variable to each instance variable and enforces the
     /// equality of the instance and witness variables. Then only uses the
     /// witness variables in the constraints.
@@ -265,7 +267,6 @@ impl<F: Field> ConstraintSystem<F> {
                     assignments,
                     field_interner,
                 )
-                .unwrap()
             });
 
             let predicate = self
@@ -299,8 +300,8 @@ impl<F: Field> ConstraintSystem<F> {
         }
 
         if self.should_construct_matrices() {
-            let a = self.new_constraint_lc(a)?;
-            let b = self.new_constraint_lc(b)?;
+            let a = self.new_constraint_lc(a);
+            let b = self.new_constraint_lc(b);
 
             let predicate = self
                 .predicate_constraint_systems
@@ -331,9 +332,9 @@ impl<F: Field> ConstraintSystem<F> {
         }
 
         if self.should_construct_matrices() {
-            let a = self.new_constraint_lc(a)?;
-            let b = self.new_constraint_lc(b)?;
-            let c = self.new_constraint_lc(c)?;
+            let a = self.new_constraint_lc(a);
+            let b = self.new_constraint_lc(b);
+            let c = self.new_constraint_lc(c);
 
             let predicate = self
                 .predicate_constraint_systems
@@ -365,10 +366,10 @@ impl<F: Field> ConstraintSystem<F> {
         }
 
         if self.should_construct_matrices() {
-            let a = self.new_constraint_lc(a)?;
-            let b = self.new_constraint_lc(b)?;
-            let c = self.new_constraint_lc(c)?;
-            let d = self.new_constraint_lc(d)?;
+            let a = self.new_constraint_lc(a);
+            let b = self.new_constraint_lc(b);
+            let c = self.new_constraint_lc(c);
+            let d = self.new_constraint_lc(d);
 
             let predicate = self
                 .predicate_constraint_systems
@@ -401,11 +402,11 @@ impl<F: Field> ConstraintSystem<F> {
         }
 
         if self.should_construct_matrices() {
-            let a = self.new_constraint_lc(a)?;
-            let b = self.new_constraint_lc(b)?;
-            let c = self.new_constraint_lc(c)?;
-            let d = self.new_constraint_lc(d)?;
-            let e = self.new_constraint_lc(e)?;
+            let a = self.new_constraint_lc(a);
+            let b = self.new_constraint_lc(b);
+            let c = self.new_constraint_lc(c);
+            let d = self.new_constraint_lc(d);
+            let e = self.new_constraint_lc(e);
 
             let predicate = self
                 .predicate_constraint_systems
@@ -451,10 +452,7 @@ impl<F: Field> ConstraintSystem<F> {
     /// Add a new linear combination to the constraint system.
     /// This linear combination is to be used only for constraints, not for variables.
     #[inline]
-    fn new_constraint_lc(
-        &mut self,
-        lc: impl FnOnce() -> LinearCombination<F>,
-    ) -> crate::gr1cs::Result<Variable> {
+    fn new_constraint_lc(&mut self, lc: impl FnOnce() -> LinearCombination<F>) -> Variable {
         if self.should_construct_matrices() {
             self.new_lc_helper(lc)
         } else {
@@ -465,10 +463,10 @@ impl<F: Field> ConstraintSystem<F> {
     /// Creates a new index for the linear combination without adding the concrete LC expression
     /// to the map.
     #[inline]
-    fn new_lc_without_adding(&mut self) -> crate::gr1cs::Result<Variable> {
+    fn new_lc_without_adding(&mut self) -> Variable {
         let index = self.num_linear_combinations;
         self.num_linear_combinations += 1;
-        Ok(Variable::symbolic_lc(index))
+        Variable::symbolic_lc(index)
     }
 
     fn new_lc_add_helper(
@@ -478,13 +476,13 @@ impl<F: Field> ConstraintSystem<F> {
         should_generate_lc_assignments: bool,
         assignments: &mut Assignments<F>,
         field_interner: &mut FieldInterner<F>,
-    ) -> crate::gr1cs::Result<Variable> {
+    ) -> Variable {
         match lc.0.as_slice() {
             // If the linear combination is empty, we return a symbolic LC with index 0.
-            [] | [(_, Variable::Zero)] => Ok(Variable::symbolic_lc(0)),
+            [] | [(_, Variable::Zero)] => Variable::symbolic_lc(0),
             // If the linear combination is just another variable
             // with a coefficient of 1, we return the variable directly.
-            [(c, var)] if c.is_one() => Ok(*var),
+            [(c, var)] if c.is_one() => *var,
             // In all other cases, we create a new linear combination
             _ => {
                 let index = *cur_num_lcs;
@@ -493,19 +491,16 @@ impl<F: Field> ConstraintSystem<F> {
                 *cur_num_lcs += 1;
                 if should_generate_lc_assignments {
                     let value = assignments.eval_lc(index, lc_map, field_interner).unwrap();
-                    assignments.lc_assignment.push(value)
+                    assignments.lc_assignment.push(value);
                 }
-                Ok(Variable::symbolic_lc(index))
+                Variable::symbolic_lc(index)
             },
         }
     }
 
     /// Helper function to add a new linear combination to the constraint system.
     #[inline]
-    fn new_lc_helper(
-        &mut self,
-        lc: impl FnOnce() -> LinearCombination<F>,
-    ) -> crate::gr1cs::Result<Variable> {
+    fn new_lc_helper(&mut self, lc: impl FnOnce() -> LinearCombination<F>) -> Variable {
         let should_push = self.should_construct_matrices() || self.should_generate_lc_assignments();
         let should_generate_lc_assignments = self.should_generate_lc_assignments();
         if should_push {
@@ -533,7 +528,7 @@ impl<F: Field> ConstraintSystem<F> {
         // we need to ensure that it is added to the lc_map whenever
         // `self.should_construct_matrices()` is true.
         // `self.new_lc_helper` will handle this.
-        self.new_lc_helper(lc)
+        Ok(self.new_lc_helper(lc))
     }
 
     /// Set `self.mode` to `mode`.
@@ -591,10 +586,7 @@ impl<F: Field> ConstraintSystem<F> {
         }
     }
 
-    /// Obtain a variable representing a new public instance input
-    /// This function takes a closure, this closure returns `Result<F>`
-    /// Internally, this function calls new_input_variable of the constraint
-    /// system to which it's pointing
+    /// Obtain a variable representing a new public instance input.
     #[inline]
     pub fn new_input_variable<Func>(&mut self, f: Func) -> crate::utils::Result<Variable>
     where
@@ -670,7 +662,7 @@ impl<F: Field> ConstraintSystem<F> {
         if self.is_in_setup_mode() {
             Err(SynthesisError::AssignmentMissing)
         } else {
-            for (label, predicate) in self.predicate_constraint_systems.iter() {
+            for (label, predicate) in &self.predicate_constraint_systems {
                 if let Some(unsatisfied_constraint) =
                     predicate.which_constraint_is_unsatisfied(self)
                 {
@@ -775,7 +767,7 @@ impl<F: Field> ConstraintSystem<F> {
     /// corresponding set of matrices
     pub fn to_matrices(&self) -> crate::gr1cs::Result<BTreeMap<Label, Vec<Matrix<F>>>> {
         let mut matrices = BTreeMap::new();
-        for (label, predicate) in self.predicate_constraint_systems.iter() {
+        for (label, predicate) in &self.predicate_constraint_systems {
             matrices.insert(label.clone(), predicate.to_matrices(self));
         }
         Ok(matrices)
@@ -822,13 +814,15 @@ impl<F: Field> ConstraintSystem<F> {
         self.instance_outliner.is_some()
     }
 
-    /// Outlines the instances in the constraint system
+    /// Outlines the instances in the constraint system.
+    ///
     /// This function creates a new witness variable for each instance
     /// variable and uses these witness variables in the constraints
     /// instead of instance variables. This technique is useful for
     /// verifier succinctness in some SNARKs like Garuda, Pari and
-    /// PolyMath After the function call, The instances are only
-    /// used in the `c` matrix of r1cs
+    /// PolyMath.
+    /// After the function call, instances are only
+    /// used in the `C` matrix of r1cs
     pub fn perform_instance_outlining(
         &mut self,
         outliner: InstanceOutliner<F>,

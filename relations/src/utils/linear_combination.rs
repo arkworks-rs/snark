@@ -11,6 +11,7 @@ use super::variable::Variable;
 
 /// A linear combination of variables according to associated coefficients.
 #[derive(Debug, Clone, PartialEq, Eq, Default, PartialOrd, Ord)]
+#[must_use]
 pub struct LinearCombination<F: Field>(pub Vec<(F, Variable)>);
 
 /// Generate a `LinearCombination` from arithmetic expressions involving
@@ -39,7 +40,7 @@ macro_rules! lc_diff {
 impl<F: Field> LinearCombination<F> {
     /// Create a new empty linear combination.
     pub fn new() -> Self {
-        Default::default()
+        Self::default()
     }
 
     /// Create a new empty linear combination.
@@ -166,6 +167,9 @@ impl<F: Field> LinearCombination<F> {
     }
 
     /// Get the location of a variable in `self`.
+    ///
+    /// # Errors
+    /// If the variable is not found, returns the index where it would be inserted.
     #[inline]
     pub fn get_var_loc(&self, search_var: &Variable) -> Result<usize, usize> {
         if self.0.len() < 6 {
@@ -303,9 +307,10 @@ where
     let mut i = 0;
     let mut j = 0;
     while i < cur.len() && j < other.len() {
+        use core::cmp::Ordering;
+
         let self_cur = &cur[i];
         let other_cur = &other[j];
-        use core::cmp::Ordering;
         match self_cur.1.cmp(&other_cur.1) {
             Ordering::Greater => {
                 new_vec.push((push_fn(other[j].0), other[j].1));
@@ -320,7 +325,7 @@ where
                 i += 1;
                 j += 1;
             },
-        };
+        }
     }
     new_vec.extend_from_slice(&cur[i..]);
     while j < other.0.len() {

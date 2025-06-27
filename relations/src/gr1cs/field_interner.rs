@@ -35,6 +35,7 @@ impl<F: Field> FieldInterner<F> {
     }
 
     #[inline(always)]
+    #[allow(clippy::cast_possible_truncation)]
     fn intern(&mut self, value: F) -> InternedField {
         let index = self.vec.len();
         let interned = InternedField(index as u32);

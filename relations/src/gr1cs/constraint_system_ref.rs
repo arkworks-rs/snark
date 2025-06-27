@@ -284,7 +284,7 @@ impl<F: Field> ConstraintSystemRef<F> {
     }
 
     /// Set `self.mode` to `mode`.
-    /// Sets the mode if there exists an underlying ConstraintSystem.
+    /// Sets the mode if there exists an underlying `ConstraintSystem`.
     pub fn set_mode(&self, mode: SynthesisMode) {
         self.inner().map_or((), |cs| cs.borrow_mut().set_mode(mode))
     }
@@ -328,10 +328,9 @@ impl<F: Field> ConstraintSystemRef<F> {
     /// Specify the strategy for how the instance should be outlined.
     /// This should be compatible with the predicates in the constraint system.
     #[inline]
-    pub fn set_instance_outliner(&self, instance_outliner: InstanceOutliner<F>) {
-        self.inner().map_or((), |cs| {
-            cs.borrow_mut().set_instance_outliner(instance_outliner)
-        })
+    pub fn set_instance_outliner(&self, outliner: InstanceOutliner<F>) {
+        self.inner()
+            .map_or((), |cs| cs.borrow_mut().set_instance_outliner(outliner))
     }
 
     /// Check whether or not `self` will construct matrices.
@@ -341,10 +340,7 @@ impl<F: Field> ConstraintSystemRef<F> {
             .is_some_and(|cs| cs.borrow().should_construct_matrices())
     }
 
-    /// Obtain a variable representing a new public instance input
-    /// This function takes a closure, this closure returns `Result<F>`
-    /// Internally, this function calls new_input_variable of the constraint
-    /// system to which it's pointing
+    /// Obtain a variable representing a new public instance input.
     #[inline]
     pub fn new_input_variable<Func>(&self, f: Func) -> crate::utils::Result<Variable>
     where
@@ -353,13 +349,13 @@ impl<F: Field> ConstraintSystemRef<F> {
         self.inner()
             .ok_or(SynthesisError::MissingCS)
             .and_then(|cs| {
-                if !self.is_in_setup_mode() {
+                if self.is_in_setup_mode() {
+                    cs.borrow_mut().new_input_variable(f)
+                } else {
                     // This is needed to avoid double-borrows, because `f`
                     // might itself mutably borrow `cs` (eg: `f = || g.value()`).
                     let value = f();
                     cs.borrow_mut().new_input_variable(|| value)
-                } else {
-                    cs.borrow_mut().new_input_variable(f)
                 }
             })
     }
@@ -374,13 +370,13 @@ impl<F: Field> ConstraintSystemRef<F> {
             .inner()
             .ok_or(SynthesisError::MissingCS)
             .and_then(|cs| {
-                if !self.is_in_setup_mode() {
+                if self.is_in_setup_mode() {
+                    cs.borrow_mut().new_witness_variable(f)
+                } else {
                     // This is needed to avoid double-borrows, because `f`
                     // might itself mutably borrow `cs` (eg: `f = || g.value()`).
                     let value = f();
                     cs.borrow_mut().new_witness_variable(|| value)
-                } else {
-                    cs.borrow_mut().new_witness_variable(f)
                 }
             });
         a
@@ -389,21 +385,18 @@ impl<F: Field> ConstraintSystemRef<F> {
     /// Register a  predicate in the constraint system with a given label.
     pub fn register_predicate(
         &self,
-        predicate_label: &str,
+        label: &str,
         predicate: PredicateConstraintSystem<F>,
     ) -> crate::utils::Result<()> {
         self.inner()
             .ok_or(SynthesisError::MissingCS)
-            .and_then(|cs| {
-                cs.borrow_mut()
-                    .register_predicate(predicate_label, predicate)
-            })
+            .and_then(|cs| cs.borrow_mut().register_predicate(label, predicate))
     }
 
-    /// Remove a predicate with the given label from the constraint system.
-    pub fn remove_predicate(&self, predicate_label: &str) {
+    /// Remove a predicate with the given `label` from the constraint system.
+    pub fn remove_predicate(&self, label: &str) {
         self.inner()
-            .map_or((), |cs| cs.borrow_mut().remove_predicate(predicate_label))
+            .map_or((), |cs| cs.borrow_mut().remove_predicate(label))
     }
 
     /// Checks if there is a predicate with the given label in the constraint
@@ -441,7 +434,7 @@ impl<F: Field> ConstraintSystemRef<F> {
     /// if an optimization goal is set).
     pub fn finalize(&self) {
         if let Some(cs) = self.inner() {
-            cs.borrow_mut().finalize()
+            cs.borrow_mut().finalize();
         }
     }
 
@@ -455,15 +448,16 @@ impl<F: Field> ConstraintSystemRef<F> {
     /// is the dominating cost.
     pub fn inline_all_lcs(&self) {
         if let Some(cs) = self.inner() {
-            cs.borrow_mut().inline_all_lcs()
+            cs.borrow_mut().inline_all_lcs();
         }
     }
 
     /// Returns `self` if `!self.is_none()`, otherwise returns `other`.
+    #[must_use]
     pub fn or(self, other: Self) -> Self {
         match self {
             ConstraintSystemRef::None => other,
-            _ => self,
+            ConstraintSystemRef::CS(_) => self,
         }
     }
 

@@ -53,6 +53,10 @@ pub use namespace::Namespace;
 // TODO: Think: should we replace this with just a closure?
 pub trait ConstraintSynthesizer<F: Field> {
     /// Drives generation of new constraints inside `cs`.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if constraints cannot be generated successfully.
     fn generate_constraints(self, cs: ConstraintSystemRef<F>) -> crate::gr1cs::Result<()>;
 }
 
