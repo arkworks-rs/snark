@@ -234,7 +234,7 @@ unsafe fn windowed_access<'a>(
 /// Preconditions:
 /// 1. `w` is a slice of length 2.
 /// 2. `w[0] <= w[1]`.
-/// 3. `w[1] - w[0] < vars.len()`.
+/// 3. `w[1] - w[0] <= vars.len()`.
 ///
 /// Note that precondition 3 here differs from that in `windowed_access`;
 /// instead of requiring that `w[1] < vars.len()`,
@@ -251,10 +251,7 @@ unsafe fn windowed_access_mut<'b>(
 ) -> LcVarsIterMutItem<'b> {
     debug_assert!(w.len() == 2, "Expected a slice of length 2");
     debug_assert!(w[0] <= w[1], "Expected w[0] <= w[1]");
-    debug_assert!(
-        w[1] - w[0] < vars.len(),
-        "Expected w[1] - w[0] < vars.len()"
-    );
+    debug_assert!(w[1] - w[0] <= vars.len(), "`w[1] - w[0] > vars.len()`");
     #[allow(unsafe_code)]
     unsafe {
         let start = *w.get_unchecked(0);
