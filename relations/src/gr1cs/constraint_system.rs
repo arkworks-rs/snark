@@ -849,8 +849,13 @@ impl<F: Field> ConstraintSystem<F> {
 
         // Now, Go over all the linear combinations and create a new witness for each
         // instance variable you see
-        cfg_iter_mut!(self.lc_map).for_each(|lc| {
-            for (_, var) in lc {
+        #[cfg(feature = "parallel")]
+        let lc_vars_iter_mut = self.lc_map.lc_vars_iter_mut();
+        #[cfg(not(feature = "parallel"))]
+        let lc_vars_iter_mut = self.lc_map.lc_vars_iter_mut();
+
+        lc_vars_iter_mut.for_each(|lc| {
+            for var in lc {
                 if var.is_instance() {
                     *var = instance_to_witness_map[var.index().unwrap()];
                 } else if var.is_one() {

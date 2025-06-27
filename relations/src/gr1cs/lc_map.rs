@@ -11,11 +11,42 @@ use crate::gr1cs::{
     Variable,
 };
 
+/// The following invariant must always be maintained:
+/// 1. `self.offsets` is a non-empty vector of length `n + 1`, where `n` is the number of linear combinations.
+/// 2. `self.offsets[i]` is the index in `self.coeffs` and `self.vars` where the `i`-th linear combination starts.
+/// 3. `self.offsets[i + 1]` is the index in `self.coeffs` and `self.vars` where the `i`-th linear combination ends.
+/// 4. `self.coeffs` and `self.vars` are of the same length, and they contain the coefficients and variables of the linear combinations respectively.
+/// 5. `self.coeffs` and `self.vars` are interleaved such that for each linear combination `i`,
+/// the coefficients and variables are stored in the same order, i.e.,
+/// letting `start = self.offsets[i]` and `end = self.offsets[i + 1]`, then
+/// `self.vars[start..end]` corresponds to `self.coeffs[start..end]
+///
+/// Invariants 2 and 3 imply the following lemma:
+/// Lemma 1. `self.offsets[i] <= self.offsets[i + 1]` for all `i` in `0..n`.
+/// Proof:
+///   By invariant 2, `self.offsets[i]` is the index in `self.coeffs` and `self.vars`
+///   where the `i`-th linear combination starts.
+///   By invariant 3, `self.offsets[i + 1]` is the index in `self.coeffs` and `self.vars`
+///   where the `i`-th linear combination ends.
+///   Since each linear combination is of length at least 0, we have the lemma.
+///
+/// Invariants 2, 3, 4, 5 imply the following lemma:
+/// Lemma 2. For all `i` in `0..n`,
+///   * `self.offsets[i + 1] - self.offsets[i] <= self.vars.len()`
+///   * `self.offsets[i + 1] - self.offsets[i] <= self.coeffs.len()`
+///   
+/// Proof:
+///   Assume not. Then there exists an `i` such that either
+///   * `self.offsets[i + 1] - self.offsets[i] > self.vars.len()`
+///   * `self.offsets[i + 1] - self.offsets[i] > self.coeffs.len()`
+///   In both cases, this would imply that the `i`-th linear combination
+///   has more variables or coefficients than the total number of variables or coefficients,
+///   which contradicts invariant 5.
 #[derive(Debug, Clone, Default)]
 pub struct LcMap<F: Field> {
     vars: Vec<Variable>,
     coeffs: Vec<InternedField>,
-    offsets: Vec<usize>, // Starting indices of each inner slice in `vars` and `coeffs``
+    offsets: Vec<usize>,
     _f: core::marker::PhantomData<F>,
 }
 
@@ -28,8 +59,7 @@ pub(crate) fn to_non_interned_lc<'a, F: Field>(
 
 type LcMapIterItem<'a> =
     core::iter::Zip<core::slice::Iter<'a, InternedField>, core::slice::Iter<'a, Variable>>;
-type LcMapIterMutItem<'a> =
-    core::iter::Zip<core::slice::IterMut<'a, InternedField>, core::slice::IterMut<'a, Variable>>;
+type LcVarsIterMutItem<'a> = core::slice::IterMut<'a, Variable>;
 
 impl<F: Field> LcMap<F> {
     #[inline(always)]
@@ -37,6 +67,8 @@ impl<F: Field> LcMap<F> {
         Self {
             vars: Vec::new(),
             coeffs: Vec::new(),
+            // We preserve invariant 1., i.e. that `self.offsets` has length `n + 1` where `n` is the number of linear combinations.
+            // Initially, `n = 0`, so `self.offsets` has length 1.
             offsets: vec![0],
             _f: core::marker::PhantomData,
         }
@@ -57,10 +89,17 @@ impl<F: Field> LcMap<F> {
         v: impl IntoIterator<Item = (F, Variable)>,
         f_interner: &mut FieldInterner<F>,
     ) {
+        // This loop preserves invariants 4 and 5, i.e. that
+        // * `self.coeffs.len() == self.vars.len()`
+        // * `self.coeffs` and `self.vars` are interleaved such that for each linear combination `i`, the coefficients and variables are stored in the same order.
         for (coeff, var) in v {
             self.coeffs.push(f_interner.get_or_intern(coeff));
             self.vars.push(var);
         }
+        // This step preserves invariants 1, 2, and 3, i.e. that
+        // * `self.offsets` has length `n + 1` where `n` is the number of linear combinations.
+        // * `self.offsets[i]` is the index in `self.coeffs` and `self.vars` where the `i`-th linear combination starts.
+        // * `self.offsets[i + 1]` is the index in `self.coeffs` and `self.vars` where the `i`-th linear combination ends.
         self.offsets.push(self.coeffs.len());
     }
 
@@ -70,6 +109,7 @@ impl<F: Field> LcMap<F> {
         v: impl IntoIterator<Item = &'a (F, Variable)>,
         f_interner: &mut FieldInterner<F>,
     ) {
+        // See `push` for why the invariants are preserved.
         for (coeff, var) in v {
             self.coeffs.push(f_interner.get_or_intern(*coeff));
             self.vars.push(*var);
@@ -79,36 +119,46 @@ impl<F: Field> LcMap<F> {
 
     #[inline(always)]
     pub fn iter(&self) -> impl Iterator<Item = LcMapIterItem<'_>> {
-        self.offsets
-            .windows(2)
-            .map(|w| windowed_access(w, &self.coeffs, &self.vars))
+        self.offsets.windows(2).map(|w|
+                // SAFETY:
+                // Precondition 1 (`w.len() == 2`) is satisfied for the following reason:
+                //   By invariant 1, `self.offsets` is of length `n + 1`.
+                //   Clearly, when `n == 0`, `self.offsets.next()` will return `None`, 
+                //.  so this closure will never be called.
+                //   Next, when `n > 0`, `self.offsets.next()` will return slices of length 2 due to
+                //   the definition of windows(2) .
+                //
+                // Precondition 2 (`w[0] <= w[1]`) is satisfied due to Lemma 1.
+                // Precondition 3 (`w[1] <= coeffs.len() && w[1] <= vars.len()`) is satisfied due to Invariant 3 and Invariant 5.
+                unsafe { windowed_access(w, &self.coeffs, &self.vars) })
     }
 
     #[cfg(feature = "parallel")]
     #[inline(always)]
     pub fn par_iter(&self) -> impl ParallelIterator<Item = LcMapIterItem<'_>> {
-        self.offsets
-            .par_windows(2)
-            .map(|w| windowed_access(w, &self.coeffs, &self.vars))
+        self.offsets.par_windows(2).map(|w|
+                // SAFETY:
+                // Precondition 1 (`w.len() == 2`) is satisfied for the following reason:
+                //   By invariant 1, `self.offsets` is of length `n + 1`.
+                //   Clearly, when `n == 0`, `self.offsets.next()` will return `None`, 
+                //.  so this closure will never be called.
+                //   Next, when `n > 0`, `self.offsets.next()` will return slices of length 2 due to
+                //   the definition of windows(2) .
+                //
+                // Precondition 2 (`w[0] <= w[1]`) is satisfied due to Lemma 1.
+                // Precondition 3 (`w[1] <= coeffs.len() && w[1] <= vars.len()`) is satisfied due to Invariant 3 and Invariant 5.
+                unsafe { windowed_access(w, &self.coeffs, &self.vars) })
     }
 
     #[inline(always)]
-    pub fn iter_mut(&mut self) -> impl Iterator<Item = LcMapIterMutItem<'_>> {
-        LcMapIterMut {
-            coeffs: &mut self.coeffs,
-            vars: &mut self.vars,
-            offsets: self.offsets.windows(2),
-        }
+    pub fn lc_vars_iter_mut(&mut self) -> impl Iterator<Item = LcVarsIterMutItem<'_>> {
+        LcVarsIterMut::new(self)
     }
 
     #[cfg(feature = "parallel")]
     #[inline(always)]
-    pub fn par_iter_mut(&mut self) -> LcMapParIterMut<'_> {
-        LcMapParIterMut {
-            coeffs: self.coeffs.as_mut_ptr(),
-            vars: self.vars.as_mut_ptr(),
-            offsets: &self.offsets,
-        }
+    pub fn lc_vars_par_iter_mut(&mut self) -> LcVarsParIterMut<'_> {
+        LcVarsParIterMut::new(self)
     }
 
     #[inline(always)]
@@ -119,35 +169,90 @@ impl<F: Field> LcMap<F> {
     #[allow(unsafe_code)]
     #[inline(always)]
     pub fn get(&self, idx: usize) -> Option<LcMapIterItem<'_>> {
-        if idx >= self.len() {
+        if idx >= self.len() || self.offsets.len() < 2 {
             return cold();
         } else {
-            Some(windowed_access(
-                unsafe { self.offsets.get_unchecked(idx..=(idx + 1)) },
-                &self.coeffs,
-                &self.vars,
-            ))
+            unsafe {
+                // SAFETY:
+                // Precondition 1 (`self.offsets.len() >= 2`) is satisfied due to the check
+                // in the `if` condition.
+                //
+                // Precondition 2 (`offsets[idx] <= offsets[idx + 1]`) is satisfied due to Lemma 1.
+                // Precondition 3 (`offsets[idx + 1] <= coeffs.len() && offsets[idx + 1] <= vars.len()`)
+                // is satisfied due to Invariant 3 and Invariant 5.
+                Some(windowed_access(
+                    // SAFETY:
+                    // `idx < self.len()` implies that `idx < self.offsets.len() - 1`,
+                    // and so `self.offsets.get_unchecked(idx..=(idx + 1))` is a valid slice of length 2.
+                    self.offsets.get_unchecked(idx..=(idx + 1)),
+                    &self.coeffs,
+                    &self.vars,
+                ))
+            }
         }
     }
 }
 
-///
-fn windowed_access<'a>(
+/// Preconditions:
+/// 1. `w` is a slice of length 2.
+/// 2. `w[0] <= w[1]`.
+/// 3. `w[1]` is within bounds of `coeffs` and `vars`,
+///    i.e. `w[1] <= self.coeffs.len()` and `w[1] <= self.vars.len()`.
+#[inline(always)]
+unsafe fn windowed_access<'a>(
     w: &'a [usize],
     coeffs: &'a [InternedField],
     vars: &'a [Variable],
 ) -> LcMapIterItem<'a> {
+    debug_assert!(w.len() == 2, "Expected a slice of length 2");
+    debug_assert!(w[0] <= w[1], "Expected w[0] <= w[1]");
+    debug_assert!(w[1] <= coeffs.len(), "Expected w[1] <= coeffs.len()");
     unsafe {
         // SAFETY:
-        // by construction, `self.offsets` always has an odd number of elements,
-        // and so `w` always has two elements
+        // By precondition 1, `w` is a slice of length 2, so these accesses are within bounds.
         let start = *w.get_unchecked(0);
         let end = *w.get_unchecked(1);
-        // `start` and `end` are guaranteed to be within bounds of `self.coeffs` and `self.vars`
+        // By precondition 2, `start..end` is not an empty range.
+        // By precondition 3, `end` is within bounds of `coeffs` and `vars`.
         coeffs
             .get_unchecked(start..end)
             .iter()
             .zip(vars.get_unchecked(start..end))
+    }
+}
+
+/// Preconditions:
+/// 1. `w` is a slice of length 2.
+/// 2.`w[0] <= w[1]`.
+/// 3.`w[1] - w[0] < vars.len()`.
+///
+/// Note that precondition 3 here differs from that in `windowed_access`;
+/// instead of requiring that `w[1] < vars.len()`,
+/// we require that `w[1] - w[0]` is within bounds of `vars`.
+///
+/// Note that `windowed_access_mut` mutates `vars` by splitting it into two parts:
+/// the first part is the linear combination variables corresponding to the range `w[0]..w[1]`,
+/// and the second part is the remaining variables.
+/// `vars` is updated to point to the second part.
+#[inline(always)]
+unsafe fn windowed_access_mut<'a, 'b>(
+    w: &'a [usize],
+    vars: &mut &'b mut [Variable],
+) -> LcVarsIterMutItem<'b> {
+    debug_assert!(w.len() == 2, "Expected a slice of length 2");
+    debug_assert!(w[0] <= w[1], "Expected w[0] <= w[1]");
+    debug_assert!(
+        w[1] - w[0] < vars.len(),
+        "Expected w[1] - w[0] < vars.len()"
+    );
+    #[allow(unsafe_code)]
+    unsafe {
+        let start = *w.get_unchecked(0);
+        let end = *w.get_unchecked(1);
+        let len = end - start;
+        let (v_head, v_tail) = core::mem::take(vars).split_at_mut_unchecked(len);
+        *vars = v_tail;
+        v_head.iter_mut()
     }
 }
 
@@ -156,35 +261,39 @@ fn cold<'a>() -> Option<LcMapIterItem<'a>> {
     None
 }
 
-pub struct LcMapIterMut<'a> {
-    coeffs: &'a mut [InternedField],
+pub struct LcVarsIterMut<'a> {
     vars: &'a mut [Variable],
     offsets: core::slice::Windows<'a, usize>,
 }
 
-impl<'a> Iterator for LcMapIterMut<'a> {
-    type Item = LcMapIterMutItem<'a>;
+impl<'a> LcVarsIterMut<'a> {
+    #[inline(always)]
+    pub fn new<F: Field>(lc_map: &'a mut LcMap<F>) -> Self {
+        Self {
+            vars: &mut lc_map.vars,
+            offsets: lc_map.offsets.windows(2),
+        }
+    }
+}
+
+impl<'a> Iterator for LcVarsIterMut<'a> {
+    type Item = LcVarsIterMutItem<'a>;
 
     #[inline]
     fn next(&mut self) -> Option<Self::Item> {
-        let Some([start, end]) = self.offsets.next() else {
-            return None;
-        };
-
-        let len = end - start;
-        // SAFETY:
-        // * By construction, `start <= end` (we only append something larger than `start` to `offsets`)
-        // * `since `end = start + length_of_lc`, `len` is guaranteed to be within bounds
-        //    of `self.coeffs` and `self.vars`.
-        //    This is because the latter two are always appended to together.
-        #[allow(unsafe_code)]
-        unsafe {
-            let (c_head, c_tail) = core::mem::take(&mut self.coeffs).split_at_mut_unchecked(len);
-            let (v_head, v_tail) = core::mem::take(&mut self.vars).split_at_mut_unchecked(len);
-            self.coeffs = c_tail;
-            self.vars = v_tail;
-            Some(c_head.iter_mut().zip(v_head))
-        }
+        self.offsets.next().map(move |w| {
+            // SAFETY:
+            // Precondition 1 (`w.len() == 2`) is satisfied for the following reason:
+            //   By invariant 1, `self.offsets` is of length `n + 1`.
+            //   Clearly, when `n == 0`, `self.offsets.next()` will return `None`,
+            //.  so this closure will never be called.
+            //   Next, when `n > 0`, `self.offsets.next()` will return slices of length 2 due to
+            //   the definition of windows(2) .
+            //
+            // Precondition 2 (`w[0] <= w[1]`) is satisfied due to Lemma 1.
+            // Precondition 3 (`w[1] - w[0] < vars.len()`) is satisfied due to Lemma 2.
+            unsafe { windowed_access_mut(w, &mut self.vars) }
+        })
     }
 
     #[inline]
@@ -195,23 +304,25 @@ impl<'a> Iterator for LcMapIterMut<'a> {
 }
 
 #[cfg(feature = "parallel")]
-pub struct LcMapParIterMut<'a> {
-    coeffs: *mut InternedField,
-    vars: *mut Variable,
+pub struct LcVarsParIterMut<'a> {
+    vars: &'a mut [Variable],
     offsets: &'a [usize],
 }
 
 #[cfg(feature = "parallel")]
-#[allow(unsafe_code)]
-unsafe impl<'a> Send for LcMapParIterMut<'a> {}
+impl<'a> LcVarsParIterMut<'a> {
+    #[inline(always)]
+    pub fn new<F: Field>(lc_map: &'a mut LcMap<F>) -> Self {
+        Self {
+            vars: &mut lc_map.vars,
+            offsets: &lc_map.offsets,
+        }
+    }
+}
 
 #[cfg(feature = "parallel")]
-#[allow(unsafe_code)]
-unsafe impl<'a> Sync for LcMapParIterMut<'a> {}
-
-#[cfg(feature = "parallel")]
-impl<'a> ParallelIterator for LcMapParIterMut<'a> {
-    type Item = LcMapIterMutItem<'a>;
+impl<'a> ParallelIterator for LcVarsParIterMut<'a> {
+    type Item = LcVarsIterMutItem<'a>;
 
     fn drive_unindexed<C>(self, consumer: C) -> C::Result
     where
@@ -222,7 +333,7 @@ impl<'a> ParallelIterator for LcMapParIterMut<'a> {
 }
 
 #[cfg(feature = "parallel")]
-impl<'a> IndexedParallelIterator for LcMapParIterMut<'a> {
+impl<'a> IndexedParallelIterator for LcVarsParIterMut<'a> {
     fn len(&self) -> usize {
         self.offsets.len().saturating_sub(1)
     }
@@ -238,60 +349,214 @@ impl<'a> IndexedParallelIterator for LcMapParIterMut<'a> {
     where
         CB: rayon::iter::plumbing::ProducerCallback<Self::Item>,
     {
+        // At all times, the contents of `Producer` must preserve similar invariants
+        // as those in `LcMap`:
+        // 1. `self.offsets` is a non-empty vector of length `n + 1`, where `n` is the number of linear combinations being iterated over.
+        // 2. `self.offsets[i]` is the index in `self.vars` where the `i`-th linear combination starts.
+        // 3. `self.offsets[i + 1]` is the index in `self.vars` where the `i`-th linear combination ends.
+        // 4. `self.vars` is a mutable slice of variables that contains the variables of the linear combinations being iterated over.
+        //
+        // (Note that invariant 5 does not apply here, as we are not interleaving coefficients and variables in this iterator.)
         struct Producer<'a> {
-            coeffs: *mut InternedField,
-            vars: *mut Variable,
+            vars: &'a mut [Variable],
             offsets: &'a [usize],
         }
 
-        #[allow(unsafe_code)]
-        unsafe impl<'a> Send for Producer<'a> {}
         impl<'a> rayon::iter::plumbing::Producer for Producer<'a> {
-            type Item = LcMapIterMutItem<'a>;
-            type IntoIter = IntoIter<LcMapIterMutItem<'a>>;
+            type Item = LcVarsIterMutItem<'a>;
+            type IntoIter = std::vec::IntoIter<LcVarsIterMutItem<'a>>;
 
-            fn into_iter(self) -> Self::IntoIter {
+            fn into_iter(mut self) -> Self::IntoIter {
+                // SAFETY:
+                // Precondition 1 (`w.len() == 2`) is satisfied for the following reason:
+                //   By invariant 1, `self.offsets` is of length `n + 1`.
+                //   Clearly, when `n == 0`, `self.offsets.next()` will return `None`,
+                //.  so this closure will never be called.
+                //   Next, when `n > 0`, `self.offsets.next()` will return slices of length 2 due to
+                //   the definition of windows(2) .
+                //
+                // Precondition 2 (`w[0] <= w[1]`) is satisfied due to (an analog of) Lemma 1.
+                // Precondition 3 (`w[1] - w[0] < vars.len()`) is satisfied due to (an analog of) Lemma 2.
                 self.offsets
                     .windows(2)
-                    .map(|window| {
-                        // SAFETY: See logic from `LcMapIterMut::next`
-                        let start = unsafe { *window.get_unchecked(0) };
-                        let end = unsafe { *window.get_unchecked(1) };
-                        let len = end - start;
-                        #[allow(unsafe_code)]
-                        unsafe {
-                            let coeffs_ptr = self.coeffs.add(start);
-                            let coeffs_slice = core::slice::from_raw_parts_mut(coeffs_ptr, len);
-                            let vars_ptr = self.vars.add(start);
-                            let vars_slice = core::slice::from_raw_parts_mut(vars_ptr, len);
-                            coeffs_slice.iter_mut().zip(vars_slice)
-                        }
-                    })
+                    .map(|w| unsafe { windowed_access_mut(w, &mut self.vars) })
                     .collect::<Vec<_>>()
                     .into_iter()
             }
 
-            fn split_at(self, index: usize) -> (Self, Self) {
-                let (left, right) = self.offsets.split_at(index + 1);
-                (
-                    Producer {
-                        coeffs: self.coeffs,
-                        vars: self.vars,
-                        offsets: left,
-                    },
-                    Producer {
-                        coeffs: self.coeffs,
-                        vars: self.vars,
-                        offsets: right,
-                    },
-                )
+            // The freshly produced `left` and `right` `Producer`s
+            // preserve the `Producer` invariants.
+            //
+            //
+            // First, the definition of `split_at` guarantees that
+            // `index < n = self.offsets.len() - 1`.
+            //
+            // We then establish some common facts we will use in the reasoning below.
+            //
+            // Fact 1. By invariant 2 on `self`, `split_point` is the index in `self.vars`
+            // where the `index`-th linear combination starts.
+            //
+            // The latter implies the following:
+            //
+            // Fact 2. `left_vars` will contain the variables of all linear combinations
+            // from `0` to `index - 1`, (i.e. the first `index` linear combinations).
+            // Fact 3. `right_vars` will contain the variables of all linear combinations
+            // from `index` to `n - 1`, (i.e. the last `n - index` linear combinations).
+            //
+            // ## Invariant 1:
+            //
+            // If `self` contains `n` linear combinations, then
+            // * `left_offsets` will contain `index + 1` elements,
+            //   thus representing `index`-many linear combinations,
+            // * `right_offsets` will contain `self.offsets.len() - index + 1` elements,
+            //   thus representing `n - index`-many linear combinations.
+            //
+            //
+            // ## Invariant 2:
+            //
+            // Fact 2 and Fact 3 imply that `left_vars` and `right_vars`
+            // contain the correct variables.
+            //
+            // We are left to show that `left_offsets` and `right_offsets` contain
+            // the correct starting indices of the linear combinations in `left_vars` and `right_vars`.
+            // This is guaranteed by invariant 2 on `self`:
+            // * `self.offsets[..=index]` contains the starting indices of the first `index` linear combinations,
+            //   which are the linear combinations in `left_vars`.
+            // * `self.offsets[index..]` contains the starting indices of the last `n - index` linear combinations,
+            //   which are the linear combinations in `right_vars`.
+            //
+            // ## Invariant 3:
+            //
+            // Follows similarly to the reasoning above, but just replacing starting indices with ending indices.
+            //
+            // ## Invariant 4:
+            //
+            // Follows from Fact 2 for `left_vars` and Fact 3 for `right_vars`.
+            fn split_at(mut self, index: usize) -> (Self, Self) {
+                let left_offsets = &self.offsets[..=index];
+                let right_offsets = &self.offsets[index..];
+
+                let split_point = self.offsets[index];
+                let (left_vars, right_vars) =
+                    std::mem::take(&mut self.vars).split_at_mut(split_point);
+                let left = Producer {
+                    vars: left_vars,
+                    offsets: left_offsets,
+                };
+                let right = Producer {
+                    vars: right_vars,
+                    offsets: right_offsets,
+                };
+                (left, right)
             }
         }
 
+        // This construction of `Producer` ensures that the invariants are preserved
+        // because `self.vars` and `self.offsets` are used directly from `LcMap`,
+        // which enforces the relevant `LcVarsParIterMut` invariants.
         callback.callback(Producer {
-            coeffs: self.coeffs,
             vars: self.vars,
             offsets: self.offsets,
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    use ark_test_curves::bls12_381::Fr;
+
+    #[test]
+    #[cfg(feature = "parallel")]
+    fn test_lc_map_par_iter_mut() {
+        let mut interner = FieldInterner::<Fr>::new();
+
+        let mut lcmap = LcMap::<Fr>::new();
+
+        lcmap.push(
+            [
+                (1u8.into(), Variable::One),
+                (2u8.into(), Variable::Instance(2)),
+            ],
+            &mut interner,
+        );
+        lcmap.push(
+            [
+                (3u8.into(), Variable::Witness(4)),
+                (4u8.into(), Variable::Instance(4)),
+            ],
+            &mut interner,
+        );
+
+        // Parallel mutation: double coefficients, increment vars
+        lcmap.lc_vars_par_iter_mut().for_each(|chunk| {
+            for v in chunk {
+                if v.is_instance() {
+                    *v = Variable::Instance(v.index().unwrap() + 1);
+                }
+            }
+        });
+
+        // Convert back to (F, Variable) for assertions
+        let flattened: Vec<_> = lcmap
+            .iter()
+            .flat_map(|chunk| to_non_interned_lc(chunk, &interner))
+            .collect();
+
+        let expected = vec![
+            (1u8.into(), Variable::One),
+            (2u8.into(), Variable::Instance(3)),
+            (3u8.into(), Variable::Witness(4)),
+            (4u8.into(), Variable::Instance(5)),
+        ];
+
+        assert_eq!(flattened, expected);
+    }
+
+    #[test]
+    fn test_lc_map_iter_mut() {
+        let mut interner = FieldInterner::<Fr>::new();
+
+        let mut lcmap = LcMap::<Fr>::new();
+
+        lcmap.push(
+            [
+                (1u8.into(), Variable::One),
+                (2u8.into(), Variable::Instance(2)),
+            ],
+            &mut interner,
+        );
+        lcmap.push(
+            [
+                (3u8.into(), Variable::Witness(4)),
+                (4u8.into(), Variable::Instance(4)),
+            ],
+            &mut interner,
+        );
+
+        // Parallel mutation: double coefficients, increment vars
+        lcmap.lc_vars_iter_mut().for_each(|chunk| {
+            for v in chunk {
+                if v.is_instance() {
+                    *v = Variable::Instance(v.index().unwrap() + 1);
+                }
+            }
+        });
+
+        // Convert back to (F, Variable) for assertions
+        let flattened: Vec<_> = lcmap
+            .iter()
+            .flat_map(|chunk| to_non_interned_lc(chunk, &interner))
+            .collect();
+
+        let expected = vec![
+            (1u8.into(), Variable::One),
+            (2u8.into(), Variable::Instance(3)),
+            (3u8.into(), Variable::Witness(4)),
+            (4u8.into(), Variable::Instance(5)),
+        ];
+
+        assert_eq!(flattened, expected);
     }
 }
