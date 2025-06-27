@@ -477,14 +477,14 @@ mod tests {
         lcmap.push(
             [
                 (1u8.into(), Variable::One),
-                (2u8.into(), Variable::Instance(2)),
+                (2u8.into(), Variable::instance(2)),
             ],
             &mut interner,
         );
         lcmap.push(
             [
-                (3u8.into(), Variable::Witness(4)),
-                (4u8.into(), Variable::Instance(4)),
+                (3u8.into(), Variable::witness(4)),
+                (4u8.into(), Variable::instance(4)),
             ],
             &mut interner,
         );
@@ -493,7 +493,7 @@ mod tests {
         lcmap.lc_vars_par_iter_mut().for_each(|chunk| {
             for v in chunk {
                 if v.is_instance() {
-                    *v = Variable::Instance(v.index().unwrap() + 1);
+                    *v = Variable::instance(v.index().unwrap() + 1);
                 }
             }
         });
@@ -506,9 +506,9 @@ mod tests {
 
         let expected = vec![
             (1u8.into(), Variable::One),
-            (2u8.into(), Variable::Instance(3)),
-            (3u8.into(), Variable::Witness(4)),
-            (4u8.into(), Variable::Instance(5)),
+            (2u8.into(), Variable::instance(3)),
+            (3u8.into(), Variable::witness(4)),
+            (4u8.into(), Variable::instance(5)),
         ];
 
         assert_eq!(flattened, expected);
@@ -523,14 +523,14 @@ mod tests {
         lcmap.push(
             [
                 (1u8.into(), Variable::One),
-                (2u8.into(), Variable::Instance(2)),
+                (2u8.into(), Variable::instance(2)),
             ],
             &mut interner,
         );
         lcmap.push(
             [
-                (3u8.into(), Variable::Witness(4)),
-                (4u8.into(), Variable::Instance(4)),
+                (3u8.into(), Variable::witness(4)),
+                (4u8.into(), Variable::instance(4)),
             ],
             &mut interner,
         );
@@ -539,7 +539,7 @@ mod tests {
         lcmap.lc_vars_iter_mut().for_each(|chunk| {
             for v in chunk {
                 if v.is_instance() {
-                    *v = Variable::Instance(v.index().unwrap() + 1);
+                    *v = Variable::instance(v.index().unwrap() + 1);
                 }
             }
         });
@@ -552,9 +552,9 @@ mod tests {
 
         let expected = vec![
             (1u8.into(), Variable::One),
-            (2u8.into(), Variable::Instance(3)),
-            (3u8.into(), Variable::Witness(4)),
-            (4u8.into(), Variable::Instance(5)),
+            (2u8.into(), Variable::instance(3)),
+            (3u8.into(), Variable::witness(4)),
+            (4u8.into(), Variable::instance(5)),
         ];
 
         assert_eq!(flattened, expected);

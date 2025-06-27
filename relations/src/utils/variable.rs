@@ -42,7 +42,7 @@ impl Variable {
 
     /// Construct an instance variable.
     #[inline(always)]
-    pub const fn Instance(i: usize) -> Self {
+    pub const fn instance(i: usize) -> Self {
         Self::pack(0b010, i as u64)
     }
 
@@ -54,7 +54,7 @@ impl Variable {
 
     /// Construct a new witness variable.
     #[inline(always)]
-    pub const fn Witness(i: usize) -> Self {
+    pub const fn witness(i: usize) -> Self {
         Self::pack(0b011, i as u64)
     }
 
@@ -66,7 +66,7 @@ impl Variable {
 
     /// Construct a symbolic linear combination variable.
     #[inline(always)]
-    pub const fn SymbolicLc(i: usize) -> Self {
+    pub const fn symbolic_lc(i: usize) -> Self {
         Self::pack(0b100, i as u64)
     }
 

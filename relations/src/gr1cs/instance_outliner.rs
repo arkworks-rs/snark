@@ -50,7 +50,7 @@ pub fn outline_r1cs<F: Field>(
         cs.enforce_r1cs_constraint(
             || lc![one],
             || lc![*witness],
-            || lc![Variable::Instance(instance)],
+            || lc![Variable::instance(instance)],
         )?;
     }
 
@@ -69,7 +69,7 @@ pub fn outline_sr1cs<F: Field>(
     // constraint system has a default r1cs predicate registered
     for (instance, witness) in instance_witness_map.iter().enumerate() {
         cs.enforce_sr1cs_constraint(
-            || lc_diff![Variable::Instance(instance), *witness],
+            || lc_diff![Variable::instance(instance), *witness],
             || lc![],
         )?;
     }

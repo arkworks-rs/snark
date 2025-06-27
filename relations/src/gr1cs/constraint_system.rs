@@ -468,7 +468,7 @@ impl<F: Field> ConstraintSystem<F> {
     fn new_lc_without_adding(&mut self) -> crate::gr1cs::Result<Variable> {
         let index = self.num_linear_combinations;
         self.num_linear_combinations += 1;
-        Ok(Variable::SymbolicLc(index))
+        Ok(Variable::symbolic_lc(index))
     }
 
     fn new_lc_add_helper(
@@ -481,7 +481,7 @@ impl<F: Field> ConstraintSystem<F> {
     ) -> crate::gr1cs::Result<Variable> {
         match lc.0.as_slice() {
             // If the linear combination is empty, we return a symbolic LC with index 0.
-            [] | [(_, Variable::Zero)] => Ok(Variable::SymbolicLc(0)),
+            [] | [(_, Variable::Zero)] => Ok(Variable::symbolic_lc(0)),
             // If the linear combination is just another variable
             // with a coefficient of 1, we return the variable directly.
             [(c, var)] if c.is_one() => Ok(*var),
@@ -495,7 +495,7 @@ impl<F: Field> ConstraintSystem<F> {
                     let value = assignments.eval_lc(index, lc_map, field_interner).unwrap();
                     assignments.lc_assignment.push(value)
                 }
-                Ok(Variable::SymbolicLc(index))
+                Ok(Variable::symbolic_lc(index))
             },
         }
     }
@@ -606,7 +606,7 @@ impl<F: Field> ConstraintSystem<F> {
         if !self.is_in_setup_mode() {
             self.assignments.instance_assignment.push(f()?);
         }
-        Ok(Variable::Instance(index))
+        Ok(Variable::instance(index))
     }
 
     /// Obtain a variable representing a new private witness input.
@@ -621,7 +621,7 @@ impl<F: Field> ConstraintSystem<F> {
         if !self.is_in_setup_mode() {
             self.assignments.witness_assignment.push(f()?);
         }
-        Ok(Variable::Witness(index))
+        Ok(Variable::witness(index))
     }
 
     /// Register a predicate in the constraint system with a given label.
