@@ -222,7 +222,7 @@ unsafe fn windowed_access<'a>(
         // By precondition 1, `w` is a slice of length 2, so these accesses are within bounds.
         let start = *w.get_unchecked(0);
         let end = *w.get_unchecked(1);
-        // By precondition 2, `start..end` is not an empty range.
+        // By precondition 2, `start..end` is always valid.
         // By precondition 3, `end` is within bounds of `coeffs` and `vars`.
         coeffs
             .get_unchecked(start..end)
