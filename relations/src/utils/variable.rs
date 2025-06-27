@@ -143,7 +143,7 @@ impl Variable {
     /// Does not check that the tag and payload are valid.
     const fn pack_unchecked(tag: u64, payload: u64) -> Self {
         debug_assert!(payload <= Self::PAYLOAD_MASK);
-        Variable(((tag as u64) << Self::TAG_SHIFT) | payload & Self::PAYLOAD_MASK)
+        Variable((tag << Self::TAG_SHIFT) | payload & Self::PAYLOAD_MASK)
     }
 
     #[cfg(test)]

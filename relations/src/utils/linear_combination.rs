@@ -103,7 +103,7 @@ impl<F: Field> LinearCombination<F> {
     /// Create a new linear combination from the difference of two variables.
     pub fn diff_vars(a: Variable, b: Variable) -> Self {
         if a == b {
-            return LinearCombination::zero();
+            LinearCombination::zero()
         } else {
             LinearCombination(vec![(F::one(), a), (-F::one(), b)])
         }
@@ -130,7 +130,7 @@ impl<F: Field> From<(F, Variable)> for LinearCombination<F> {
     #[inline]
     fn from(input: (F, Variable)) -> Self {
         if input.0.is_zero() || input.1.is_zero() {
-            return LinearCombination::zero();
+            LinearCombination::zero()
         } else {
             LinearCombination(vec![input])
         }

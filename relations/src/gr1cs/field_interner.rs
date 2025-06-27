@@ -59,7 +59,7 @@ impl<F: Field> FieldInterner<F> {
     #[inline(always)]
     pub(crate) fn value(&self, id: InternedField) -> Option<F> {
         if id == InternedField(0) {
-            return Some(F::ONE);
+            Some(F::ONE)
         } else if id == InternedField(1) {
             return Some(-F::ONE);
         } else {

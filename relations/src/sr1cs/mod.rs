@@ -263,7 +263,7 @@ mod tests {
     use ark_test_curves::bls12_381::Fr;
 
     use super::*;
-    #[derive(Copy)]
+
     struct DummyCircuit<F: PrimeField> {
         pub a: Option<F>,
         pub b: Option<F>,
@@ -274,14 +274,15 @@ mod tests {
     impl<F: PrimeField> Clone for DummyCircuit<F> {
         fn clone(&self) -> Self {
             DummyCircuit {
-                a: self.a.clone(),
-                b: self.b.clone(),
-                num_variables: self.num_variables.clone(),
-                num_constraints: self.num_constraints.clone(),
+                a: self.a,
+                b: self.b,
+                num_variables: self.num_variables,
+                num_constraints: self.num_constraints,
             }
         }
     }
 
+    impl<F: PrimeField> Copy for DummyCircuit<F> {}
     impl<F: PrimeField> ConstraintSynthesizer<F> for DummyCircuit<F> {
         fn generate_constraints(self, cs: ConstraintSystemRef<F>) -> Result<(), SynthesisError> {
             let a = cs.new_witness_variable(|| self.a.ok_or(SynthesisError::AssignmentMissing))?;

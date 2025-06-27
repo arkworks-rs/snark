@@ -175,7 +175,7 @@ impl<F: Field> LcMap<F> {
     #[inline(always)]
     pub fn get(&self, idx: usize) -> Option<LcMapIterItem<'_>> {
         if idx >= self.num_lcs() || self.offsets.len() < 2 {
-            return cold();
+            cold()
         } else {
             unsafe {
                 // SAFETY:
@@ -240,8 +240,8 @@ unsafe fn windowed_access<'a>(
 /// and the second part is the remaining variables.
 /// `vars` is updated to point to the second part.
 #[inline(always)]
-unsafe fn windowed_access_mut<'a, 'b>(
-    w: &'a [usize],
+unsafe fn windowed_access_mut<'b>(
+    w: &[usize],
     vars: &mut &'b mut [Variable],
 ) -> LcVarsIterMutItem<'b> {
     debug_assert!(w.len() == 2, "Expected a slice of length 2");
