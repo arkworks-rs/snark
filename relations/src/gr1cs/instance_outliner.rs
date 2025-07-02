@@ -21,8 +21,11 @@ pub struct InstanceOutliner<F: Field> {
     /// The strategy for outlining the instance variables
     /// It takes as input the constraint system, and a map from the new
     /// instance variables to the new witness variables.
-    pub func: Rc<dyn Fn(&mut ConstraintSystem<F>, &[Variable]) -> Result<(), SynthesisError>>,
+    pub func: OutliningFunc<F>,
 }
+
+type OutliningFunc<F> =
+    Rc<dyn Fn(&mut ConstraintSystem<F>, &[Variable]) -> Result<(), SynthesisError>>;
 
 impl<F: Field> Debug for InstanceOutliner<F> {
     fn fmt(&self, f: &mut ark_std::fmt::Formatter<'_>) -> ark_std::fmt::Result {
@@ -50,7 +53,7 @@ pub fn outline_r1cs<F: Field>(
         cs.enforce_r1cs_constraint(
             || lc![one],
             || lc![*witness],
-            || lc![Variable::Instance(instance)],
+            || lc![Variable::instance(instance)],
         )?;
     }
 
@@ -69,7 +72,7 @@ pub fn outline_sr1cs<F: Field>(
     // constraint system has a default r1cs predicate registered
     for (instance, witness) in instance_witness_map.iter().enumerate() {
         cs.enforce_sr1cs_constraint(
-            || lc_diff![Variable::Instance(instance), *witness],
+            || lc_diff![Variable::instance(instance), *witness],
             || lc![],
         )?;
     }

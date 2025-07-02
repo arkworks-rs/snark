@@ -1,5 +1,5 @@
 //! This module contains the implementation of the Polynomial Predicate struct.
-//! A polynomial predicate is a kind of  predicate which is defined in https://eprint.iacr.org/2024/1245.
+//! A polynomial predicate is a kind of predicate which is defined in <https://eprint.iacr.org/2024/1245>.
 //! Other kinds of  predicates can be added in the future such as lookup
 //! table predicates.
 

@@ -34,7 +34,7 @@ impl ConstraintSynthesizer<Fr> for BenchCircuit {
 
         for i in 0..self.num_constraints {
             let cur_num_vars = ark_std::cmp::min(variables.len(), 10);
-            let lower = variables.len().checked_sub(cur_num_vars).unwrap_or(0);
+            let lower = variables.len().saturating_sub(cur_num_vars);
             let upper = variables.len();
 
             let a_i_lc_size = rng_a.gen_range(1..=NUM_COEFFS_IN_LC);

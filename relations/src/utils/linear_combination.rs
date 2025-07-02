@@ -9,12 +9,9 @@ use ark_std::{
 
 use super::variable::Variable;
 
-#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Hash)]
-/// An opaque counter for symbolic linear combinations.
-pub struct LcIndex(pub usize);
-
 /// A linear combination of variables according to associated coefficients.
 #[derive(Debug, Clone, PartialEq, Eq, Default, PartialOrd, Ord)]
+#[must_use]
 pub struct LinearCombination<F: Field>(pub Vec<(F, Variable)>);
 
 /// Generate a `LinearCombination` from arithmetic expressions involving
@@ -43,7 +40,7 @@ macro_rules! lc_diff {
 impl<F: Field> LinearCombination<F> {
     /// Create a new empty linear combination.
     pub fn new() -> Self {
-        Default::default()
+        Self::default()
     }
 
     /// Create a new empty linear combination.
@@ -52,6 +49,7 @@ impl<F: Field> LinearCombination<F> {
     }
 
     /// Deduplicate entries in `self` by combining coefficients of identical variables.
+    #[inline]
     pub fn compactify(&mut self) {
         // For 0 or 1 element, there is nothing to do.
         if self.len() <= 1 {
@@ -106,7 +104,7 @@ impl<F: Field> LinearCombination<F> {
     /// Create a new linear combination from the difference of two variables.
     pub fn diff_vars(a: Variable, b: Variable) -> Self {
         if a == b {
-            return LinearCombination::zero();
+            LinearCombination::zero()
         } else {
             LinearCombination(vec![(F::one(), a), (-F::one(), b)])
         }
@@ -133,7 +131,7 @@ impl<F: Field> From<(F, Variable)> for LinearCombination<F> {
     #[inline]
     fn from(input: (F, Variable)) -> Self {
         if input.0.is_zero() || input.1.is_zero() {
-            return LinearCombination::zero();
+            LinearCombination::zero()
         } else {
             LinearCombination(vec![input])
         }
@@ -151,6 +149,16 @@ impl<F: Field> From<Variable> for LinearCombination<F> {
     }
 }
 
+impl<F: Field> IntoIterator for LinearCombination<F> {
+    type Item = (F, Variable);
+    type IntoIter = ark_std::vec::IntoIter<(F, Variable)>;
+
+    #[inline]
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.into_iter()
+    }
+}
+
 impl<F: Field> LinearCombination<F> {
     /// Negate the coefficients of all variables in `self`.
     #[inline]
@@ -159,6 +167,9 @@ impl<F: Field> LinearCombination<F> {
     }
 
     /// Get the location of a variable in `self`.
+    ///
+    /// # Errors
+    /// If the variable is not found, returns the index where it would be inserted.
     #[inline]
     pub fn get_var_loc(&self, search_var: &Variable) -> Result<usize, usize> {
         if self.0.len() < 6 {
@@ -296,9 +307,10 @@ where
     let mut i = 0;
     let mut j = 0;
     while i < cur.len() && j < other.len() {
+        use core::cmp::Ordering;
+
         let self_cur = &cur[i];
         let other_cur = &other[j];
-        use core::cmp::Ordering;
         match self_cur.1.cmp(&other_cur.1) {
             Ordering::Greater => {
                 new_vec.push((push_fn(other[j].0), other[j].1));
@@ -313,7 +325,7 @@ where
                 i += 1;
                 j += 1;
             },
-        };
+        }
     }
     new_vec.extend_from_slice(&cur[i..]);
     while j < other.0.len() {

@@ -1,23 +1,24 @@
 //! Core interface for working with Generalized Rank-1 Constraint Systems
 //! (GR1CS).
 mod constraint_system_ref;
+mod namespace;
+#[macro_use]
+mod constraint_system;
+mod assignment;
+
+pub(crate) mod field_interner;
+mod lc_map;
 
 /// Interface for specifying strategies for reducing the number of constraints
 /// that public input/instance variables are involved in.
 pub mod instance_outliner;
-
-mod namespace;
-
 pub mod predicate;
-
-#[macro_use]
-mod constraint_system;
-
-#[cfg(test)]
-mod tests;
 
 #[cfg(feature = "std")]
 pub mod trace;
+
+#[cfg(test)]
+mod tests;
 ///////////////////////////////////////////////////////////////////////////////////////
 
 #[cfg(feature = "std")]
@@ -30,13 +31,14 @@ pub use ark_ff::{Field, ToConstraintField};
 
 pub use crate::{
     gr1cs::{
-        constraint_system::ConstraintSystem, constraint_system_ref::ConstraintSystemRef,
+        assignment::Assignments, constraint_system::ConstraintSystem,
+        constraint_system_ref::ConstraintSystemRef,
         predicate::polynomial_constraint::R1CS_PREDICATE_LABEL,
     },
     lc,
     utils::{
         error::SynthesisError,
-        linear_combination::{LcIndex, LinearCombination},
+        linear_combination::LinearCombination,
         matrix::{mat_vec_mul, transpose, Matrix},
         variable::Variable,
         Result,
@@ -51,6 +53,10 @@ pub use namespace::Namespace;
 // TODO: Think: should we replace this with just a closure?
 pub trait ConstraintSynthesizer<F: Field> {
     /// Drives generation of new constraints inside `cs`.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if constraints cannot be generated successfully.
     fn generate_constraints(self, cs: ConstraintSystemRef<F>) -> crate::gr1cs::Result<()>;
 }
 

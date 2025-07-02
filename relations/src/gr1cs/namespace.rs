@@ -30,14 +30,14 @@ impl<F: Field> Namespace<F> {
 
     /// Manually leave the namespace.
     pub fn leave_namespace(self) {
-        drop(self)
+        drop(self);
     }
 }
 
 impl<F: Field> Drop for Namespace<F> {
     fn drop(&mut self) {
         if let Some(id) = self.id.as_ref() {
-            tracing::dispatcher::get_default(|dispatch| dispatch.exit(id))
+            tracing::dispatcher::get_default(|dispatch| dispatch.exit(id));
         }
         let _ = self.inner;
     }

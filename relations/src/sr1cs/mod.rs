@@ -116,6 +116,11 @@ impl<F: Field> Sr1csAdapter<F> {
     }
 
     /// Converts an R1CS constraint system to an SR1CS constraint system.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the constraint system does not have the R1CS predicate registered or
+    /// if there is more than one predicate registered.
     pub fn r1cs_to_sr1cs(
         cs: &ConstraintSystemRef<F>,
     ) -> Result<ConstraintSystemRef<F>, SynthesisError> {
@@ -179,6 +184,10 @@ impl<F: Field> Sr1csAdapter<F> {
 
     /// Converts an R1CS constraint system to an SR1CS constraint system,
     /// while also converting the R1CS assignment to an equivalent SR1CS assignment.
+    ///
+    /// # Panics
+    ///
+    /// Panics is the constraint system does not have the R1CS predicate registered.
     pub fn r1cs_to_sr1cs_with_assignment(
         cs: &mut ConstraintSystem<F>,
     ) -> Result<ConstraintSystemRef<F>, SynthesisError> {
@@ -263,7 +272,7 @@ mod tests {
     use ark_test_curves::bls12_381::Fr;
 
     use super::*;
-    #[derive(Copy)]
+
     struct DummyCircuit<F: PrimeField> {
         pub a: Option<F>,
         pub b: Option<F>,
@@ -274,14 +283,15 @@ mod tests {
     impl<F: PrimeField> Clone for DummyCircuit<F> {
         fn clone(&self) -> Self {
             DummyCircuit {
-                a: self.a.clone(),
-                b: self.b.clone(),
-                num_variables: self.num_variables.clone(),
-                num_constraints: self.num_constraints.clone(),
+                a: self.a,
+                b: self.b,
+                num_variables: self.num_variables,
+                num_constraints: self.num_constraints,
             }
         }
     }
 
+    impl<F: PrimeField> Copy for DummyCircuit<F> {}
     impl<F: PrimeField> ConstraintSynthesizer<F> for DummyCircuit<F> {
         fn generate_constraints(self, cs: ConstraintSystemRef<F>) -> Result<(), SynthesisError> {
             let a = cs.new_witness_variable(|| self.a.ok_or(SynthesisError::AssignmentMissing))?;
