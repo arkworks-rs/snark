@@ -26,7 +26,7 @@ impl ConstraintSynthesizer<Fr> for BenchCircuit {
         let c = cs.new_witness_variable(|| Ok(self.c)).unwrap();
         let mut variables = vec![a, b, c];
         variables.reserve(3 * self.num_constraints);
-        let mut lcs = Vec::with_capacity(self.num_constraints);
+        // let mut lcs = Vec::with_capacity(self.num_constraints);
 
         let mut rng_a = ark_std::rand::rngs::StdRng::seed_from_u64(0u64);
         let mut rng_b = ark_std::rand::rngs::StdRng::seed_from_u64(rng_a.gen::<u64>());
@@ -66,7 +66,7 @@ impl ConstraintSynthesizer<Fr> for BenchCircuit {
                     )
                 };
                 let extra_lc = cs.new_lc(extra_lc)?;
-                lcs.push(extra_lc);
+                // lcs.push(extra_lc);
                 cs.enforce_r1cs_constraint(|| a_i() + extra_lc, b_i, || c_i.into())?;
             } else {
                 cs.enforce_r1cs_constraint(a_i, b_i, || c_i.into())?;
