@@ -183,22 +183,17 @@ impl<F: Field> PredicateConstraintSystem<F> {
     /// Check if the constraints enforced by this predicate are satisfied
     /// i.e. `L(x_1, x_2, ..., x_n) == 0`.
     pub fn which_constraint_is_unsatisfied(&self, cs: &ConstraintSystem<F>) -> Option<usize> {
+        let panic_msg = |v| panic!("Variable {v:?} is not assigned; did you run `cs.finalize()`?");
         for (i, constraint) in self.iter_constraints().enumerate() {
             let variables: Vec<F> = constraint
                 .into_iter()
-                .map(|variable| {
-                    cs.assigned_value(variable).unwrap_or_else(|| {
-                        if variable.is_lc() {
-                            let lc_variables = cs.get_lc(variable);
-                            lc_variables.iter().map(|(coeff, var)| {
-                                *coeff * cs
-                                    .assigned_value(*var)
-                                    .expect(&format!("Variables {var:?} is not assigned; did you run `cs.finalize()`?"))
-                            }).sum()
-                        } else {
-                            panic!("Variables {variable:?} is not assigned; did you run `cs.finalize()`?");
-                        }
-                        })
+                .map(|v| {
+                    cs.assigned_value(v).unwrap_or_else(|| {
+                        cs.get_lc(v)
+                            .iter()
+                            .map(|&(c, v)| c * cs.assigned_value(v).unwrap_or_else(|| panic_msg(v)))
+                            .sum()
+                    })
                 })
                 .collect();
             if !self.predicate.is_satisfied(&variables) {
