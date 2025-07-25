@@ -186,9 +186,22 @@ impl<F: Field> PredicateConstraintSystem<F> {
         for (i, constraint) in self.iter_constraints().enumerate() {
             let variables: Vec<F> = constraint
                 .into_iter()
-                .map(|variable| cs.assigned_value(variable).unwrap())
+                .map(|variable| {
+                    cs.assigned_value(variable).unwrap_or_else(|| {
+                        if variable.is_lc() {
+                            let lc_variables = cs.get_lc(variable);
+                            lc_variables.iter().map(|(coeff, var)| {
+                                *coeff * cs
+                                    .assigned_value(*var)
+                                    .expect(&format!("Variables {var:?} is not assigned; did you run `cs.finalize()`?"))
+                            }).sum()
+                        } else {
+                            panic!("Variables {variable:?} is not assigned; did you run `cs.finalize()`?");
+                        }
+                        })
+                })
                 .collect();
-            if self.predicate.is_satisfied(&variables) {
+            if !self.predicate.is_satisfied(&variables) {
                 return Some(i);
             }
         }
