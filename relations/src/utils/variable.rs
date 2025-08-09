@@ -130,13 +130,15 @@ impl Variable {
     #[inline(always)]
     #[allow(unsafe_code)]
     pub const fn kind(self) -> VarKind {
-        match self.tag() {
+        let tag = self.tag();
+        debug_assert!(tag <= 4);
+        match tag {
             0 => VarKind::Zero,
             1 => VarKind::One,
             2 => VarKind::Instance,
             3 => VarKind::Witness,
             4 => VarKind::SymbolicLc,
-            _ => unsafe { core::hint::unreachable_unchecked() },
+            _ => VarKind::SymbolicLc,
         }
     }
 
