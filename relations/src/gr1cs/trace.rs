@@ -307,7 +307,7 @@ impl fmt::Display for ConstraintTrace {
                     f,
                     "{:>4}: {}::{}",
                     span,
-                    metadata.module_path().unwrap(),
+                    metadata.module_path().unwrap_or(metadata.target()),
                     metadata.name()
                 ),
                 err
