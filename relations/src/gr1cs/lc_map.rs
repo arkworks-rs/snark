@@ -305,7 +305,7 @@ impl<'a> Iterator for LcVarsIterMut<'a> {
 
     #[inline]
     fn size_hint(&self) -> (usize, Option<usize>) {
-        let len = self.offsets.len() - 1;
+        let len = self.offsets.len();
         (len, Some(len))
     }
 }
