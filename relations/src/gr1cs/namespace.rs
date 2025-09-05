@@ -6,7 +6,7 @@ use tracing::Span;
 #[derive(Clone)]
 pub struct Namespace<F: Field> {
     inner: ConstraintSystemRef<F>,
-    _guard: tracing::span::EnteredSpan, // хранит EnterGuard, чтобы спан закрывался при Drop
+    _guard: tracing::span::EnteredSpan,
 }
 
 impl<F: Field> From<ConstraintSystemRef<F>> for Namespace<F> {
