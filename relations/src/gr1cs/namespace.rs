@@ -1,26 +1,31 @@
 use super::ConstraintSystemRef;
 use ark_ff::Field;
+use tracing::Span;
 
 /// A namespaced `ConstraintSystemRef`.
 #[derive(Clone)]
 pub struct Namespace<F: Field> {
     inner: ConstraintSystemRef<F>,
-    id: Option<tracing::Id>,
+    _guard: tracing::span::EnteredSpan, // хранит EnterGuard, чтобы спан закрывался при Drop
 }
 
 impl<F: Field> From<ConstraintSystemRef<F>> for Namespace<F> {
     fn from(other: ConstraintSystemRef<F>) -> Self {
+        let span = tracing::info_span!(target: "gr1cs", "namespace");
+        let guard = span.enter();
         Self {
             inner: other,
-            id: None,
+            _guard: guard,
         }
     }
 }
 
 impl<F: Field> Namespace<F> {
     /// Construct a new `Namespace`.
-    pub fn new(inner: ConstraintSystemRef<F>, id: Option<tracing::Id>) -> Self {
-        Self { inner, id }
+    pub fn new(inner: ConstraintSystemRef<F>, name: &str) -> Self {
+        let span = tracing::info_span!(target: "gr1cs", name);
+        let guard = span.enter();
+        Self { inner, _guard: guard }
     }
 
     /// Obtain the inner `ConstraintSystemRef<F>`.
@@ -36,9 +41,6 @@ impl<F: Field> Namespace<F> {
 
 impl<F: Field> Drop for Namespace<F> {
     fn drop(&mut self) {
-        if let Some(id) = self.id.as_ref() {
-            tracing::dispatcher::get_default(|dispatch| dispatch.exit(id));
-        }
         let _ = self.inner;
     }
 }
@@ -90,14 +92,8 @@ impl<F: Field> Drop for Namespace<F> {
 macro_rules! ns {
     ($cs:expr, $name:expr) => {{
         // Define a span with `gr1cs` as the target and the given name
-        let span = $crate::gr1cs::info_span!(target: "gr1cs", $name);
-        let id = span.id();
-        // Enter the span
-        let _enter_guard = span.enter();
-        // We want the span and the guard to live forever so we forget them
-        core::mem::forget(_enter_guard);
-        core::mem::forget(span);
-        // Create a new namespace
-        $crate::gr1cs::Namespace::new($cs.clone(), id)
+        let span = $crate::gr1cs::tracing::info_span!(target: "gr1cs", $name);
+        let guard = span.enter();
+        $crate::gr1cs::Namespace::new($cs.clone(), $name)
     }};
 }
