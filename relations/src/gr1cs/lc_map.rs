@@ -566,4 +566,17 @@ mod tests {
 
         assert_eq!(flattened, expected);
     }
+
+    #[test]
+    fn test_lc_vars_iter_mut_size_hint_empty() {
+        // When there are no linear combinations, `LcMap::offsets` has length 1,
+        // so `offsets.windows(2)` yields zero windows. The iterator's size_hint
+        // must therefore be (0, Some(0)) and must not panic.
+        let mut lcmap = LcMap::<Fr>::new();
+
+        let mut it = lcmap.lc_vars_iter_mut();
+        let (lower, upper) = it.size_hint();
+        assert_eq!((lower, upper), (0, Some(0)));
+        assert!(it.next().is_none());
+    }
 }
