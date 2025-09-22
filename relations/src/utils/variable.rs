@@ -136,7 +136,7 @@ impl Variable {
             2 => VarKind::Instance,
             3 => VarKind::Witness,
             4 => VarKind::SymbolicLc,
-            _ => unsafe { core::hint::unreachable_unchecked() },
+           _ => unreachable!("invalid variable tag: {}", self.tag()),
         }
     }
 
