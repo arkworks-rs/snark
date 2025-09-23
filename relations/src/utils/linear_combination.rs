@@ -48,7 +48,8 @@ impl<F: Field> LinearCombination<F> {
         Self::new()
     }
 
-    /// Deduplicate entries in `self` by combining coefficients of identical variables.
+    /// Deduplicate entries in `self` by combining coefficients of identical
+    /// variables.
     #[inline]
     pub fn compactify(&mut self) {
         // For 0 or 1 element, there is nothing to do.
@@ -93,7 +94,8 @@ impl<F: Field> LinearCombination<F> {
         lc
     }
 
-    /// Create a new linear combination from the sum of many (coefficient, variable) pairs.
+    /// Create a new linear combination from the sum of many (coefficient,
+    /// variable) pairs.
     #[inline]
     pub fn from_sum_coeff_vars(terms: &[(F, Variable)]) -> Self {
         let mut lc = LinearCombination(terms.to_vec());
@@ -169,20 +171,19 @@ impl<F: Field> LinearCombination<F> {
     /// Get the location of a variable in `self`.
     ///
     /// # Errors
-    /// If the variable is not found, returns the index where it would be inserted.
+    /// If the variable is not found, returns the index where it would be
+    /// inserted.
     #[inline]
     pub fn get_var_loc(&self, search_var: &Variable) -> Result<usize, usize> {
         if self.0.len() < 6 {
-            let mut found_index = 0;
-            for (i, (_, var)) in self.iter().enumerate() {
-                if var >= search_var {
-                    found_index = i;
-                    break;
-                } else {
-                    found_index += 1;
+            for (i, &(_, var)) in self.iter().enumerate() {
+                if var == *search_var {
+                    return Ok(i);
+                } else if var > *search_var {
+                    return Err(i);
                 }
             }
-            Err(found_index)
+            return Err(self.0.len());
         } else {
             self.0
                 .binary_search_by_key(search_var, |&(_, cur_var)| cur_var)
@@ -596,5 +597,33 @@ impl<F: Field> Sub<(F, LinearCombination<F>)> for LinearCombination<F> {
 
     fn sub(self, (coeff, other): (F, LinearCombination<F>)) -> LinearCombination<F> {
         self + (-coeff, other)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::LinearCombination;
+    use crate::utils::variable::Variable;
+    use ark_test_curves::bls12_381::Fr;
+
+    #[test]
+    fn add_assign_merges_on_equality_small_vec_singleton() {
+        // Start with a length-1 LC so the small-vector linear search branch is used.
+        let v = Variable::witness(5);
+        let mut lc: LinearCombination<Fr> = LinearCombination::from((Fr::from(3u64), v));
+        // Adding the same variable should merge coefficients, not insert a duplicate.
+        lc += (Fr::from(2u64), v);
+
+        assert_eq!(
+            lc.len(),
+            1,
+            "should not create a duplicate entry for the same variable"
+        );
+        assert_eq!(lc[0].1, v, "variable should remain the same entry");
+        assert_eq!(
+            lc[0].0,
+            Fr::from(5u64),
+            "coefficients should sum when variables are equal"
+        );
     }
 }
