@@ -125,6 +125,7 @@ impl<F: Field> Sr1csAdapter<F> {
         cs: &ConstraintSystemRef<F>,
     ) -> Result<ConstraintSystemRef<F>, SynthesisError> {
         assert_eq!(cs.num_predicates(), 1);
+        assert!(cs.has_predicate(R1CS_PREDICATE_LABEL));
         let matrices = &cs.to_matrices().unwrap()[R1CS_PREDICATE_LABEL];
         let mut public_variables = BTreeMap::new();
         let mut witness_variables = BTreeMap::new();
@@ -187,10 +188,11 @@ impl<F: Field> Sr1csAdapter<F> {
     ///
     /// # Panics
     ///
-    /// Panics is the constraint system does not have the R1CS predicate registered.
+    /// Panics if the constraint system does not have the R1CS predicate registered.
     pub fn r1cs_to_sr1cs_with_assignment(
         cs: &mut ConstraintSystem<F>,
     ) -> Result<ConstraintSystemRef<F>, SynthesisError> {
+        assert!(cs.has_predicate(R1CS_PREDICATE_LABEL));
         let matrices = &cs.to_matrices().unwrap()[R1CS_PREDICATE_LABEL];
         let mut public_variables = BTreeMap::new();
         let mut witness_variables = BTreeMap::new();
