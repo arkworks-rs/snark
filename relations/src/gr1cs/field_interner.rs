@@ -4,11 +4,19 @@ use ark_ff::Field;
 
 use crate::utils::IndexMap;
 
-/// Interned field element:
+/// Interned field element.
 ///
-/// * bit 0   – tag: 0 = inline constant, 1 = pooled
-/// * bits 1-23  (23 b) – signed small constant (two’s complement)
-/// * bits 24-63 (40 b) – index into the coefficient pool
+/// Representation:
+/// - `InternedField(0)` represents `F::ONE`.
+/// - `InternedField(1)` represents `-F::ONE`.
+/// - `InternedField(n)` for `n >= 2` is an index into `FieldInterner::vec`.
+///
+/// Notes:
+/// - `InternedField` is an opaque handle; there are no bit tags or inline
+///   small-constant encodings.
+/// - Capacity is bounded by `u32::MAX` due to the `u32` index.
+/// - Use `FieldInterner::get_or_intern` to obtain handles and
+///   `FieldInterner::value` to recover field elements.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd, Hash)]
 pub struct InternedField(u32);
 
