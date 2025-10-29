@@ -4,8 +4,7 @@
 //! wrappers around the functions of `ConstraintSystem`.
 
 use crate::utils::IndexMap;
-use ark_std::boxed::Box;
-use ark_std::collections::BTreeMap;
+use ark_std::{boxed::Box, collections::BTreeMap};
 use core::cell::{Ref, RefCell, RefMut};
 
 use super::{
@@ -226,11 +225,12 @@ impl<F: Field> ConstraintSystemRef<F> {
 
     /// Enforce an R1CS constraint in the constraint system.
     /// On input `a`, `b`, and `c`, this method enforces that `a * b = c`.
-    /// If the R1CS predicate has not been already added, this method will add it.
+    /// If the R1CS predicate has not been already added, this method will add
+    /// it.
     ///
     /// This method is a special case
-    /// of `enforce_constraint` and is used to provide a low-effort way to port prior
-    /// code that assumed that R1CS is the only kind of predicate.
+    /// of `enforce_constraint` and is used to provide a low-effort way to port
+    /// prior code that assumed that R1CS is the only kind of predicate.
     #[inline]
     pub fn enforce_r1cs_constraint(
         &self,
@@ -492,11 +492,40 @@ impl<F: Field> ConstraintSystemRef<F> {
             .and_then(|cs| cs.borrow().to_matrices())
     }
 
-    /// Get the linear combination corresponding to the given `lc_index`.
-    /// TODO: This function should ideally return a reference to the linear
-    /// combination and not clone it.
+    /// Get the linear combination corresponding to the given `var`.
+    ///
+    /// Note: This method clones the linear combination. If you only need to
+    /// read from it, consider using `with_lc` instead to avoid the clone.
     pub fn get_lc(&self, var: Variable) -> Option<LinearCombination<F>> {
         self.inner().map(|cs| cs.borrow().get_lc(var))
+    }
+
+    /// Access the linear combination corresponding to the given `var` through a
+    /// closure, avoiding the need to clone it if you only need to read from
+    /// it.
+    ///
+    /// This method allows you to work with the linear combination as a
+    /// reference without cloning it, which is more efficient when you only
+    /// need to read from it.
+    ///
+    /// # Example
+    /// ```ignore
+    /// cs_ref.with_lc(var, |lc| {
+    ///     // Use lc as &LinearCombination<F> here
+    ///     for (coeff, var) in lc.iter() {
+    ///         // process coeff and var
+    ///     }
+    /// });
+    /// ```
+    pub fn with_lc<R>(
+        &self,
+        var: Variable,
+        f: impl FnOnce(&LinearCombination<F>) -> R,
+    ) -> Option<R> {
+        self.inner().map(|cs| {
+            let lc = cs.borrow().get_lc(var);
+            f(&lc)
+        })
     }
 
     /// Given a linear combination, create a row in the matrix
