@@ -175,7 +175,9 @@ impl<F: Field> LinearCombination<F> {
         if self.0.len() < 6 {
             let mut found_index = 0;
             for (i, (_, var)) in self.iter().enumerate() {
-                if var >= search_var {
+                if var == search_var {
+                    return Ok(i);
+                } else if var > search_var {
                     found_index = i;
                     break;
                 } else {
@@ -596,5 +598,39 @@ impl<F: Field> Sub<(F, LinearCombination<F>)> for LinearCombination<F> {
 
     fn sub(self, (coeff, other): (F, LinearCombination<F>)) -> LinearCombination<F> {
         self + (-coeff, other)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use ark_test_curves::bls12_381::Fr;
+    use ark_ff::Field;
+
+    #[test]
+    fn test_add_assign_merges_coefficients_small_lc() {
+        let var = Variable::instance(1);
+        let mut lc: LinearCombination<Fr> = LinearCombination::from((Fr::ONE, var));
+        lc += (Fr::ONE, var);
+        assert_eq!(lc.len(), 1, "duplicate entry inserted instead of merging");
+        assert_eq!(lc[0].0, Fr::ONE + Fr::ONE, "coefficient was not accumulated");
+    }
+
+    #[test]
+    fn test_get_var_loc_returns_ok_when_found_small_lc() {
+        let var = Variable::instance(3);
+        let lc: LinearCombination<Fr> = LinearCombination::from((Fr::ONE, var));
+        assert!(lc.len() < 6);
+        assert!(lc.get_var_loc(&var).is_ok(), "must return Ok when variable is present");
+    }
+
+    #[test]
+    fn test_add_assign_merges_coefficients_large_lc() {
+        let vars: Vec<Variable> = (1..=7).map(Variable::instance).collect();
+        let mut lc: LinearCombination<Fr> = LinearCombination::zero();
+        for &v in &vars { lc += (Fr::ONE, v); }
+        lc += (Fr::ONE, vars[0]);
+        assert_eq!(lc.len(), 7, "duplicate entry inserted instead of merging");
+        assert_eq!(lc[0].0, Fr::ONE + Fr::ONE, "coefficient was not accumulated");
     }
 }
