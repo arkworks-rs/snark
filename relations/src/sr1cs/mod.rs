@@ -117,15 +117,17 @@ impl<F: Field> Sr1csAdapter<F> {
 
     /// Converts an R1CS constraint system to an SR1CS constraint system.
     ///
-    /// # Panics
+    /// # Errors
     ///
-    /// Panics if the constraint system does not have the R1CS predicate registered or
-    /// if there is more than one predicate registered.
+    /// Returns [`SynthesisError::PredicateNotFound`] if the constraint system does not have the
+    /// R1CS predicate registered, or if there is more than one predicate registered.
     pub fn r1cs_to_sr1cs(
         cs: &ConstraintSystemRef<F>,
     ) -> Result<ConstraintSystemRef<F>, SynthesisError> {
-        assert_eq!(cs.num_predicates(), 1);
-        let matrices = &cs.to_matrices().unwrap()[R1CS_PREDICATE_LABEL];
+        if cs.num_predicates() != 1 || !cs.has_predicate(R1CS_PREDICATE_LABEL) {
+            return Err(SynthesisError::PredicateNotFound);
+        }
+        let matrices = &cs.to_matrices()?[R1CS_PREDICATE_LABEL];
         let mut public_variables = BTreeMap::new();
         let mut witness_variables = BTreeMap::new();
         let num_public = cs.num_instance_variables();
@@ -185,13 +187,17 @@ impl<F: Field> Sr1csAdapter<F> {
     /// Converts an R1CS constraint system to an SR1CS constraint system,
     /// while also converting the R1CS assignment to an equivalent SR1CS assignment.
     ///
-    /// # Panics
+    /// # Errors
     ///
-    /// Panics is the constraint system does not have the R1CS predicate registered.
+    /// Returns [`SynthesisError::PredicateNotFound`] if the constraint system does not have the
+    /// R1CS predicate registered.
     pub fn r1cs_to_sr1cs_with_assignment(
         cs: &mut ConstraintSystem<F>,
     ) -> Result<ConstraintSystemRef<F>, SynthesisError> {
-        let matrices = &cs.to_matrices().unwrap()[R1CS_PREDICATE_LABEL];
+        if !cs.has_predicate(R1CS_PREDICATE_LABEL) {
+            return Err(SynthesisError::PredicateNotFound);
+        }
+        let matrices = &cs.to_matrices()?[R1CS_PREDICATE_LABEL];
         let mut public_variables = BTreeMap::new();
         let mut witness_variables = BTreeMap::new();
         let num_public = cs.num_instance_variables();
@@ -327,5 +333,50 @@ mod tests {
             num_constraints: 128,
         };
         circuit.generate_constraints(cs.clone()).unwrap();
+    }
+
+    // Regression tests: r1cs_to_sr1cs and r1cs_to_sr1cs_with_assignment used
+    // to assert!/unwrap() on a missing or extra predicate, panicking instead
+    // of returning the SynthesisError their own signatures already support.
+
+    #[test]
+    fn r1cs_to_sr1cs_without_r1cs_predicate_returns_error() {
+        let cs = ConstraintSystem::<Fr>::new_ref();
+        // A fresh ConstraintSystem registers the R1CS predicate by default;
+        // remove it so `cs` has zero predicates.
+        cs.remove_predicate(R1CS_PREDICATE_LABEL);
+
+        assert_eq!(
+            Sr1csAdapter::r1cs_to_sr1cs(&cs),
+            Err(SynthesisError::PredicateNotFound)
+        );
+    }
+
+    #[test]
+    fn r1cs_to_sr1cs_with_extra_predicate_returns_error() {
+        let cs = ConstraintSystem::<Fr>::new_ref();
+        // R1CS is already registered by default; register a second predicate
+        // alongside it so `cs` has more than one.
+        cs.register_predicate(
+            SR1CS_PREDICATE_LABEL,
+            predicate::PredicateConstraintSystem::new_sr1cs_predicate().unwrap(),
+        )
+        .unwrap();
+
+        assert_eq!(
+            Sr1csAdapter::r1cs_to_sr1cs(&cs),
+            Err(SynthesisError::PredicateNotFound)
+        );
+    }
+
+    #[test]
+    fn r1cs_to_sr1cs_with_assignment_without_r1cs_predicate_returns_error() {
+        let mut cs = ConstraintSystem::<Fr>::new();
+        cs.remove_predicate(R1CS_PREDICATE_LABEL);
+
+        assert_eq!(
+            Sr1csAdapter::r1cs_to_sr1cs_with_assignment(&mut cs),
+            Err(SynthesisError::PredicateNotFound)
+        );
     }
 }
