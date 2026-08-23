@@ -190,6 +190,8 @@ impl<F: Field> PredicateConstraintSystem<F> {
                 .map(|v| {
                     cs.assigned_value(v).unwrap_or_else(|| {
                         cs.get_lc(v)
+                            .expect("v is an lc index registered by this predicate's own \
+                                enforce_constraint calls, so it must exist in cs's lc_map")
                             .iter()
                             .map(|&(c, v)| c * cs.assigned_value(v).unwrap_or_else(|| panic_msg(v)))
                             .sum()
@@ -208,7 +210,10 @@ impl<F: Field> PredicateConstraintSystem<F> {
         let mut matrices: Vec<Matrix<F>> = vec![Vec::new(); self.get_arity()];
         for constraint in self.iter_constraints() {
             for (matrix_ind, lc_index) in constraint.iter().enumerate() {
-                let lc = cs.get_lc(*lc_index);
+                let lc = cs.get_lc(*lc_index).expect(
+                    "lc_index is registered by this predicate's own enforce_constraint \
+                    calls, so it must exist in cs's lc_map",
+                );
                 let row = cs.make_row(lc);
                 matrices[matrix_ind].push(row);
             }

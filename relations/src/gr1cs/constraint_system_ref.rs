@@ -496,7 +496,7 @@ impl<F: Field> ConstraintSystemRef<F> {
     /// TODO: This function should ideally return a reference to the linear
     /// combination and not clone it.
     pub fn get_lc(&self, var: Variable) -> Option<LinearCombination<F>> {
-        self.inner().map(|cs| cs.borrow().get_lc(var))
+        self.inner().and_then(|cs| cs.borrow().get_lc(var))
     }
 
     /// Given a linear combination, create a row in the matrix

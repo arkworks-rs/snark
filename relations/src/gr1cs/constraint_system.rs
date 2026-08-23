@@ -774,16 +774,20 @@ impl<F: Field> ConstraintSystem<F> {
     }
 
     /// Get the linear combination corresponding to the given `lc_index`.
-    pub fn get_lc(&self, var: Variable) -> LinearCombination<F> {
+    ///
+    /// Returns `None` if `var` is a symbolic linear combination variable
+    /// whose index does not exist in this constraint system (e.g. it was
+    /// created by a different `ConstraintSystem`).
+    pub fn get_lc(&self, var: Variable) -> Option<LinearCombination<F>> {
         if var.is_zero() {
-            LinearCombination::zero()
+            Some(LinearCombination::zero())
         } else if var.is_lc() {
-            let idx = var.index().unwrap();
-            LinearCombination(
-                to_non_interned_lc(self.lc_map.get(idx).unwrap(), &self.field_interner).collect(),
-            )
+            let idx = var.index()?;
+            Some(LinearCombination(
+                to_non_interned_lc(self.lc_map.get(idx)?, &self.field_interner).collect(),
+            ))
         } else {
-            LinearCombination::from(var)
+            Some(LinearCombination::from(var))
         }
     }
 
